@@ -1,0 +1,70 @@
+---
+import HeaderLink from './HeaderLink.astro'
+
+const routes = [
+  {
+    title: '笔记',
+    path: '/Notes',
+  },
+  {
+    title: '小记',
+    path: '/About',
+  },
+]
+---
+
+<div class="page-header h-16 bg-background border-b">
+  <div class="title">
+    <a href="/"><h2 class="hidden font-bold sm:inline-block">DGTS</h2></a>
+  </div>
+
+  <nav>
+    {
+      routes.map((route) => {
+        return <HeaderLink href={route.path}>{route.title}</HeaderLink>
+      })
+    }
+  </nav>
+
+  <div class="other">
+    <div class="social">1</div>
+
+    <div class="theme">
+      <!-- <ThemeSelect {...Astro.props}><slot /></ThemeSelect> -->
+    </div>
+  </div>
+</div>
+
+<style lang="less">
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 0 1.6rem;
+
+    background-color: hsl(var(--background));
+
+    .title {
+      a {
+        color: var(--sl-color-text-accent);
+        text-decoration: none;
+      }
+    }
+
+    nav {
+      display: flex;
+      height: 100%;
+      padding-left: 50%;
+    }
+
+    .other {
+      display: flex;
+      align-items: center;
+
+      .social {
+        margin-right: 22px;
+      }
+    }
+  }
+</style>
