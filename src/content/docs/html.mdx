@@ -1,6 +1,7 @@
 ---
 title: Html
 description: 超文本标记语言——HyperText Markup Language
+slug: html
 ---
 
 ### **什么是 html**
@@ -15,7 +16,7 @@ html 不是一门编程语言,而是一种用于定义内容结构的标记语�
 
 ### html 元素详解
 
-![](/public/assets/images/web_introduction/grumpy-cat-small.png)
+![](/assets/images/web_introduction/grumpy-cat-small.png)
 
 - Opening: 开始标签;被大于号,小于号包围;表示元素从这里开始产生作用。
 - Closing : 结束标签;与开始标签类似,只是在元素名前多了一个斜杠.表示元素结尾。
@@ -24,7 +25,7 @@ html 不是一门编程语言,而是一种用于定义内容结构的标记语�
 
 元素也可以拥有属性，属性看起来像这样:
 
-![](/public/assets/images/web_introduction/grumpy-cat-attribute-small.png)
+![](/assets/images/web_introduction/grumpy-cat-attribute-small.png)
 
 **为元素提供额外信息,这些信息不会出现在实际内容中**
 
@@ -109,7 +110,7 @@ html 不是一门编程语言,而是一种用于定义内容结构的标记语�
 
 ---
 
-### 使用建议 📌
+### 使用建议📌
 
 **标题元素**
 
@@ -176,18 +177,24 @@ html 不是一门编程语言,而是一种用于定义内容结构的标记语�
 
 ### 元素细节补充
 
-- 超链接元素
+###### 超链接元素
 
 `文档片段`:超链接除了可以链接到文档外，也可以链接到 HTML 文档的特定部分（被称为**文档片段**）。要做到这一点，你必须首先给要链接到的元素分配一个 [`id`](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Global_attributes#id) 属性。
 
-```html
-page1.html
+
+<CodeBlock title="page1.html">
+``` html
 <!-- 点击此链接将直接跳转至page2页面并且定位至#Mailing_address -->
 <a href="page2.html#Mailing_address">跳转至公司邮寄地址</a>
+```
+</CodeBlock>
 
-page2.html
+<CodeBlock title="page2.html">
+``` html
+<!-- 点击此链接将直接跳转至page2页面并且定位至#Mailing_address -->
 <h2 id="Mailing_address">邮寄地址</h2>
 ```
+</CodeBlock>
 
 `download属性`:当你链接到要下载的资源而不是在浏览器中打开时，你可以使用 `download` 属性来提供一个默认的保存文件名。
 
@@ -201,9 +208,8 @@ page2.html
 </a>
 ```
 
-`电子邮箱链接`
+`电子邮箱链接`:当点击一个链接或按钮时，可能会开启新的邮件的发送而不是连接到一个资源或页面。这种场景可以使用 `<a>`元素和`mailto:` URL 协议实现。
 
-当点击一个链接或按钮时，可能会开启新的邮件的发送而不是连接到一个资源或页面。这种场景可以使用 `<a>`元素和`mailto:` URL 协议实现。
 
 ```html
 <!-- 发送电子邮件的窗口也会被用户的邮件客户端打开 -->
@@ -213,28 +219,30 @@ page2.html
 更加详细的信息
 
 ```html
-<!--
- 发送电子邮件的窗口也会被用户的邮件客户端打开
-  href="mailto:nowhere@mozilla.org  --收件人
-  cc=name2@rapidtables.com			--抄送人
-  bcc=name3@rapidtables.com			--密件抄送 
-  subject=The%20subject%20of%20the%20email --标题内容
-  body=The%20body%20of%20the%20email 		--内容主体
- -->
 <a
-  href="mailto:nowhere@mozilla.org?cc=name2@rapidtables.com&bcc=name3@rapidtables.com&subject=The%20subject%20of%20the%20email&body=The%20body%20of%20the%20email"
+  href="mailto:nowhere@mozilla.org? 
+  cc=name2@rapidtables.com
+  &bcc=name3@rapidtables.com
+  &subject=The%20subject%20of%20the%20email
+  &body=The%20body%20of%20the%20email"
 >
   发送含有 cc、bcc、主题和主体的邮件
 </a>
 ```
+- href:收件人
+- cc:抄送人
+- bcc:密件抄送
+- subject:标题内容
+- body:内容主体
 
-<img src=".\assets\image-20240201165217254.png" alt="img" style="width:100%;" />
+![](/assets/images/web_introduction/email-detail.png)
+---
+###### 矢量图元素
 
-2. 矢量图元素
+两种不同的添加方式:
 
-   `两种不同的添加方式`
+`<img/>`元素
 
-   **<img/>元素**
 
 ```html
 <img
@@ -256,7 +264,7 @@ page2.html
 - 如果要使用 CSS 控制 SVG 内容，必须为内联样式。而不能通过外部样式表进行引用。
 - 不能用 CSS 伪类来重设图像样式（如`:focus`）。
 
-  **<svg/>元素**
+`<svg/>`元素
 
 ```html
 <svg width="300" height="200">
@@ -278,20 +286,13 @@ page2.html
 - 浏览器不能像缓存普通图片一样缓存内联 SVG。
 - 对于老旧的浏览器需要做特殊处理
 
-3. 图像元素
+---
 
-   响应式图片:根据分辨率大小显示相同的图片元素但大小会根据像素比例放大或缩小
+###### 图像元素
+
+响应式图片:根据分辨率大小显示相同的图片元素但大小会根据像素比例放大或缩小
 
 ```html
-<!--
-	备选图像源：elva-fairy-480w.jpg和elva-fairy-800w.jpg
-	elva-fairy-480w.jpg被标记为480w，表示其宽度为480像素，而elva-fairy-800w.jpg被标记为800w，表示其宽度为800像素。
-
-	sizes属性定义了两个条件：当视口宽度小于等于600像素时，图像的显示大小为480像素；当视口宽度大于600像素时，图像的显示大小为800像素。
-
-	如果浏览器不支持srcset属性或无法选择合适的图像源，则会回退到src属性指定的默认图像源（elva-fairy-800w.jpg）
-	alt属性用于提供图像的替代文本，以便在图像无法显示时进行替代显示。
-	-->
 <img
   srcset="elva-fairy-480w.jpg 480w, elva-fairy-800w.jpg 800w"
   sizes="(max-width: 600px) 480px,
@@ -299,39 +300,34 @@ page2.html
   src="elva-fairy-800w.jpg"
   alt="Elva dressed as a fairy"
 />
+```
+备选图像源：elva-fairy-480w.jpg和elva-fairy-800w.jpg
+	elva-fairy-480w.jpg被标记为480w，表示其宽度为480像素，而elva-fairy-800w.jpg被标记为800w，表示其宽度为800像素。
 
-<!--
-	浏览器会根据设备的特性和条件自动选择最适合的图像源进行加载。浏览器会检查设备的像素密度、视口宽度等因素，并根据这些信息来决定使用哪个图像源。
-	-->
+	sizes属性定义了两个条件：当视口宽度小于等于600像素时，图像的显示大小为480像素；当视口宽度大于600像素时，图像的显示大小为800像素。
+
+	如果浏览器不支持srcset属性或无法选择合适的图像源，则会回退到src属性指定的默认图像源（elva-fairy-800w.jpg）
+	alt属性用于提供图像的替代文本，以便在图像无法显示时进行替代显示。
+
+```html
 <img
   srcset="elva-fairy-320w.jpg, elva-fairy-480w.jpg 1.5x, elva-fairy-640w.jpg 2x"
   src="elva-fairy-640w.jpg"
   alt="Elva dressed as a fairy"
 />
+```
+浏览器会根据设备的特性和条件自动选择最适合的图像源进行加载。浏览器会检查设备的像素密度、视口宽度等因素，并根据这些信息来决定使用哪个图像源。
 
-<!--
-	<source>元素包含了两个备选图像源，并且每个<source>元素都有一个media属性，用于指定图像应该在哪些媒体查询条件下生效。
-	<img>元素是<picture>元素中的默认图像源，如果浏览器不支持<picture>元素或无法选择合适的图像源，则会回退到<img>元素指定的默认图像源
-	-->
+```html
 <picture>
   <source media="(max-width: 799px)" srcset="elva-480w-close-portrait.jpg" />
   <source media="(min-width: 800px)" srcset="elva-800w.jpg" />
   <img src="elva-800w.jpg" alt="Chris standing up holding his daughter Elva" />
 </picture>
 
-<!--
-	当需要根据设备特性和媒体查询条件加载不同图像时，使用<picture>元素。当需要提供不同分辨率的图像时，使用srcset属性。而sizes属性则用于指定图像在不同视口宽度下的显示大小。
-	-->
 ```
+`<source>`元素包含了两个备选图像源，并且每个`<source>`元素都有一个media属性，用于指定图像应该在哪些媒体查询条件下生效。
+`<img>`元素是`<picture>`元素中的默认图像源，如果浏览器不支持`<picture>`元素或无法选择合适的图像源，则会回退到`<img>`元素指定的默认图像源。
 
-```jsx title="example12.js"
-const user = 0
-```
+当需要根据设备特性和媒体查询条件加载不同图像时，使用`<picture>`元素。当需要提供不同分辨率的图像时，使用srcset属性。而sizes属性则用于指定图像在不同视口宽度下的显示大小。
 
-```jsx title="example1.js"
-const user = 0
-```
-
-```jsx title="example4.js"
-const user = 0
-```

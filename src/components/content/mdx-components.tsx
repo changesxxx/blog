@@ -1,6 +1,7 @@
 import * as React from 'react'
 
-import Callout from '@/components/callout.astro'
+import Callout from '@/components/Callout.astro'
+import CodeBlock from '@/components/CodeBlock.astro'
 import MdxCard from '@/components/content/mdx-card.astro'
 import { cn } from '@/lib/utils'
 import { Image } from 'astro:assets'
@@ -10,6 +11,7 @@ import '@/styles/notes.css'
 type Props = {
   className?: string
   title?: string
+  'data-language'?: string
 }
 
 export const MdxComponents = {
@@ -132,17 +134,21 @@ export const MdxComponents = {
       {...props}
     />
   ),
-  pre: ({ className, title, ...props }: Props) => {
-    // console.log('props', props)
+  pre: ({ className, ...props }: Props) => {
+    // console.log(props['data-language'])
+    const lang = props['data-language']
     return (
-      <pre
-        className={cn(
-          'mb-4 mt-6 overflow-x-auto rounded-lg border bg-black p-4 astro-code',
-          className,
-        )}
-        tabIndex={0}
-        {...props}
-      />
+      <div style={{ position: 'relative' }}>
+        <pre
+          className={cn(
+            'mb-4 mt-6 overflow-x-auto rounded-lg border bg-black p-4 astro-code',
+            className,
+          )}
+          tabIndex={0}
+          {...props}
+        ></pre>
+        <span className="lang">{lang}</span>
+      </div>
     )
   },
   code: ({ className, ...props }: Props) => (
@@ -151,4 +157,5 @@ export const MdxComponents = {
   Image,
   Callout,
   Card: MdxCard,
+  CodeBlock,
 }

@@ -106,6 +106,10 @@ hsl(205, 88%, 40%) */
   }
 }
 
+.current-chapter {
+  border-left: 2px solid var(--sl-color-text-accent);
+}
+
 @layer base {
   /*   @font-face {
     font-family: 'CalSans Semibold';

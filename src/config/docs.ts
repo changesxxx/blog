@@ -17,10 +17,15 @@ export const docsConfig: DocsConfig = {
       href: '/notes/html',
     },
     {
+      title: 'Css',
+      href: '/notes/css',
+    },
+
+    {
       title: 'Getting Started',
       items: [
         {
-          title: 'Introduction',
+          title: 'css',
           href: '/docs/getting-started/',
         },
       ],

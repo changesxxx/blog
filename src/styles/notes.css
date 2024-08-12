@@ -9,3 +9,14 @@
 code:not(pre code) {
   background-color: var(--code-bg-color);
 }
+
+.lang {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  z-index: 2;
+  font-size: 12px;
+  font-weight: 500;
+
+  color: aliceblue;
+}

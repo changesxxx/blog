@@ -23,7 +23,7 @@ export function DashboardTableOfContents({ toc }: TocProps) {
 
   return (
     <div className="space-y-2">
-      <p className="font-medium">On This Page</p>
+      <p className="font-medium">本页目录</p>
       <Tree tree={toc} activeItem={activeHeading} />
     </div>
   )
@@ -87,9 +87,9 @@ function Tree({ tree, level = 1, activeItem }: TreeProps) {
             <a
               href={item.url}
               className={cn(
-                'inline-block no-underline',
+                'inline-block no-underline pl-4 box-border',
                 item.url === `#${activeItem}`
-                  ? 'font-medium text-primary'
+                  ? 'font-medium text-primary current-chapter'
                   : 'text-sm text-muted-foreground',
               )}
             >
