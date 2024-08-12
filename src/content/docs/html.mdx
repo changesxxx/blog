@@ -2,33 +2,29 @@
 title: Html
 description: 超文本标记语言——HyperText Markup Language
 ---
+
 ### **什么是 html**
 
-
-  
-{/* type?: 'default' | 'warning' | 'danger' | 'info' */}
 <Callout icon="💡" type="info">
 
 html 不是一门编程语言,而是一种用于定义内容结构的标记语言;html 由一系列元素组成,这些元素用来包围不同的部分内容;一对标签可以实现内容的不同呈现;
 
 </Callout>
 
+---
 
 ### html 元素详解
 
-<img src="/public/assets/images/web_introduction/grumpy-cat-small.png" alt="img" class="mt-4"/>
+![](/public/assets/images/web_introduction/grumpy-cat-small.png)
 
-
-Opening tag: 开始标签;被大于号,小于号包围;表示元素从这里开始产生作用.
-Closing tag : 结束标签;与开始标签类似,只是在元素名前多了一个斜杠.表示元素结尾
-Content: 元素的内容;呈现的内容
-Element : 开始标签、结束标签与内容相结合，便是一个完整的元素。
-
-- 属性
+- Opening: 开始标签;被大于号,小于号包围;表示元素从这里开始产生作用。
+- Closing : 结束标签;与开始标签类似,只是在元素名前多了一个斜杠.表示元素结尾。
+- Content : 元素的内容;呈现的内容。
+- Element : 开始标签、结束标签与内容相结合，便是一个完整的元素。
 
 元素也可以拥有属性，属性看起来像这样:
 
-<img src="/public/assets/images/web_introduction/grumpy-cat-attribute-small.png" alt="img" class="mt-4"/>
+![](/public/assets/images/web_introduction/grumpy-cat-attribute-small.png)
 
 **为元素提供额外信息,这些信息不会出现在实际内容中**
 
@@ -48,23 +44,25 @@ Element : 开始标签、结束标签与内容相结合，便是一个完整的�
 
 - 块级元素和内联元素
 
-  块级元素:
+  块级元素:在 HTML 页面中以独立的块显示出来的元素，它们会占据一整行的空间，且默认情况下宽度会自动填满其父元素的宽度
 
-  在 HTML 页面中以独立的块显示出来的元素，它们会占据一整行的空间，且默认情况下宽度会自动填满其父元素的宽度
+  内联元素:在 HTML 页面中以行内的形式显示出来的元素，它们不会独立占据一行，而是与其他元素共同在一行内显示。内联元素的宽度由其内容决定，无法直接设置宽度和高度。
 
-  内联元素:
+<Callout icon="⚠️" type="warning">
 
-  在 HTML 页面中以行内的形式显示出来的元素，它们不会独立占据一行，而是与其他元素共同在一行内显示。内联元素的宽度由其内容决定，无法直接设置宽度和高度。
+块级元素可以包含内联元素，但内联元素不能包含块级元素
 
-  **注:块级元素可以包含内联元素，但内联元素不能包含块级元素**
+</Callout>
 
 - 空元素
 
-  不是所有元素都拥有开始标签、内容和结束标签。一些元素只有一个标签，通常用来在此元素所在位置插入/嵌入一些东西。这些元素被称为空元素;例:img 标签
+  不是所有元素都拥有开始标签、内容和结束标签。一些元素只有一个标签，通常用来在此元素所在位置插入/嵌入一些东西。这些元素被称为空元素;例:`img` 标签
 
 ```html
 <img src="..." alt="图片信息" />
 ```
+
+---
 
 ### html 基础结构
 
@@ -80,34 +78,38 @@ Element : 开始标签、结束标签与内容相结合，便是一个完整的�
 </html>
 ```
 
-`<!DOCTYPE html>` 声明文档类型为 HTML5。浏览器将根据这一声明进行文档解析和渲染。
-{/* [^<!DOCTYPE html>]: 声明文档类型 此时类型为 html 浏览器会根据类型进行解析文档 (根据 html5 规范进行呈现文档) */}
+- `<!DOCTYPE html>`: 声明文档类型 此时类型为 html 浏览器会根据类型进行解析文档 (根据 html5 规范进行呈现文档)。
+- `<html></html>`: html 元素,这个元素包裹了页面中所有的内容，有时被称为根元素。所有其他元素必须是此元素的后代。里面也包含了 `lang` 属性，写明了页面的主要语种。例: `lang="zh-CH"`,表示这个 html 文档的语言为中文。
 
-{/* [^<html></html>]: html 元素,这个元素包裹了页面中所有的内容，有时被称为根元素。所有其他元素必须是此元素的后代。里面也包含了 `lang` 属性，写明了页面的主要语种。例: lang="zh-CH",表示这个 html 文档的语言为中文;
-[^<head></head>]: 这个元素是一个容器，它包含了所有你想包含在 HTML 页面中但**不在 HTML 页面中显示**的内容。;包含机器可读的文档相关信息（[元数据](https://developer.mozilla.org/zh-CN/docs/Glossary/Metadata)），如文档的[标题](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/title)、[脚本](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/script)和[样式表](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/style)
+- `<head></head>`: 这个元素是一个容器，它包含了所有你想包含在 HTML 页面中但**不在 HTML 页面中显示**的内容。包含机器可读的文档相关信息（[元数据](https://developer.mozilla.org/zh-CN/docs/Glossary/Metadata)），如文档的[标题](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/title)、[脚本](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/script)和[样式表](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/style)。
 
-[^<meta charset="utf-8">]: `meta`元素是一种用于在 HTML 页面中添加元数据的特殊元素，它与其他常见的 HTML 元素（如 `<p>`、`<div>`、`<span>` 等）不同，主要用于定义一些不能用其他 HTML 元素表示的信息。`charset="utf-8"` 是其中的一个属性，它指定了网页所使用的字符编码为 UTF-8。`name="viewport"`用来定义视口,视口是指浏览器中用于显示网页内容的区域。`content="width=device-width, initial-scale=1.0"`它定义了视口的宽度和初始缩放比例。`width=device-width`确保网页在移动设备上以适合设备屏幕大小的方式进行布局，避免出现水平滚动条。`initial-scale=1.0`网页在加载时以原始比例显示，不进行任何缩放。这有助于确保网页内容在移动设备上以正确的比例显示。
-[^<title></title>]: 设置了页面的标题，也就是出现在该页面加载的浏览器标签中的内容。当页面被加入书签时，页面标题也被用来描述该页面。
+- `<meta charset="utf-8">`: `meta`元素是一种用于在 HTML 页面中添加元数据的特殊元素，它与其他常见的 HTML 元素（如 `<p>`、`<div>`、`<span>` 等）不同，主要用于定义一些不能用其他 HTML 元素表示的信息。`charset="utf-8"` 是其中的一个属性，它指定了网页所使用的字符编码为 UTF-8。`name="viewport"`用来定义视口,视口是指浏览器中用于显示网页内容的区域。`content="width=device-width, initial-scale=1.0"`它定义了视口的宽度和初始缩放比例。`width=device-width`确保网页在移动设备上以适合设备屏幕大小的方式进行布局，避免出现水平滚动条。`initial-scale=1.0`网页在加载时以原始比例显示，不进行任何缩放。这有助于确保网页内容在移动设备上以正确的比例显示。
 
-[^<body></body>]: 包含了你访问页面时*所有*显示在页面上的内容，包含文本、图片、视频、游戏、可播放音频轨道等等。
+- `<title></title>`:设置了页面的标题，也就是出现在该页面加载的浏览器标签中的内容。当页面被加入书签时，页面标题也被用来描述该页面。
+- `<body></body>`:包含了你访问页面时*所有*显示在页面上的内容，包含文本、图片、视频、游戏、可播放音频轨道等等。
 
-[更多元信息](https://developer.mozilla.org/zh-CN/docs/Learn/HTML/Introduction_to_HTML/The_head_metadata_in_HTML) */}
+- [更多元信息](https://developer.mozilla.org/zh-CN/docs/Learn/HTML/Introduction_to_HTML/The_head_metadata_in_HTML)
+
+---
 
 ### 特殊字符
 
-> 在 HTML 中，字符 `<`、`>`、`"`、`'` 和 `&` 是特殊字符
-
-> 我们必须使用字符引用——表示字符的特殊编码，它们可以在那些情况下使用。每个字符引用以符号 & 开始，以分号（;）结束。
-
 | 原义字符 | 等价字符引用 |
 | -------- | ------------ |
-| `<`        | `&lt;`       |
-| >        | `&gt;`       |
-| "        | `&quot;`     |
-| '        | `&apos;`     |
-| &        | `&amp;`      |
+| &lt;     | `&lt;`       |
+| &gt;     | `&gt;`       |
+| &quot;   | `&quot;`     |
+| &apos;   | `&apos;`     |
+| &amp;    | `&amp;`      |
 
-### 使用建议
+<Callout icon="💡" type="info">
+在 HTML 中，字符 `<`、`>`、`"`、`'` 和 `&` 是特殊字符。我们必须使用字符引用——表示字符的特殊编码，它们可以在那些情况下使用。每个字符引用以符号 & 开始，以分号（;）结束。
+
+</Callout>
+
+---
+
+### 使用建议 📌
 
 **标题元素**
 
@@ -119,13 +121,13 @@ Element : 开始标签、结束标签与内容相结合，便是一个完整的�
 
 - 不要重复 URL 作为链接文本的一部分——URL 看起来很丑，当屏幕阅读器(视觉障碍人士)一个字母一个字母的读出来的时候听起来就更丑了。
 
-  例: 👍https://example.com
+  👍https://example.com
 
   ❌https://example.com/j3k4lb2j9
 
 - 不要在链接文本中说“链接”或“链接到”——它只是无用的内容。因为链接通常是用不同的颜色设计的，并且存在下划线
 
-  例: 👍[下载 Firefox](https://www.mozilla.org/zh-CN/firefox/new/?redirect_source=firefox-com)
+  👍[下载 Firefox](https://www.mozilla.org/zh-CN/firefox/new/?redirect_source=firefox-com)
 
   ❌[点击这里](https://www.mozilla.org/firefox/)下载 Firefox
 
@@ -139,47 +141,44 @@ Element : 开始标签、结束标签与内容相结合，便是一个完整的�
 
 - 不推荐使用绝对路径;这样做只会使浏览器做更多的工作，重新通过 DNS 再去寻找 IP 地址。
 
-  ❌<img src="https://www.xxx.com/images/dinosaur.jpg" />
-
 **嵌入元素**
 
 - 使用 JavaScript 设置 iframe 的 `src` 属性;这使你的页面可以更快地被使用，并减少你的官方页面加载时间
-- 始终使用`sandbox`属性;这样做的目的是为了保护主页面免受嵌入内容的潜在安全风险。如果不设置该属性，则`<iframe>`中的内容将具有与主文档相同的权限，即可以执行 JavaScript、提交表单或弹出窗口等操作。但如果设置了`sandbox`属性，则会禁用一些功能，例如 JavaScript 执行、表单提交、弹出窗口等，以及其他一些安全限制，比如禁止加载不安全的内容（http 协议）等。
 
-如果绝对需要，你可以逐个添加权限（`sandbox=""`属性值内）;[更多属性值](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/iframe#attr-sandbox)
+- 始终使用`sandbox`属性;目的是为了保护主页面免受嵌入内容的潜在安全风险。如果不设置该属性，`<iframe>`中的内容将具有与主文档相同的权限，即可以执行 JavaScript、提交表单或弹出窗口等操作。但如果设置了`sandbox`属性，则会禁用一些功能，例如 JavaScript 执行、表单提交、弹出窗口等，以及其他一些安全限制，比如禁止加载不安全的内容（http 协议）等。
+
+- 如果绝对需要，你可以逐个添加权限（`sandbox=""`属性值内），[更多属性值](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Element/iframe#attr-sandbox)。
 
 **语义化**
 
-- 使用`<strong>`元素而非`<b>`,使用`<em>`元素而非`<i>`
+- 使用`<strong>`元素而非`<b>`,使用`<em>`元素而非`<i>`。
 
 **其他**
 
-不要在一个内联盒子中使用块级盒子;
+❌ 不要在一个内联盒子中使用块级盒子;
 
 ```html
-❌
 <span>
   <div></div>
   <span></span
 ></span>
 ```
 
-不要在 p 元素中使用任何块级盒子;
+❌ 不要在 p 元素中使用任何块级盒子;
 
 ```html
-❌
 <p></p>
 <div></div>
 <p></p>
 ```
 
+---
+
 ### 元素细节补充
 
-1. 超链接元素
+- 超链接元素
 
-`文档片段`
-
-超链接除了可以链接到文档外，也可以链接到 HTML 文档的特定部分（被称为**文档片段**）。要做到这一点，你必须首先给要链接到的元素分配一个 [`id`](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Global_attributes#id) 属性。
+`文档片段`:超链接除了可以链接到文档外，也可以链接到 HTML 文档的特定部分（被称为**文档片段**）。要做到这一点，你必须首先给要链接到的元素分配一个 [`id`](https://developer.mozilla.org/zh-CN/docs/Web/HTML/Global_attributes#id) 属性。
 
 ```html
 page1.html
@@ -190,9 +189,7 @@ page2.html
 <h2 id="Mailing_address">邮寄地址</h2>
 ```
 
-`download属性`
-
-当你链接到要下载的资源而不是在浏览器中打开时，你可以使用 `download` 属性来提供一个默认的保存文件名。
+`download属性`:当你链接到要下载的资源而不是在浏览器中打开时，你可以使用 `download` 属性来提供一个默认的保存文件名。
 
 ```html
 <!-- firefox-latest-64bit-installer.exe 下载文件名称 -->
@@ -231,7 +228,7 @@ page2.html
 </a>
 ```
 
-<img src=".\assets\image-20240201165217254.png" alt="img" style="width:100%;"/>
+<img src=".\assets\image-20240201165217254.png" alt="img" style="width:100%;" />
 
 2. 矢量图元素
 
@@ -289,9 +286,9 @@ page2.html
 <!--
 	备选图像源：elva-fairy-480w.jpg和elva-fairy-800w.jpg
 	elva-fairy-480w.jpg被标记为480w，表示其宽度为480像素，而elva-fairy-800w.jpg被标记为800w，表示其宽度为800像素。
-	
+
 	sizes属性定义了两个条件：当视口宽度小于等于600像素时，图像的显示大小为480像素；当视口宽度大于600像素时，图像的显示大小为800像素。
-	
+
 	如果浏览器不支持srcset属性或无法选择合适的图像源，则会回退到src属性指定的默认图像源（elva-fairy-800w.jpg）
 	alt属性用于提供图像的替代文本，以便在图像无法显示时进行替代显示。
 	-->
@@ -325,4 +322,16 @@ page2.html
 <!--
 	当需要根据设备特性和媒体查询条件加载不同图像时，使用<picture>元素。当需要提供不同分辨率的图像时，使用srcset属性。而sizes属性则用于指定图像在不同视口宽度下的显示大小。
 	-->
+```
+
+```jsx title="example12.js"
+const user = 0
+```
+
+```jsx title="example1.js"
+const user = 0
+```
+
+```jsx title="example4.js"
+const user = 0
 ```

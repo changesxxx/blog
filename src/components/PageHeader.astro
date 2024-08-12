@@ -1,10 +1,11 @@
 ---
 import HeaderLink from './HeaderLink.astro'
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const routes = [
   {
     title: '笔记',
-    path: '/Notes',
+    path: '/notes/html',
   },
   {
     title: '小记',
@@ -13,7 +14,7 @@ const routes = [
 ]
 ---
 
-<div class="page-header h-16 bg-background border-b">
+<div class="page-header h-16 bg-background border-b z-50 sticky top-0">
   <div class="title">
     <a href="/"><h2 class="hidden font-bold sm:inline-block">DGTS</h2></a>
   </div>
@@ -30,7 +31,7 @@ const routes = [
     <div class="social">1</div>
 
     <div class="theme">
-      <!-- <ThemeSelect {...Astro.props}><slot /></ThemeSelect> -->
+      <ThemeToggle client:load />
     </div>
   </div>
 </div>

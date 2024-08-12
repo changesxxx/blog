@@ -5,8 +5,11 @@ import MdxCard from '@/components/content/mdx-card.astro'
 import { cn } from '@/lib/utils'
 import { Image } from 'astro:assets'
 
+import '@/styles/notes.css'
+
 type Props = {
   className?: string
+  title?: string
 }
 
 export const MdxComponents = {
@@ -65,10 +68,7 @@ export const MdxComponents = {
     />
   ),
   a: ({ className, ...props }: Props) => (
-    <a
-      className={cn('font-medium underline underline-offset-4', className)}
-      {...props}
-    />
+    <a className={cn('link', className)} {...props} target="_blank" />
   ),
   p: ({ className, ...props }: Props) => (
     <p
@@ -132,15 +132,21 @@ export const MdxComponents = {
       {...props}
     />
   ),
-  pre: ({ className, ...props }: Props) => (
-    <pre
-      className={cn(
-        'mb-4 mt-6 overflow-x-auto rounded-lg border bg-black p-4',
-        className,
-      )}
-      tabIndex={0}
-      {...props}
-    />
+  pre: ({ className, title, ...props }: Props) => {
+    // console.log('props', props)
+    return (
+      <pre
+        className={cn(
+          'mb-4 mt-6 overflow-x-auto rounded-lg border bg-black p-4 astro-code',
+          className,
+        )}
+        tabIndex={0}
+        {...props}
+      />
+    )
+  },
+  code: ({ className, ...props }: Props) => (
+    <code className={cn(className)} {...props} />
   ),
   Image,
   Callout,

@@ -18,6 +18,8 @@ import { FaChevronRight } from 'react-icons/fa'
 export async function getStaticPaths() {
   const docs = await getCollection('docs')
 
+  // console.log(docs)
+
   return docs.map((doc) => ({
     params: { slug: doc.slug },
     props: doc,
@@ -61,7 +63,7 @@ if (!slug || !doc) {
           <div
             class="mb-4 flex items-center space-x-1 text-sm text-muted-foreground"
           >
-            <div class="truncate">Docs</div>
+            <div class="truncate">Notes</div>
             <FaChevronRight size={10} />
             <div class="font-medium text-foreground">
               <font style="vertical-align: inherit;"
