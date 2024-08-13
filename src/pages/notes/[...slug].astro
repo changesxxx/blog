@@ -18,7 +18,6 @@ import { FaChevronRight } from 'react-icons/fa'
 export async function getStaticPaths() {
   const docs = await getCollection('docs')
 
-  // console.log(docs)
 
   return docs.map((doc) => ({
     params: { slug: doc.slug },
@@ -82,7 +81,7 @@ if (!slug || !doc) {
           <Content components={MdxComponents} class="text-sm" />
 
           <hr class="my-4 md:my-6" />
-          <DocsPager slug={doc.slug} />
+          <DocsPager slug={doc.slug} /> 
         </div>
         <div class="hidden text-sm xl:block">
           <div

@@ -2,6 +2,8 @@ import * as React from 'react'
 
 import Callout from '@/components/Callout.astro'
 import CodeBlock from '@/components/CodeBlock.astro'
+import CodeEffect from '@/components/CodeEffect.astro'
+import TitleIcon from '@/components/TitleIcon.astro'
 import MdxCard from '@/components/content/mdx-card.astro'
 import { cn } from '@/lib/utils'
 import { Image } from 'astro:assets'
@@ -102,7 +104,11 @@ export const MdxComponents = {
     ...props
   }: React.ImgHTMLAttributes<HTMLImageElement>) => (
     // eslint-disable-next-line @next/next/no-img-element
-    <img className={cn('rounded-md border', className)} alt={alt} {...props} />
+    <img
+      className={cn('rounded-md border mx-auto', className)}
+      alt={alt}
+      {...props}
+    />
   ),
   hr: ({ ...props }) => <hr className="my-4 md:my-8" {...props} />,
   table: ({ className, ...props }: React.HTMLAttributes<HTMLTableElement>) => (
@@ -158,4 +164,6 @@ export const MdxComponents = {
   Callout,
   Card: MdxCard,
   CodeBlock,
+  CodeEffect,
+  TitleIcon,
 }

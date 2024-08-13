@@ -1,0 +1,16 @@
+---
+const {icon} = Astro.props
+import '@/styles/iconfont.css'
+---
+
+<p class="leading-7 [&:not(:first-child)]:mt-6">
+  <slot></slot>
+  <span class={`icon ${icon}`}></span>
+</p>
+
+<style>
+  .icon {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+</style>
