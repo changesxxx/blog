@@ -1,6 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, memo, useMemo, useContext } from 'react'
+
 import { HiChevronRight, HiChevronDown } from 'react-icons/hi'
 import { cn } from '@/lib/utils' // 保持 cn 的导入方式
+
+// import { docsConfig } from '@/config/docs'
+
+import { docsConfigContext } from '@/store/docsConfig'
 
 type SidebarNavItem = {
   title: string
@@ -11,18 +16,20 @@ type SidebarNavItem = {
   open?: boolean
 }
 
-type Props = {
-  items: SidebarNavItem[]
-  pathname?: string
-}
+//({ items, pathname }: Props
 
-const SidebarNav = ({ items, pathname }: Props) => {
-  const [menu, setMenu] = useState<SidebarNavItem[]>(items)
+const SidebarNav = memo(() => {
+  const docsConfig = useContext(docsConfigContext)
+
+  const [menu, setMenu] = useState<SidebarNavItem[]>(docsConfig.sidebarNav)
+
+  console.log('子页面重新渲染')
 
   function handleToggle(index: number) {
     setMenu(
       menu.map((m, i) => {
         if (i === index) {
+          docsConfig.sidebarNav[i].open = !menu[index].open
           return {
             ...menu[index],
             open: !menu[index].open,
@@ -36,8 +43,8 @@ const SidebarNav = ({ items, pathname }: Props) => {
 
   return (
     <div className="w-full">
-      {items.length
-        ? items.map((item, index) => (
+      {menu.length
+        ? menu.map((item, index) => (
             <div key={index} className="pb-8">
               {item.items ? (
                 <h4 className="mb-1 rounded-md px-2 py-1 text-sm font-medium flex justify-between">
@@ -57,18 +64,6 @@ const SidebarNav = ({ items, pathname }: Props) => {
                   {item.title}
                 </a>
               )}
-              {/* <h4 className="mb-1 rounded-md px-2 py-1 text-sm font-medium flex justify-between">
-                <span>{item.title}</span>
-
-                {item.items && (
-                  <div
-                    className="flex items-center cursor-pointer"
-                    onClick={() => handleToggle(index)}
-                  >
-                    {menu[index].open ? <HiChevronDown /> : <HiChevronRight />}
-                  </div>
-                )}
-              </h4> */}
 
               {/* 列表 */}
               {menu[index].open && item.items?.length ? (
@@ -83,7 +78,7 @@ const SidebarNav = ({ items, pathname }: Props) => {
                         className={cn(
                           'flex w-full items-center rounded-md p-2 hover:underline',
                           {
-                            'bg-muted': pathname === subItem.href,
+                            // 'bg-muted': pathname === subItem.href,
                           },
                         )}
                         target={subItem.external ? '_blank' : ''}
@@ -107,6 +102,6 @@ const SidebarNav = ({ items, pathname }: Props) => {
         : null}
     </div>
   )
-}
+})
 
 export default SidebarNav

@@ -20,14 +20,20 @@ export const docsConfig: DocsConfig = {
       title: 'Css',
       href: '/notes/web-introduction/css',
     },
+
     {
-      title: 'Getting Started',
+      title: 'javaScript',
       items: [
         {
-          title: 'jsss',
-          href: '/docs/getting-started/',
+          title: '基础知识',
+          href: '/notes/web-introduction/javaScript/basic',
+        },
+        {
+          title: '基础语法',
+          href: '/notes/web-introduction/javaScript/syntax',
         },
       ],
+      // open: true,
     },
     {
       title: 'Documentation',
