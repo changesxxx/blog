@@ -23,13 +23,16 @@ export async function getStaticPaths() {
     params: { slug: doc.slug },
     props: doc,
   }))
-}
+} 
 
 type Props = CollectionEntry<'docs'>
 
 const doc = Astro.props
 const slug = Astro.params.slug
 const toc = await getTableOfContents(doc.body)
+
+console.log('doc',doc)
+// console.log('toc',toc) 
 
 const { Content } = await doc.render()
 
@@ -40,10 +43,8 @@ if (!slug || !doc) {
   })
 }
 
-console.log('父页面重新渲染')
 
-// console.log('preDocsConfig:', preDocsConfig, 'docsConfig', docsConfig)
-//  console.log('flag:',Object.is(preDocsConfig,docsConfig))
+
 ---
 
 <DocsLayout title={doc.data.title} description={doc.data.description}>
@@ -57,8 +58,7 @@ console.log('父页面重新渲染')
         <!--    
           client:media="(max-hight: 50px)" -->
         <ScrollArea className="h-full py-6 pr-6 lg:py-8" client:load>
-          <!-- <DocsSidebarNav items={docsConfig.sidebarNav} client:load /> -->
-          <DocsSidebarNav client:load />
+        <DocsSidebarNav items={docsConfig.sidebarNav} client:load /> 
         </ScrollArea>
       </aside>
       <main
@@ -102,3 +102,5 @@ console.log('父页面重新渲染')
 
   <!-- client:media="(max-width: 50em)" -->
 </DocsLayout>
+
+

@@ -1,35 +1,31 @@
-import React, { useState, memo, useMemo, useContext } from 'react'
+import React, { useState } from 'react'
 
 import { HiChevronRight, HiChevronDown } from 'react-icons/hi'
 import { cn } from '@/lib/utils' // 保持 cn 的导入方式
 
-// import { docsConfig } from '@/config/docs'
+import type { SidebarNavItem } from '@/types'
 
-import { docsConfigContext } from '@/store/docsConfig'
-
-type SidebarNavItem = {
+/* type SidebarNavItem = {
   title: string
   href?: string
   external?: boolean
   disabled?: boolean
   items?: SidebarNavItem[]
   open?: boolean
+} */
+
+type Props = {
+  items: SidebarNavItem[]
+  pathname?: string
 }
 
-//({ items, pathname }: Props
-
-const SidebarNav = memo(() => {
-  const docsConfig = useContext(docsConfigContext)
-
-  const [menu, setMenu] = useState<SidebarNavItem[]>(docsConfig.sidebarNav)
-
-  console.log('子页面重新渲染')
+const SidebarNav = ({ items, pathname }: Props) => {
+  const [menu, setMenu] = useState<SidebarNavItem[]>(items)
 
   function handleToggle(index: number) {
     setMenu(
       menu.map((m, i) => {
         if (i === index) {
-          docsConfig.sidebarNav[i].open = !menu[index].open
           return {
             ...menu[index],
             open: !menu[index].open,
@@ -102,6 +98,6 @@ const SidebarNav = memo(() => {
         : null}
     </div>
   )
-})
+}
 
 export default SidebarNav

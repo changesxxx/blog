@@ -1,7 +1,6 @@
 ---
 title: Css
 description: Cascading Style Sheets(层叠样式表)
-slug: web-introduction/css
 ---
 
 ### css 语法
@@ -43,7 +42,8 @@ CSS 可以在声明块前放置选择器`selector`，选择器用来选择页面
 - 在每个规则集里要用分号（`;`）将各个声明分隔开。
 
 <Callout icon="💡" type="info">
-CSS 不是真正的编程语言,甚至也不是标记语言;它只是一门样式表语言。其基本目标是让浏览器以指定的特性去绘制页面元素，比如颜色、定位、装饰。
+  CSS
+  不是真正的编程语言,甚至也不是标记语言;它只是一门样式表语言。其基本目标是让浏览器以指定的特性去绘制页面元素，比如颜色、定位、装饰。
 </Callout>
 ----
 
@@ -814,7 +814,6 @@ BFC 可以通过多种方式创建，最常见的包括：
 
 **特点** : [官方文档描述](https://www.w3.org/TR/CSS2/visuren.html#inline-formatting)
 
-
 - **水平排列：** 在 IFC 中，行内元素和文本沿水平方向排列，直到遇到包含块（containing block）的边界，然后换行。
 - **不独立占据空间：** 行内元素不会像块级元素那样独立占据水平空间，而是根据其内容在行中布局。
 - **尺寸计算：** 行内非替换元素（如`<span>`中的文本）的宽度和高度主要由其内容决定，不可通过 CSS 直接设置。而行内替换元素（如`<img>`）的尺寸可以通过 CSS 指定。
@@ -824,7 +823,6 @@ BFC 可以通过多种方式创建，最常见的包括：
 - **行盒（Line boxes）：** IFC 中的行被组织成一系列的“行盒”，每个行盒可以包含多个行内元素和文本。行盒的高度由行内元素的大小和`line-height`属性共同决定。
 - **不适用垂直外边距和内边距：** 行内元素的`margin-top`和`margin-bottom`不会影响到行内元素的垂直布局，但水平外边距、边框和内边距是有效的。
 - **BFC 交互：** IFC 中的元素可能会与块格式化上下文（Block Formatting Context, BFC）的元素交互，但它们遵循不同的布局规则。
-
 
 **行盒概念(line-box)**
 
@@ -840,11 +838,9 @@ BFC 可以通过多种方式创建，最常见的包括：
 
 `baseline` : 对于**文字**，`baseline`是指文本行内字符的底部对齐线。例:x 的下方。对于`inline-block`如果盒内没有文本默认为`margin-bottom`的底部(如果没有`margin-bottom`则为盒子的底部)。如果有文本则为文字底部对齐线。[示例查看](https://codepen.io/weqjfeyg-the-bold/pen/oNVKWMq)。
 
-
-
 `vertical-align`:用来指定行内元素（inline）或表格单元格（table-cell）元素的垂直对齐方式。`vertical-align` 只对行内元素、行内块元素和表格单元格元素生效：不能用它垂直对齐块级元素。
 
- 属性常见值:
+属性常见值:
 
 **baseline**：默认值。元素放置在父元素的基线上。
 
@@ -857,8 +853,6 @@ BFC 可以通过多种方式创建，最常见的包括：
 **text-top**：使元素的顶部与父元素字体的顶部对齐。
 
 **text-bottom**：使元素的底部与父元素字体的底部对齐。
-
-
 
 ### css 运行流程
 
@@ -875,14 +869,16 @@ BFC 可以通过多种方式创建，最常见的包括：
 
 ---
 
-### 使用建议📌
+### 使用建议 📌
 
 - 尽量避免内联样式。这是对 CSS 的维护效率最低的实现。内联 CSS 还将（CSS）表现性代码与 HTML 内容混合在一起，使一切都更难阅读和理解。
 
 - 保持统一,例如对类使用相同的命名常规，选择一种描述颜色的方式，或者维护一个统一的格式化方式。
 
 - 兄弟元素之间的间距用 margin,父子元素之间的间距用 padding。(如果不是可能会产生 margin 上下传递)
+
 ---
+
 ### 属性的一些特殊现象
 
 - **text-align**
@@ -898,7 +894,6 @@ BFC 可以通过多种方式创建，最常见的包括：
 用于设置行高，即行与行之间的距离(两行文字基线之间的间距)。
 
 ![](/assets/images/web_introduction/line-height.png)
-
 
 半行距 = （line-height - font-size）/2
 
@@ -925,8 +920,6 @@ W3C 原文:The bottom margin of an in-flow block-level element with a 'height' o
 
 下传递:如果块级元素没有底部填充或边框并且块级元素的底部线和父元素底部线重叠,并且父元素的高度为`auto`(父元素没有单独配置过 height,因为 height 默认值即为 auto),这个块级元素的 margin-bottom 值将会传递给父亲。[示例查看](https://codepen.io/weqjfeyg-the-bold/pen/zYbQwPR)。
 
-
-
 **如何解决 margin 上下传递问题**
 
 1. 给父元素设置`padding-top`或`padding-bottom`，防止顶部线或底部线重叠即可;
@@ -938,7 +931,6 @@ W3C 原文:The bottom margin of an in-flow block-level element with a 'height' o
 **magrin 上下折叠**
 
 当相邻的垂直方向上的 margin 相遇时，它们会合并成一个外边距，合并后的外边距的值为两者中的较大者。[示例查看](https://codepen.io/weqjfeyg-the-bold/pen/YzgbryO)。
-
 
 **如何解决 margin 上下折叠问题**
 
@@ -952,7 +944,6 @@ W3C 原文:The bottom margin of an in-flow block-level element with a 'height' o
 
 当我们对绝对定位元素使用了`inset: 0;`时，这个元素会被定位在其包含块的边缘，也就是说它会紧贴着包含块的四个边界。如果此时元素的宽度设置为 auto，那么它的宽度会根据包含块的宽度来自动调整，以确保元素在四个方向上都与的边界一致。
 
-
 **绝对定位元素在定位参照对象(包含块)水平垂直居中:** 将绝对定位元素`left`,`right`,`top`,`bottom`(简写:`inset`:0)属性值配置为 0,并将`margin`属性值修改为`auto`(前提是绝对定位元素宽高小于包含块)
 
 补充:当 margin 左右值都为 auto 时，浏览器会把这个元素的左右 margin 分别设置为相等的值，从而将元素放置在父容器的中央位置。
@@ -960,7 +951,6 @@ W3C 原文:The bottom margin of an in-flow block-level element with a 'height' o
 - 浮动
 
 **高度塌陷**:[示例查看](https://codepen.io/weqjfeyg-the-bold/pen/GRebJxa)。
-
 
 原因:浮动元素脱离标准流,变成了脱标元素,脱标元素不会向父元素汇报宽高。父元素计算高度时,不会计算浮动元素的高度,导致高度塌陷的问题。
 
@@ -979,7 +969,6 @@ W3C 原文:The bottom margin of an in-flow block-level element with a 'height' o
    `both`：元素下方不允许有任何浮动元素存在，无论是左浮动还是右浮动。
 
    示例:clear 的本质是告诉 CSS 引擎：在当前元素下方，不允许有浮动元素存在，以确保当前元素能够被浮动元素正确包裹。
-   
 
    ```html
    <!-- 浮动元素-->
@@ -998,8 +987,6 @@ W3C 原文:The bottom margin of an in-flow block-level element with a 'height' o
    ```
 
    缺点: 增加了很多无意义的空标签,维护困难。
-
-  
 
 2. 使用 after 伪元素
 
@@ -1020,12 +1007,12 @@ W3C 原文:The bottom margin of an in-flow block-level element with a 'height' o
 
 3. 父元素创建一个新的块级格式化上下文（BFC）
 
-    **因为 BFC 内部的元素在计算高度时，会考虑浮动元素的高度，从而保证包含块能够正确地包含其所有子元素。**
+   **因为 BFC 内部的元素在计算高度时，会考虑浮动元素的高度，从而保证包含块能够正确地包含其所有子元素。**
 
-    创建 BFC 的条件包括但不限于：元素的 `display` 属性设置为 `inline-block`、`table-cell`、`flex` 等，`position` 不为 `static` 或 `relative`，`overflow` 不为 `visible`，以及 `float` 属性不为 `none`。
+   创建 BFC 的条件包括但不限于：元素的 `display` 属性设置为 `inline-block`、`table-cell`、`flex` 等，`position` 不为 `static` 或 `relative`，`overflow` 不为 `visible`，以及 `float` 属性不为 `none`。
 
-    **为什么 BFC 可以解决浮动高度塌陷?**
+   **为什么 BFC 可以解决浮动高度塌陷?**
 
-    [W3C 官方解释(10.6.7)](https://www.w3.org/TR/CSS21/visudet.html):In addition, if the element has any floating descendants whose bottom margin edge is below the element's bottom content edge, then the height is increased to include those edges. Only floats that participate in this block formatting context are taken into account, e.g., floats inside absolutely positioned descendants or other floats are not.
+   [W3C 官方解释(10.6.7)](https://www.w3.org/TR/CSS21/visudet.html):In addition, if the element has any floating descendants whose bottom margin edge is below the element's bottom content edge, then the height is increased to include those edges. Only floats that participate in this block formatting context are taken into account, e.g., floats inside absolutely positioned descendants or other floats are not.
 
-    **如果有浮动元素,BFC 会增加自身高度以包括这些浮动元素的下边缘**
+   **如果有浮动元素,BFC 会增加自身高度以包括这些浮动元素的下边缘**

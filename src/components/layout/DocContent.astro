@@ -1,0 +1,59 @@
+---
+
+import { FaChevronRight } from 'react-icons/fa'
+
+import { DashboardTableOfContents } from '@/components/toc'
+import DocsPageHeader from '@/components/DocsPageHeader.astro'
+import DocsPager from '@/components/Pager.astro'
+
+import { MdxComponents } from '@/components/content/mdx-components'
+
+import { getTableOfContents } from '@/lib/toc'
+
+import { getCollection, type CollectionEntry } from 'astro:content'
+
+const {docId} = Astro.props
+
+
+const docs = await getCollection('docs')
+
+const doc = docs.find(d => d.id === docId)!
+
+// const doc = Astro.props
+const toc = await getTableOfContents(doc.body)
+
+ const { Content } = await doc.render()
+---
+ <div class="mx-auto w-full min-w-0 text-sm">
+          <div
+            class="mb-4 flex items-center space-x-1 text-sm text-muted-foreground"
+          >
+            <div class="truncate">Notes</div>
+            <FaChevronRight size={10} />
+            <div class="font-medium text-foreground">
+              <font style="vertical-align: inherit;"
+                ><font style="vertical-align: inherit;">
+                  {doc.data.title}
+                </font></font
+              >
+            </div>
+          </div>
+
+          <DocsPageHeader
+            heading={doc.data.title}
+            text={doc.data.description}
+          />
+
+          <Content components={MdxComponents} class="text-sm" />
+
+          <hr class="my-4 md:my-6" />
+          <DocsPager slug={doc.slug} />
+        </div>
+        <div class="hidden text-sm xl:block">
+          <div
+            class="sticky top-18 -mt-10 max-h-[calc(var(--vh)-4rem)] overflow-y-auto pt-10"
+          >
+            <DashboardTableOfContents toc={toc} client:load />
+          </div>
+ </div>
+   
