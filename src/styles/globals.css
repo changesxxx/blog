@@ -110,6 +110,11 @@ hsl(205, 88%, 40%) */
   border-left: 2px solid var(--sl-color-text-accent);
 }
 
+.current-link {
+  font-weight: 700;
+  color: var(--sl-color-text-accent);
+}
+
 @layer base {
   /*   @font-face {
     font-family: 'CalSans Semibold';
@@ -167,6 +172,10 @@ hsl(205, 88%, 40%) */
   }
 
   ul li::marker {
+    color: var(--sl-color-text-accent);
+  }
+
+  ol li::marker {
     color: var(--sl-color-text-accent);
   }
 

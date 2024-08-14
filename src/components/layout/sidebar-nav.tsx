@@ -3,16 +3,14 @@ import React, { useState } from 'react'
 import { HiChevronRight, HiChevronDown } from 'react-icons/hi'
 import { cn } from '@/lib/utils' // 保持 cn 的导入方式
 
-import type { SidebarNavItem } from '@/types'
-
-/* type SidebarNavItem = {
+type SidebarNavItem = {
   title: string
   href?: string
   external?: boolean
   disabled?: boolean
   items?: SidebarNavItem[]
   open?: boolean
-} */
+}
 
 type Props = {
   items: SidebarNavItem[]
@@ -20,7 +18,15 @@ type Props = {
 }
 
 const SidebarNav = ({ items, pathname }: Props) => {
-  const [menu, setMenu] = useState<SidebarNavItem[]>(items)
+  const menuItems = items.map((item) => {
+    const isOpen = item.items && item.items.some((i) => i.href === pathname)
+    return {
+      ...item,
+      open: isOpen,
+    }
+  })
+
+  const [menu, setMenu] = useState<SidebarNavItem[]>(menuItems)
 
   function handleToggle(index: number) {
     setMenu(
@@ -41,21 +47,27 @@ const SidebarNav = ({ items, pathname }: Props) => {
     <div className="w-full">
       {menu.length
         ? menu.map((item, index) => (
-            <div key={index} className="pb-8">
+            <div
+              key={index}
+              className="pb-8 cursor-pointer"
+              onClick={() => handleToggle(index)}
+            >
               {item.items ? (
                 <h4 className="mb-1 rounded-md px-2 py-1 text-sm font-medium flex justify-between">
                   <span>{item.title}</span>
-                  <span
-                    className="flex items-center cursor-pointer"
-                    onClick={() => handleToggle(index)}
-                  >
+                  <span className="flex items-center cursor-pointer">
                     {menu[index].open ? <HiChevronDown /> : <HiChevronRight />}
                   </span>
                 </h4>
               ) : (
                 <a
                   href={item.href}
-                  className="mb-1 rounded-md px-2 py-1 text-sm font-medium"
+                  className={cn(
+                    'mb-1 rounded-md px-2 text-sm font-medium block',
+                    {
+                      'current-link': pathname === item.href,
+                    },
+                  )}
                 >
                   {item.title}
                 </a>
@@ -74,7 +86,7 @@ const SidebarNav = ({ items, pathname }: Props) => {
                         className={cn(
                           'flex w-full items-center rounded-md p-2 hover:underline',
                           {
-                            // 'bg-muted': pathname === subItem.href,
+                            'current-link': pathname === subItem.href,
                           },
                         )}
                         target={subItem.external ? '_blank' : ''}

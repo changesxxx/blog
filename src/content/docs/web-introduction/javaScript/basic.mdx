@@ -4,4 +4,272 @@ description: JavaScript 是一种脚本编程语言，它可以在网页上实�
 slug: web-introduction/javaScript/basic
 ---
 
-### cccc
+### 如何在页面上添加 JavaScript?
+
+1. 内部 JavaScript
+
+通过`<script>`标签,在`<script>`元素中添加一些 JavaScript 代码，这个页面就能做一些更有趣的事。
+
+```html
+<script>
+  // 在此编写 JavaScript 代码
+</script>
+```
+
+2. 外部引入 JavaScript
+
+通过`<script>`元素`src`属性引入 JavaScript 文件
+
+```html
+<script src="script.js" defer></script>
+```
+
+3. 元素上直接书写 JavaScript (不推荐!!)
+
+```html
+<a href="javascript:alert('我是a元素')"></a>
+```
+
+---
+
+### async 和 defer
+
+`async` 和 `defer` 都是 HTML `<script>` 标签的属性，用来控制外部 JavaScript 文件的加载和执行时机。这两个属性都是为了改善页面加载性能。
+
+**async**
+
+浏览器遇到 `async` 脚本时不会阻塞页面渲染，而是直接下载然后运行。但是，一旦下载完成，脚本就会执行，从而阻止页面渲染。脚本的运行次序无法控制。
+
+当引入的 JavaScript 独立于页面其余部分时，即 JavaScript 不依赖于页面上的其他元素，也不被其他 JavaScript 依赖时，使用`async`是一个好选择。
+
+MDN描述:你可能需要加载一些游戏数据文件，这在游戏真正开始时是需要的，但现在你只想显示游戏介绍、标题和大厅，而不想被脚本加载阻塞。
+
+**defer**
+
+与 `async` 相似，`defer` 属性告诉浏览器在解析 HTML 文档的同时并行下载脚本，但与 `async` 不同的是，`defer` 脚本会保证按照它们在页面中出现的顺序执行，并且会等到整个页面都解析完成后才执行。也就是说，`defer` 脚本总是会在 HTML 文档解析完成之后、DOMContentLoaded 事件触发之前再执行。使用defer外部引入的脚本推荐放在head元素中。
+
+**总结**
+
+`async` 和 `defer` 脚本都允许浏览器并行下载脚本(指示浏览器在一个单独的线程中下载脚本)，而不会阻塞 HTML 解析。
+
+`async` 脚本一旦下载完成就会执行，这可能会在 HTML 完全解析之前；而 `defer` 脚本则会等到整个 HTML 文档解析完成后，但在 DOMContentLoaded 事件之前执行。
+
+多个 `async` 脚本不能保证按顺序执行，它们的执行顺序依赖于下载速度；而多个 `defer` 脚本则总是按照它们在文档中出现的顺序执行。
+
+**如果脚本中包含了 DOM 操作，且执行顺序很重要，那么推荐使用 `defer`。如果脚本独立且执行顺序不重要，可以考虑使用 `async`。**
+
+<Callout type="warning" icon="⚠️">
+ defer和async仅适用于外部脚本,对于内联脚本（即直接在 `<script>` 标签中写的脚本）会被忽略。
+</Callout>
+---
+
+### 包装类型
+
+为了让开发者能够方便地操作基本数据类型的值，JavaScript 提供了对应的包装对象，分别是`String`、`Number`和`Boolean`。
+
+```js
+//基本类型直接存储在栈中 name = 'zs' 为什么可以调用length属性呢?换句话说这个length是哪里来的?
+var name = 'zs'
+
+console.log(name.length) //2
+```
+
+当你对一个基本数据类型的值尝试访问属性或方法时（例如，字符串的`.length`属性或者使用`.toString()`方法），JavaScript 会临时使用对应的包装对象来提供这种能力。
+
+默认情况,当我们调用一个原始类型的属性或者方法时,发生了以下过程:
+
+1. 根据原始值,创建一个原始类型的包装类型对象。
+2. 通过临时创建的包装类型对象,调用对应的属性或者方法,返回对应的值。
+3. 一旦属性或者方法访问完成,这个临时创建的包装类型对象被销毁。
+
+<Callout type="warning" icon="⚠️">
+ `null`,`undefined` 没有任何方法,也没有对应的对象包装类
+</Callout>
+> 
+
+---
+
+### 事件监听
+
+在 JavaScript 中，事件监听是一种机制，允许程序响应用户操作（如点击、键盘输入等）或其他浏览器触发的事件。
+
+两种事件监听方式(点击事件举例)
+
+1. `onclick`属性
+
+```html
+<body>
+  <div class="box">元素一</div>
+  <script>
+    const boxEl = document.querySelector('.box')
+    boxEl.onclick = function () {
+      console.log('box元素被点击')
+    }
+  </script>
+</body>
+```
+
+2.  `addEventListener`方法
+
+```html
+<body>
+  <div class="box">元素一</div>
+  <script>
+    const boxEl = document.querySelector('.box')
+    boxEl.addEventListener('click', function (e) {
+      console.log('box元素被点击')
+    })
+  </script>
+</body>
+```
+`e:event`**常见属性**
+
+target:当前事件发生的元素    
+currentTarget:当前处理事件的元素
+preventDefault:取消事件默认行为    
+stopPropagation:阻止事件进一步传递(冒泡或者捕获都可以进行阻止)   
+ 
+
+<Callout type="info" icon="💡">
+推荐使用 `addEventListener()` 来注册一个事件监听器，原因如下 ：
+
+1.它允许为一个事件添加多个监听器。
+
+2.`addEventListener`可以控制监听器是在捕获阶段还是冒泡阶段触发。
+
+3.它对任何事件都有效，而不仅仅是 HTML 或 SVG 元素。也可以用于`window`和`document`对象，这使得它非常适合监听如`resize`、`scroll`等非特定元素事件(onclick 无法监听)。
+</Callout>
+
+
+**事件捕获和事件冒泡**
+
+当一个事件发生在嵌套的元素上时，事件处理的顺序包括两个阶段：事件捕获（Capturing）和事件冒泡（Bubbling）。
+
+**事件捕获**
+
+事件捕获是指事件从最外层元素（通常是`window`对象）开始，逐级向下传递到事件实际发生的目标元素。在捕获阶段，父元素先于子元素接收到事件。
+
+**事件冒泡**
+事件冒泡正好相反，事件从事件实际发生的目标元素开始，逐级向上传递到最外层元素。在冒泡阶段，子元素先于父元素接收到事件。
+
+`addEventListener`方法接受第三个参数，用于控制监听器是在捕获阶段还是冒泡阶段触发：
+
+如果第三个参数为`false`或省略，监听器在冒泡阶段触发（默认）。如果第三个参数为`true`，监听器在捕获阶段触发。
+
+```html
+<body>
+  <div class="box">
+    <span class="content">元素一</span>
+  </div>
+  <script>
+    const bodyEl = document.body
+    const boxEl = document.querySelector('.box')
+    const spanEl = document.querySelector('.content')
+
+    /* 捕获 */
+    bodyEl.addEventListener(
+      'click',
+      function () {
+        console.log('body元素被点击~捕获阶段')
+      },
+      true,
+    )
+
+    boxEl.addEventListener(
+      'click',
+      function () {
+        console.log('box元素被点击~捕获阶段')
+      },
+      true,
+    )
+
+    spanEl.addEventListener(
+      'click',
+      function () {
+        console.log('span元素被点击~捕获阶段')
+      },
+      true,
+    )
+
+    /* 冒泡 */
+    bodyEl.addEventListener('click', function () {
+      console.log('body元素被点击~冒泡阶段')
+    })
+
+    boxEl.addEventListener('click', function () {
+      console.log('box元素被点击~冒泡阶段')
+    })
+
+    spanEl.addEventListener('click', function () {
+      console.log('span元素被点击~冒泡阶段')
+    })
+    //body元素被点击~捕获阶段
+    //box元素被点击~捕获阶段
+    //span元素被点击~捕获阶段
+    //span元素被点击~冒泡阶段
+    // box元素被点击~冒泡阶段
+    //body元素被点击~冒泡阶段
+  </script>
+</body>
+```
+
+**事件委托**
+
+利用事件冒泡的原理来优化事件监听器的管理。在事件委派中，而不是将事件监听器直接绑定到目标元素上，而是将事件监听器绑定到其父元素或更高层级的元素上，然后根据事件的冒泡原理来处理子元素的事件。
+
+当我们想实现以下功能:点击 ul 下的 li 子元素添加 class 样式。
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <style>
+    .active {
+      background-color: skyblue;
+    }
+  </style>
+  <body>
+    <ul>
+      <li>1</li>
+      <li>2</li>
+      <li>3</li>
+      <li>4</li>
+      <li>5</li>
+      <li>6</li>
+      <li>7</li>
+      <li>8</li>
+      <li>9</li>
+      <li>10</li>
+    </ul>
+
+    <script>
+      /*普通方式  */
+      const liEl = document.querySelectorAll('li')
+      liEl.forEach((li) => {
+        li.addEventListener('click', function () {
+          const liEl = document.querySelector('.active')
+          liEl && liEl.classList.remove('active')
+          this.classList.add('active')
+        })
+      })
+    </script>
+  </body>
+</html>
+```
+
+每个 li 元素都添加了一个监听事件,如果元素很多会性能和效率都会有所影响。事件委派则是处理大量相似事件时的有效技术，它通过利用 DOM 事件的冒泡行为来减少必要的事件监听器数量，从而提高应用程序的性能和效率。
+[事件委派案例](https://codepen.io/weqjfeyg-the-bold/pen/yLrNjjb)
+
+**mouseover 和 mouseenter**
+
+`mouseover`和`mouseenter`是两种常见的鼠标事件，用于检测鼠标光标的移动。
+
+区别:
+
+`mouseover`事件会冒泡,当鼠标光标移动到一个元素上时，不仅该元素会触发`mouseover`事件，其所有父元素也会依次触发`mouseover`事件，除非在某个元素上调用了`event.stopPropagation()`来阻止事件冒泡。并且鼠标移动到子元素时,父元素会重新触发`mouseover`事件。
+
+`mouseenter`事件不会冒泡。事件只会在鼠标光标首次移动到元素上时触发，而不会因为鼠标在该元素内部的移动或是移动到其子元素上而再次触发[mouseover 和 mouseenter 案例](https://codepen.io/weqjfeyg-the-bold/pen/JjVdZyQ)。

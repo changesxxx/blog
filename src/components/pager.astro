@@ -15,8 +15,6 @@ export function getPagerForDoc(slug: string) {
     (link) => `/notes/${slug}` === link?.href,
   )
 
-
-
   activeIndex = Math.max(activeIndex, 0)
   const prev = activeIndex !== 0 ? flattenedLinks[activeIndex - 1] : null
   const next =

@@ -1,7 +1,6 @@
 ---
 import { MdxComponents } from '@/components/content/mdx-components'
 
-// import DocsSidebarNav from '@/components/layout/sidebar-nav.astro'
 import DocsSidebarNav from '@/components/layout/sidebar-nav.tsx'
 
 import DocsPageHeader from '@/components/DocsPageHeader.astro'
@@ -23,16 +22,17 @@ export async function getStaticPaths() {
     params: { slug: doc.slug },
     props: doc,
   }))
-} 
+}
+
+//当前路径
+const currentUrl = Astro.request.url
+const currentPath = new URL(currentUrl).pathname
 
 type Props = CollectionEntry<'docs'>
 
 const doc = Astro.props
 const slug = Astro.params.slug
 const toc = await getTableOfContents(doc.body)
-
-console.log('doc',doc)
-// console.log('toc',toc) 
 
 const { Content } = await doc.render()
 
@@ -42,9 +42,6 @@ if (!slug || !doc) {
     statusText: 'Not found',
   })
 }
-
-
-
 ---
 
 <DocsLayout title={doc.data.title} description={doc.data.description}>
@@ -55,10 +52,12 @@ if (!slug || !doc) {
       <aside
         class="fixed top-14 z-30 -ml-2 hidden h-[calc(100vh-3.5rem)] w-full shrink-0 md:sticky md:block"
       >
-        <!--    
-          client:media="(max-hight: 50px)" -->
         <ScrollArea className="h-full py-6 pr-6 lg:py-8" client:load>
-        <DocsSidebarNav items={docsConfig.sidebarNav} client:load /> 
+          <DocsSidebarNav
+            items={docsConfig.sidebarNav}
+            pathname={currentPath}
+            client:load
+          />
         </ScrollArea>
       </aside>
       <main
@@ -99,8 +98,4 @@ if (!slug || !doc) {
       </main>
     </div>
   </div>
-
-  <!-- client:media="(max-width: 50em)" -->
 </DocsLayout>
-
-

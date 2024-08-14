@@ -14,11 +14,11 @@ export const docsConfig: DocsConfig = {
   sidebarNav: [
     {
       title: 'Html',
-      href: 'web-introduction/html',
+      href: '/notes/web-introduction/html',
     },
     {
       title: 'Css',
-      href: 'web-introduction/css',
+      href: '/notes/web-introduction/css',
     },
 
     {
