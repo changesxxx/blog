@@ -20,7 +20,6 @@ export const docsConfig: DocsConfig = {
       title: 'Css',
       href: '/notes/web-introduction/css',
     },
-
     {
       title: 'javaScript',
       items: [
@@ -33,25 +32,21 @@ export const docsConfig: DocsConfig = {
           href: '/notes/web-introduction/javaScript/syntax',
         },
       ],
-      // open: true,
     },
     {
-      title: 'Pages',
+      title: 'Babel',
+      href: '/notes/web-introduction/babel',
+    },
+    {
+      title: 'webpack',
       items: [
         {
-          title: 'Landing',
-          href: '/docs/in-progress1',
-          disabled: true,
+          title: '基础用法',
+          href: '/notes/web-introduction/webpack/basic',
         },
         {
-          title: 'Changelog',
-          href: '/docs/in-progress2',
-          disabled: true,
-        },
-        {
-          title: 'Wait List',
-          href: '/docs/in-progress3',
-          disabled: true,
+          title: '拓展',
+          href: '/notes/web-introduction/webpack/expand',
         },
       ],
     },

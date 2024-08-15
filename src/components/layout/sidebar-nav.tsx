@@ -42,18 +42,17 @@ const SidebarNav = ({ items, pathname }: Props) => {
       }),
     )
   }
-
+  //  cursor-pointer
   return (
     <div className="w-full">
       {menu.length
         ? menu.map((item, index) => (
-            <div
-              key={index}
-              className="pb-8 cursor-pointer"
-              onClick={() => handleToggle(index)}
-            >
+            <div key={index} className="pb-8">
               {item.items ? (
-                <h4 className="mb-1 rounded-md px-2 py-1 text-sm font-medium flex justify-between">
+                <h4
+                  className="mb-1 rounded-md px-2 py-1 text-sm font-medium flex justify-between cursor-pointer"
+                  onClick={() => handleToggle(index)}
+                >
                   <span>{item.title}</span>
                   <span className="flex items-center cursor-pointer">
                     {menu[index].open ? <HiChevronDown /> : <HiChevronRight />}

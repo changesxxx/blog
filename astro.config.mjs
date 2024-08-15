@@ -3,6 +3,10 @@ import tailwind from '@astrojs/tailwind'
 
 import mdx from '@astrojs/mdx'
 import react from '@astrojs/react'
+import {
+  transformerNotationHighlight,
+  transformerRemoveLineBreak,
+} from '@shikijs/transformers'
 
 // https://astro.build/config
 //https://shiki.style/themes 主题
@@ -19,6 +23,7 @@ export default defineConfig({
           // light: 'ayu-dark',
           dark: 'material-theme-darker',
         },
+        transformers: [transformerNotationHighlight()],
       },
       gfm: true,
     }),

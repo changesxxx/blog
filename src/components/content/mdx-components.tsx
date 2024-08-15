@@ -14,6 +14,7 @@ type Props = {
   className?: string
   title?: string
   'data-language'?: string
+  type: string
 }
 
 export const MdxComponents = {
@@ -141,7 +142,6 @@ export const MdxComponents = {
     />
   ),
   pre: ({ className, ...props }: Props) => {
-    // console.log(props['data-language'])
     const lang = props['data-language']
     return (
       <div style={{ position: 'relative' }}>
@@ -157,9 +157,10 @@ export const MdxComponents = {
       </div>
     )
   },
-  code: ({ className, ...props }: Props) => (
+  code: ({ className, type, ...props }: Props) => (
     <code className={cn(className)} {...props} />
   ),
+
   Image,
   Callout,
   Card: MdxCard,

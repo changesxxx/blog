@@ -10,6 +10,23 @@ code:not(pre code) {
   background-color: var(--code-bg-color);
 }
 
+pre code {
+  display: block;
+  width: 100%;
+}
+
+@layer {
+  pre code .highlighted {
+    display: block;
+    width: 100%;
+    background-color: var(--code-highlighted) !important;
+  }
+
+  pre code .highlighted span {
+    background-color: var(--code-highlighted) !important;
+  }
+}
+
 .lang {
   position: absolute;
   top: 4px;

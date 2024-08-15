@@ -48,6 +48,12 @@
 
     --code-background-color: hsl(205, 88%, 94%);
     --code-bg-color: var(--code-background-color);
+
+    --code-error-opacity: 1;
+    --code-error-text: rgb(127 29 29 / var(--code-error-opacity));
+    --code-error-bg: rgb(254 226 226 / var(--code-error-opacity));
+
+    --code-highlighted: hsl(0, 0%, 25%);
   }
 
   .dark {
@@ -92,6 +98,12 @@
 hsl(205, 88%, 40%) */
     --code-background-color: hsl(210, 70%, 62%);
     --code-bg-color: var(--code-background-color);
+
+    /* --code-error-opacity: 0.4; */
+
+    --code-error-text: rgb(254 202 202 / var(--code-error-opacity));
+    --code-error-bg: rgb(127 29 29 / var(--code-error-opacity));
+    --code-highlighted: hsl(0, 0%, 43%);
   }
 
   /* 代码块主题切换 */
@@ -106,6 +118,10 @@ hsl(205, 88%, 40%) */
   }
 }
 
+/* 
+  代码背景高亮
+*/
+
 .current-chapter {
   border-left: 2px solid var(--sl-color-text-accent);
 }
@@ -113,6 +129,11 @@ hsl(205, 88%, 40%) */
 .current-link {
   font-weight: 700;
   color: var(--sl-color-text-accent);
+}
+
+.code-error {
+  color: var(--code-error-text);
+  background: var(--code-error-bg);
 }
 
 @layer base {

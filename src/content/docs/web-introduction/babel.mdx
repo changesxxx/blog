@@ -1,0 +1,116 @@
+---
+title: Babel
+description: 'Babel 是一个工具链，主要用于将 ECMAScript 2015+(ES6) 代码转换为当前和旧版浏览器或环境中的向后兼容版本的 JavaScript，而无需担心兼容性问题。'
+slug: web-introduction/babel
+---
+
+### 转译流程概述
+
+1. **解析（Parsing）：** Babel 首先会将输入的 JavaScript 代码解析成抽象语法树（AST）。AST 是一个树状结构，用于表示代码的语法结构，它将代码解析为一系列的节点，每个节点代表着代码的一个部分，如函数、变量声明等。
+2. **转换（Transformation）：** 一旦得到 AST，Babel 就会对其进行遍历和修改，应用用户配置的插件和预设规则。这些插件和规则可以对特定的语法结构进行转换，比如将 ES6 的箭头函数转换为普通的函数表达式，或是将 JSX 转换为普通的 JavaScript 函数调用。
+3. **生成（Code Generation）：** 经过转换后，Babel 将修改后的 AST 重新转换回 JavaScript 代码，生成目标代码。这些代码已经经过转换，可以在目标环境中运行。
+
+---
+
+### babel 预设
+
+Babel 预设（Presets）是一种方便的工具，它们捆绑了一组预配置的插件，用于将特定类型的 JavaScript 代码转换为目标代码。
+
+`@babel/preset-env`：这是最常用的预设之一。它根据目标环境和指定的配置（如目标浏览器、Node.js 版本等）自动确定需要转换的语法和特性，并应用相应的插件。它的作用是将最新的语法转换为目标环境所支持的版本。
+
+默认预设会查询`browserslist`配置,安装`babel`时会自动安装`browserslist`
+
+常见`browserslist`配置
+
+<CodeBlock title=".browserslistrc">
+```
+> 1% #全球超过1%人使用的浏览器
+last 2 versions #每个浏览器的最后2个版本
+not ie <= 10 #排除版本低于和等于10的 ie 浏览器
+```
+</CodeBlock>
+
+---
+
+### webpack 集成 babel
+
+<CodeBlock title="webpack.config.js">
+```js
+module: {
+  rules: [
+    {
+      test: /\.m?js$/,
+      exclude: /(node_modules|bower_components)/,
+      use: {
+        loader: 'babel-loader',
+        options: {
+          presets: ['@babel/preset-env'],
+        },
+      },
+    },
+  ]
+}
+```
+</CodeBlock>
+
+### 配置文件
+
+<CodeBlock title="babel.config.js">
+```js
+module.exports = {
+  presets: [['@babel/preset-env']],
+}
+```
+</CodeBlock>
+
+### polyfill
+
+用来为旧浏览器提供它没有原生支持的较新的功能。比如我们使用了一些语法特性（例如：**`Promise`, `Generator`, `Symbol`等以及实例方法例如`Array.prototype.includes`** 等）babel 无法正常解析,Polyfill 可以填补这些功能缺失。
+
+```js
+const person = [{ name: 'Model 3' }, { name: 'Punto' }, { name: '208' }]
+
+const res = person.find((p) => p.name === '208')
+```
+
+此代码在最新的浏览器上运行良好，但在 Internet Explorer 11 上运行时，会引发错误<code class="code-error">Object doesn't support property or method 'find'</code>。低版本浏览器不存在`find()`方法。
+
+`babel7.4.0`之后，可以通过单独引入 core-js 和 regenerator-runtime 来完成 polyfill 的使用。
+
+- core-js:core-js 是完全模块化的 javascript 标准库。为了让代码中的一些较新的 api 可以正常运行。
+- regenerator-runtime:将 generator 函数或 async 函数编译为 ES5。
+
+需在项目的入口文件引入:
+
+```js
+import 'regenerator-runtime/runtime.js'
+```
+
+<Callout type="info" icon="💡">
+  如@babel/core 和 @babel/plugin-transform-regenerator 这两个包的版本同时大于
+  7.18.0 则不需要引入。
+</Callout>
+
+使用:
+
+<CodeBlock title="babel.config.js">
+```js
+module.exports = {
+  presets: [
+    [
+      '@babel/preset-env',
+      {
+        corejs: 3,
+        useBuiltIns: 'usage', //推荐usage
+      },
+    ],
+  ],
+}
+```
+</CodeBlock>
+
+useBuiltIns：设置以什么样的方式来使用 polyfill
+
+- false:此时不对 `polyfill` 做操作。
+- entry:根据配置的浏览器兼容，引入浏览器不兼容的 `polyfill`。需要在入口文件手动引入。
+- usage:根据配置的浏览器兼容，以及代码中用到的 API 来进行 `polyfill`，按需加载。
