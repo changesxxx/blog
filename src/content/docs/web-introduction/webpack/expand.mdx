@@ -12,8 +12,8 @@ description: ''
 ```js
 module.exports = {
   entry: {
-    app: './src/app.js',
-    adminApp: './src/adminApp.js',
+    app: './src/app.js',// [!code ++]
+    adminApp: './src/adminApp.js',// [!code ++]
   },
   output: {
     filename: '[name]-build.js',
@@ -40,8 +40,7 @@ module.exports = {
             dependOn:"shared"
         }
     }
-    shared: ['axios']//shared 名称可以随便定义
-},
+    shared: ['axios']//shared 名称可以随便定义// [!code ++]
     output: {
         filename: '[name]-build.js',
             output: path.resolve(__dirname, 'build')
@@ -167,7 +166,7 @@ module.exports = {
   optimization: {
     splitChunks: {
       // 无论是动态导入还是node_modules下第三方都会进行单独打包
-      chunks: 'all',
+      chunks: 'all',// [!code ++]
       //当拆分的包大于指定大小将再次进行分包
       maxSize: 20000,
       //将包拆分不小于指定大小
@@ -199,13 +198,13 @@ module.exports = {
       cacheGroups: {
         //将node_modules引入的依赖拆分为单独的分组
         vendors: {
-          test: /[\\/]node_modules[\\/]/,
-          filename: '[name]_vendors.js',
+          test: /[\\/]node_modules[\\/]/,// [!code ++]
+          filename: '[name]_vendors.js',// [!code ++]
         },
         //将引入/utils目录下的文件拆分为单独的分组
         utils: {
-          test: /utils/,
-          filename: '[name]_utils.js',
+          test: /utils/,// [!code ++]
+          filename: '[name]_utils.js',// [!code ++]
         },
       },
     },
@@ -271,18 +270,20 @@ document.body.append(button2)
 
 </CodeBlock>
 
+---
+
 ### webpack 配置使用 CDN
 
 CDN（内容分发网络）是一种分布式网络服务，指通过将内容缓存到全球不同地点的服务器上，来加快数据的传输速度和降低延迟。当用户访问一个使用 CDN 的网站时，CDN 会基于用户的地理位置将请求重定向到最近的服务器节点。这意味着内容从物理位置上更接近用户，减少了传输路径，从而缩短了加载时间和响应速度。
 
-- 自己项目静态资源存储在 cdn 服务器并通过 cdn 进行访问
+**自己项目静态资源存储在 cdn 服务器并通过 cdn 进行访问**
 
 ```js
 module.exports = {
   //...
   output: {
     // 用于加载由 Webpack 生成的所有资源的基本 URL
-    publicPath: 'https://xxx/', //cdn服务器地址
+    publicPath: 'https://xxx/', //cdn服务器地址 // [!code ++]
   },
 }
 ```
@@ -297,14 +298,15 @@ module.exports = {
     <meta charset="utf-8" />
     <title>plugin_demo</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <script defer="defer" src="https://xxx/main.js"></script>
+    <script defer="defer" src="https://xxx/main.js"></script>// [!code ++] 
+    
   </head>
 
   <body></body>
 </html>
 ```
 
-- 第三方资源使用 cdn
+**第三方资源使用 cdn**
 
 1. 首先，需要在 Webpack 配置中指定哪些库或模块不应该打包到最终的输出文件中，而是从 CDN 加载。
 
@@ -316,8 +318,8 @@ module.exports = {
   externals: {
     //key:react代表import react from 'react' 框架名称
     //value:React代表在资源中使用的名称例:React.lazy(...)
-    react: 'React',
-    axios: 'axios',
+    react: 'React',// [!code ++]
+    axios: 'axios',// [!code ++]
   },
   plugins: [
     new HtmlWebpackPlugin({
@@ -340,19 +342,24 @@ module.exports = {
 
   <body>
     <div id="root"></div>
-    <script src="reactcdn地址"></script>
-    <script src="axioscdn地址"></script>
+    <script src="reactcdn地址"></script>// [!code ++]
+    <script src="axioscdn地址"></script>// [!code ++]
   </body>
 </html>
 ```
 
+---
+
 ### Hash,ContentHash,ChunkHash
 
-在 Webpack 中，`hash`、`chunkhash`、和 `contenthash` 是用来控制文件缓存的三种不同类型的散列（hash）方法。
+在 Webpack 中**hash**、**chunkhash**、和 **contenthash** 是用来控制文件缓存的三种不同类型的散列（hash）方法。
 
-- hash
+**hash** : **hash** 是整个构建相关的唯一标识符，每次构建过程中它都会生成一个新的值。如果项目中的任何文件发生更改，整个项目的构建散列也会改变。这意味着，即使只改变了一个文件，所有的输出文件名中的 **hash** 值都会改变，非常不利于浏览器缓存,浏览器需重新缓存资源文件。
 
-`hash` 是整个构建相关的唯一标识符，每次构建过程中它都会生成一个新的值。如果项目中的任何文件发生更改，整个项目的构建散列也会改变。这意味着，即使只改变了一个文件，所有的输出文件名中的 hash 值都会改变，非常不利于浏览器缓存,浏览器需重新缓存资源文件。
+
+
+
+<CodeBlock title="webpack.config.js">
 
 ```js
 const path = require('path')
@@ -364,10 +371,14 @@ module.exports = {
   },
   output: {
     path: path.join(__dirname, 'build'),
-    filename: '[name].[hash].js',
+    filename: '[name].[hash].js',// [!code ++]
   },
 }
 ```
+
+</CodeBlock>
+
+
 
 打包后 webpack 为每个文件创建一个新的哈希值**55e765r56798c278ytr6** 。:
 
@@ -383,11 +394,11 @@ main.12e776r56128c278zdf6.js
 main.12e776r56128c278zdf6.js
 ```
 
-- chunkhash
+**chunkhash** :  基于 webpack 入口文件定义自己的哈希值。如果该入口文件发生任何变化，则只有对应的入口文件哈希值会发生变化。
 
-chunkhash 基于 webpack 入口文件定义自己的哈希值。如果该入口文件发生任何变化，则只有对应的入口文件哈希值会发生变化。
 
-例如:我们在 index.js 文件中引入一个 css 文件
+
+例:我们在 index.js 文件中引入一个 css 文件
 
 ```js
 import './css/style.css'
@@ -419,11 +430,10 @@ module.exports = {
 
 index 入口文件生成自己的 hash 值,只有依赖文件或本身发生了改变 hash 值才会发生变化,并且其他文件不会因为 index 入口文件的变化使自身的 hash 值发生改变
 
-- contenthash
+**contenthash** : 针对文件内容本身的散列,只有当文件的实际内容改变时，其 hash 值才会改变。
 
-`contenthash` 是针对文件内容本身的散列,只有当文件的实际内容改变时，其 hash 值才会改变。
 
-上述当 index 入口文件和 css 文件同时采用 chunkhash 时,会发现一个问题。当入口文件变化即使 css 文件没有发生变化 hash 值也会随之一并更改。`contenthash`可以解决此问题。
+上述当 index 入口文件和 css 文件同时采用 chunkhash 时,会发现一个问题。当入口文件变化即使 css 文件没有发生变化 hash 值也会随之一并更改。**contenthash**可以解决此问题。
 
 ```js
 const path = require('path')
@@ -437,7 +447,7 @@ module.exports = {
     masin: './src/main.js',
   },
   output: {
-    filename: '[name]_[contenthash:6].js',
+    filename: '[name]_[contenthash:6].js',// [!code ++]
     path: path.resolve(__dirname, './build'),
     clean: true,
   },
@@ -463,6 +473,8 @@ module.exports = {
 ```
 
 这样只有当自身文件发生了改变 hash 值才会发生改变。
+
+---
 
 ### Terser
 
@@ -531,7 +543,7 @@ module.exports ={
 
 tree shaking 是一个术语，通常用于描述移除 JavaScript 上下文中的死代码(消除无用代码)。
 
-- **usedExports**:webpack 判断每个模块的导出内容是否被使用,并进行标注。配合 Terser 可实现不对死代码进行压缩)。
+**usedExports** : webpack 判断每个模块的导出内容是否被使用,并进行标注。配合 Terser 可实现不对死代码进行压缩。
 
 ```js
 //webpack配置
@@ -542,7 +554,7 @@ module.exports = {
   optimization: {
     //1.导入模块时将会分析函数是否被使用,当函数未被使用在打包的时候将会生成一条注释标注此函数未被使用
     //标记的函数注释 例:/* unused harmony export [函数名称] */
-    usedExports: true, //当为生产模式时 默认为true,如果开发环境需要压缩需手动修改为true
+    usedExports: true, //当为生产模式时(默认为true),如果开发环境需要压缩需手动修改为true// [!code ++]
     ///2.告知 webpack 使用 Terser
     minimize: true, //当为生产模式时 默认为true,如果开发环境需要压缩需手动修改为true
     //配合terser实现代码压缩
@@ -564,9 +576,9 @@ module.exports = {
 }
 ```
 
-- **sideEffects**:将文件标记为无副作用。如果所有代码都不包含副作用，sideEffects 可以告知 webpack 可以安全地删除未使用的导出内容。
+**sideEffects** : 将文件标记为无副作用。如果所有代码都不包含副作用，sideEffects 可以告知 webpack 可以安全地删除未使用的导出内容。
 
-通过 package.json 的 `"sideEffects"` 属性即可实现此目的。
+通过 package.json 的 **sideEffects** 属性即可实现此目的。
 
 ```json
 {
@@ -628,15 +640,18 @@ plugins: [
 ]
 ```
 
+---
+
 ### ScopeHoisting
 
 作用域提升，webpack 分析出模块之间的依赖关系，尽可能将打散的模块合并到一个函数中，前提是不能造成代码冗余。
 
 例:A 模块 引入 B 模块使用到了 B 模块中的 foo 函数 打包时将会把 foo 函数直接打包成 A 模块中的一部分
 
-使用:
+使用 : 在生产环境中是默认开启的,在开发环境需手动启用
 
-在生产环境中是默认开启的,在开发环境需手动启用
+
+<CodeBlock title="webpack.config.js">
 
 ```js
 const webpack = require('webpack')
@@ -644,11 +659,12 @@ const webpack = require('webpack')
 module.exports = {
   mode: 'development',
   //...
-  plugins: [new webpack.optimize.ModuleConcatenationPlugin()],
+  plugins: [new webpack.optimize.ModuleConcatenationPlugin()],// [!code ++]
 }
 ```
 
-例:
+</CodeBlock>
+
 
 ```js
 import './css/style.css'
@@ -702,7 +718,7 @@ sum(1, 2)
     (0, e.sum)(1, 2)
 })()
 //# sourceMappingURL=index_9f0a65.js.map
-//--------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------
 //使用ScopeHoisting
 //直接将sum函数集成在一块了而非引入文件获取sum函数
 ;(() => {
@@ -717,13 +733,19 @@ sum(1, 2)
 //# sourceMappingURL=index_cc134a.js.map
 ```
 
+---
+
 ### gzip 文件压缩
 
-使用 CompressionPlugin 压缩 css js 代码使压缩后的文件体积更小并且 浏览器可以正常识别运行最后打包文件为 gzip 文件。
+使用 **CompressionPlugin** 压缩 css js 代码使压缩后的文件体积更小并且 浏览器可以正常识别运行最后打包文件为 gzip 文件。
 
 ```shell
 npm install  compression-webpack-plugin -D
 ```
+
+
+
+<CodeBlock title="webpack.config.js">
 
 ```js
 const CompressionPlugin = require('compression-webpack-plugin')
@@ -741,36 +763,79 @@ module.exports = {
 }
 ```
 
+</CodeBlock>
+
+---
+
 ### 配置分离
 
 根据环境来动态生成 webpack 配置。
 
 1. 根目录下创建 config 文件夹存放 webpack 配置
-2. 修改 package.json 文件配置
 
-```json
-{
-  "name": "pro-platform",
-  "version": "0.1.0",
-  "main": "index.js",
-  "scripts": {
-     //./config/comm.config.js 公共webpack配置 --env production 'production'将传到配置文件导出的函数中
-    "build": "webpack --config ./config/comm.config.js --env production",
-  //./config/comm.config.js 公共webpack配置 --env development 'development'将传到配置文件导出的函数中
-    "serve": "webpack serve --config ./config/comm.config.js --env development",
+抽离开发环境配置
+
+<CodeBlock title="dev.config.js">
+
+```js
+module.exports = {
+  mode: 'development', //开发环境
+  devServer: {
+    port: 3000,
+    compress: true, //对devServer 所有服务启用 gzip 压缩。gzip 压缩 用于减少服务器向前端传输的数据量，提高浏览的速度
+    open: true,
   },
-  "dependencies": {
-  	...
-  },
-  "devDependencies": {
-	...
-  }
 }
 ```
 
-1. 配置分离
+</CodeBlock>
 
-- 公共配置
+抽离生产环境配置
+
+<CodeBlock title="prod.config.js">
+
+```js
+//丑化工具
+const TerserPlugin = require('terser-webpack-plugin')
+
+//csst提取
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+//csst压缩
+const CSSMinimizerPlugin = require('css-minimizer-webpack-plugin')
+
+module.exports = {
+  mode: 'production', //生产环境
+  optimization: {
+    minimize: true, //当为生产模式时 默认为true,如果开发环境需要压缩需手动修改为true
+    minimizer: [
+      new TerserPlugin({
+        extractComments: false, //注释将不会抽取为单独的文件
+        terserOptions: {
+          compress: {
+            arguments: true, //c [arguments=true]作用
+            unused: true, //默认为true 没有被使用的函数 变量将不会被打包
+          },
+          mangle: true, //压缩配置
+          toplevel: true, //顶级作用域变量名称简化,
+          keep_fnames: true,
+        },
+      }),
+      new CSSMinimizerPlugin({}),
+    ],
+  },
+  plugins: [
+    new MiniCssExtractPlugin({
+      filename: 'css/[name].css',
+    }),
+  ],
+}
+```
+
+</CodeBlock>
+
+创建公共配置
+
+<CodeBlock title="congit/comm.config.js">
 
 ```js
 const path = require('path')
@@ -834,57 +899,31 @@ module.exports = function (env) {
 }
 ```
 
-- 生产环境配置
+</CodeBlock>
 
-```js
-//prod.config.js
 
-//丑化工具
-const TerserPlugin = require('terser-webpack-plugin')
+2. 修改 package.json 文件配置
 
-//csst提取
-const MiniCssExtractPlugin = require('mini-css-extract-plugin')
-//csst压缩
-const CSSMinimizerPlugin = require('css-minimizer-webpack-plugin')
-
-module.exports = {
-  mode: 'production', //生产环境
-  optimization: {
-    minimize: true, //当为生产模式时 默认为true,如果开发环境需要压缩需手动修改为true
-    minimizer: [
-      new TerserPlugin({
-        extractComments: false, //注释将不会抽取为单独的文件
-        terserOptions: {
-          compress: {
-            arguments: true, //c [arguments=true]作用
-            unused: true, //默认为true 没有被使用的函数 变量将不会被打包
-          },
-          mangle: true, //压缩配置
-          toplevel: true, //顶级作用域变量名称简化,
-          keep_fnames: true,
-        },
-      }),
-      new CSSMinimizerPlugin({}),
-    ],
+```json
+{
+  "name": "pro-platform",
+  "version": "0.1.0",
+  "main": "index.js",
+  "scripts": {
+     //./config/comm.config.js 公共webpack配置 --env production 'production'将传到配置文件导出的函数中
+    "build": "webpack --config ./config/comm.config.js --env production",
+  //./config/comm.config.js 公共webpack配置 --env development 'development'将传到配置文件导出的函数中
+    "serve": "webpack serve --config ./config/comm.config.js --env development",
   },
-  plugins: [
-    new MiniCssExtractPlugin({
-      filename: 'css/[name].css',
-    }),
-  ],
+  "dependencies": {
+  	...
+  },
+  "devDependencies": {
+	...
+  }
 }
 ```
 
-- 开发环境配置
 
-```js
-// dev.config.js
-module.exports = {
-  mode: 'development', //开发环境
-  devServer: {
-    port: 3000,
-    compress: true, //对devServer 所有服务启用 gzip 压缩。gzip 压缩 用于减少服务器向前端传输的数据量，提高浏览的速度
-    open: true,
-  },
-}
-```
+
+

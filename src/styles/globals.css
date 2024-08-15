@@ -54,6 +54,12 @@
     --code-error-bg: rgb(254 226 226 / var(--code-error-opacity));
 
     --code-highlighted: hsl(0, 0%, 25%);
+
+  
+    --vp-c-green-soft: rgba( 0,255,127, .2);
+    --vp-c-green: rgba( 0,255,127);
+    
+    --code-diff-add:var( --vp-c-green-soft);
   }
 
   .dark {
@@ -104,6 +110,9 @@ hsl(205, 88%, 40%) */
     --code-error-text: rgb(254 202 202 / var(--code-error-opacity));
     --code-error-bg: rgb(127 29 29 / var(--code-error-opacity));
     --code-highlighted: hsl(0, 0%, 43%);
+
+    --vp-c-green-soft: rgba(16, 185, 129, .14);
+    --vp-c-green: rgba( 16, 185, 129);
   }
 
   /* 代码块主题切换 */

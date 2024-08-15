@@ -323,8 +323,8 @@ module.exports = {
     //处理css的loader loader 顺序从右到左依次执行 从后到前
     rules: [
       {
-        test: /\.css$/i, // [!code highlight]
-        use: [{ loader: 'style-loader' }, { loader: 'css-loader' }], // [!code highlight]
+        test: /\.css$/i,// [!code ++]
+        use: [{ loader: 'style-loader' }, { loader: 'css-loader' }], // [!code ++]
       },
     ],
   },
@@ -421,8 +421,8 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.(png|jpg|gif)$/i,
-        type: 'asset',
+        test: /\.(png|jpg|gif)$/i,// [!code ++]
+        type: 'asset',// [!code ++]
         /*
           占位符
           打包后的静态资源文件存储在static目录下
@@ -431,7 +431,7 @@ module.exports = {
           ext:拓展名(带.)
         */
         generator: {
-          filename: 'static/[name]_[hash:6][ext]',
+          filename: 'static/[name]_[hash:6][ext]',// [!code ++]
         },
         /*
             如果图片小于了80kb 就采用inline方式进行打包也就是会将资源转为base64格式插入在js文件中,
@@ -439,7 +439,7 @@ module.exports = {
         */
         parser: {
           dataUrlCondition: {
-            maxSize: 80 * 1024, // 80kb
+            maxSize: 80 * 1024, // 80kb // [!code ++]
           },
         },
       },
@@ -489,9 +489,9 @@ module.exports = {
     path: path.resolve(__dirname, './build'),
   },
   plugins: [
-    new HtmlWebpackPlugin({
-      title: 'plugin_demo',
-    }),
+    new HtmlWebpackPlugin({// [!code ++]
+      title: 'plugin_demo',// [!code ++]
+    }),// [!code ++]
   ],
 }
 ```
@@ -508,12 +508,12 @@ npm install mini-css-extract-plugin -D
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 
 module.exports = {
-  plugins: [new MiniCssExtractPlugin()],
-  module: {
+    plugins: [new MiniCssExtractPlugin()],// [!code ++]
+    module: {
     rules: [
       {
-        test: /\.css$/i,
-        use: [MiniCssExtractPlugin.loader, 'css-loader'],
+        test: /\.css$/i,// [!code ++]
+        use: [MiniCssExtractPlugin.loader, 'css-loader'],// [!code ++]
       },
     ],
   },

@@ -17,7 +17,7 @@ pre code {
 
 @layer {
   pre code .highlighted {
-    display: block;
+    display: inline-block;
     width: 100%;
     background-color: var(--code-highlighted) !important;
   }
@@ -25,7 +25,35 @@ pre code {
   pre code .highlighted span {
     background-color: var(--code-highlighted) !important;
   }
+
+  
+
 }
+
+@layer {
+  pre code .add {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    background-color: var(--code-diff-add) !important;
+  } 
+
+  pre code .add span {
+    background-color:   rgba(255, 0, 0, 0)!important;
+  }
+
+
+  pre code .add::before {
+    content: "+";
+    position: absolute;
+    color:var(--vp-c-green);
+    left: 10px;
+  }
+
+
+
+}
+
 
 .lang {
   position: absolute;

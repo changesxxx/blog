@@ -5,7 +5,7 @@ import mdx from '@astrojs/mdx'
 import react from '@astrojs/react'
 import {
   transformerNotationHighlight,
-  transformerRemoveLineBreak,
+  transformerNotationDiff,
 } from '@shikijs/transformers'
 
 // https://astro.build/config
@@ -23,7 +23,10 @@ export default defineConfig({
           // light: 'ayu-dark',
           dark: 'material-theme-darker',
         },
-        transformers: [transformerNotationHighlight()],
+        transformers: [
+          transformerNotationHighlight(),
+          transformerNotationDiff(),
+        ],
       },
       gfm: true,
     }),
