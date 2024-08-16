@@ -1,0 +1,119 @@
+---
+title: 常见八股
+description: ''
+---
+
+**实现 call**
+
+```js
+const obj = { name: 'zs' }
+
+//在函数原型对象上添加 所有生成的函数都可以使用
+Function.prototype.myCall = function (_that, ...args) {
+  /* 
+            此处this为调用者函数本身 foo.myCall 隐式绑定
+      */
+
+  //边界判断 判断传入的this指向不是null/undefined/其他不可绑定类型
+  _that = _that !== null && _that !== undefined ? Object(_that) : window
+
+  //隐式绑定:将调用函数添加到_that上 使用_that调用
+  Object.defineProperty(_that, 'fn', {
+    configurable: false,
+    enumerable: false,
+    value: this,
+  })
+
+  //使用_that调用
+  _that.fn(...args)
+
+  //删除fn属性
+  delete _that.fn
+}
+
+function foo(age) {
+  console.log(this.name, age)
+}
+
+foo.myCall(obj, 12)
+```
+
+**bind 实现**
+
+```js
+const obj = { name: 'zs' }
+
+function foo(age, sno) {
+  console.log(this.name, age, sno)
+}
+
+Function.prototype.myBind = function (_that, ...args) {
+  //隐式绑定:将调用函数添加到_that上 使用_that调用
+  Object.defineProperty(_that, 'fn', {
+    configurable: false,
+    enumerable: false,
+    value: this,
+  })
+
+  return function (...newArgs) {
+    const allArgs = [...args, ...newArgs]
+
+    _that.fn(...allArgs)
+  }
+}
+const bindFoo = foo.myBind(obj, 12)
+
+bindFoo(1001)
+```
+
+**节流**
+
+```js
+//随机产生不同的颜色
+function getRandomColor() {
+  // 生成随机的红、绿、蓝三个通道的颜色值
+  const red = Math.floor(Math.random() * 256) // 0 到 255 之间的随机整数
+  const green = Math.floor(Math.random() * 256)
+  const blue = Math.floor(Math.random() * 256)
+
+  // 将 RGB 颜色值转换成十六进制表示法
+  const hexRed = red.toString(16).padStart(2, '0') // 转换为两位十六进制数，不足补 0
+  const hexGreen = green.toString(16).padStart(2, '0')
+  const hexBlue = blue.toString(16).padStart(2, '0')
+
+  // 拼接成完整的十六进制颜色代码
+  const hexColor = `#${hexRed}${hexGreen}${hexBlue}`
+
+  return hexColor
+}
+
+function _throttle(fn, delay = 1000, immediate = true, tail = false) {
+  let time = 0
+
+  return function throttle() {
+    const nowTime = new Date().getTime()
+
+    if (!immediate && time === 0) time = nowTime
+    //console.log('delay:', delay, 'time:', time, 'nowTime:', nowTime, 'end:', nowTime - time)
+
+    if (nowTime - time >= delay) {
+      fn()
+      time = nowTime
+    }
+  }
+}
+
+const btn = document.querySelector('button')
+const divEl = document.querySelector('div')
+
+btn.addEventListener(
+  'click',
+  _throttle(
+    function () {
+      divEl.style.backgroundColor = getRandomColor()
+    },
+    3000,
+    false,
+  ),
+)
+```

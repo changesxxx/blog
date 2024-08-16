@@ -50,5 +50,34 @@ export const docsConfig: DocsConfig = {
         },
       ],
     },
+    {
+      title: 'Git',
+      href: '/notes/web-introduction/git',
+    },
+    {
+      title: 'React',
+      items: [
+        {
+          title: '基础用法',
+          href: '/notes/web-introduction/react/basic',
+        },
+        {
+          title: '补充',
+          href: '/notes/web-introduction/react/expand',
+        },
+        {
+          title: 'Router',
+          href: '/notes/web-introduction/react/router',
+        },
+        {
+          title: '官方文档',
+          href: '/notes/web-introduction/react/doc',
+        },
+      ],
+    },
+    {
+      title: '常见八股',
+      href: '/notes/web-introduction/interview-question',
+    },
   ],
 }

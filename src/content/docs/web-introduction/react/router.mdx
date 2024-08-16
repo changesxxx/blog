@@ -1,0 +1,208 @@
+---
+title: Router
+description: 'React Router 是完整的 React 路由解决方案，保持 UI 与 URL 同步。拥有简单的 API 与强大的功能例如代码缓冲加载、动态路由匹配、以及建立正确的位置过渡处理。'
+---
+
+**安装**
+
+```shell
+npm install react-router-dom
+```
+
+**BrowserRouter**
+
+使用干净的 URL 将当前位置存储在浏览器的地址栏中，并使用浏览器的内置历史记录堆栈进行导航。
+
+将应用程序包装在`BrowserRouter`内部
+
+```jsx
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+
+import App from './src/App'
+
+import { BrowserRouter } from 'react-router-dom'
+
+const root = ReactDOM.createRoot(document.getElementById('root'))
+root.render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>,
+)
+```
+
+如果您在非浏览器环境中使用 React Router，请查看`MemoryRouter`和`StaticRouter`。
+
+`MemoryRouter`在内存中（而不是在 URL 中）跟踪应用程序的历史记录。`BrowserRouter`如果您正在开发 React Native 应用程序，请使用此选项。
+
+`StaticRouter`顾名思义，在应用程序位置实际上从未改变的环境中很有用，例如在服务器上将单一路由渲染为静态 HTML 时。
+
+**Route**
+
+`Route`允许将应用的路径映射到不同的 React 组件。假设我们想将`Dashboard`组件映射到`/dashboard`路径时。我们只需使用`Route`处理映射关系:
+
+```jsx
+<Route path="/dashboard" element={<Dashboard />} />
+```
+
+**Routes**
+
+可以把`Routes`视作为一棵树。`Route`则是树叶。每当您有一个或多个`Route` 时，都需将它包裹在`Routes`内。
+
+```jsx
+<Routes>
+  <Route path="/" element={<Home />} />
+  <Route path="/about" element={<About />} />
+  <Route path="*" element={<NotFound />} />
+</Routes>
+```
+
+原因在于`Routes`会保存所有`Route`元素,并会根据路径选择相匹配的组件
+
+**Link**
+
+允许用户在点击时更改 URL,这就是`Link`的作用。最终会被渲染为`a`元素。
+
+```jsx
+<Link to="/about">About</Link>
+```
+
+**NavLink**
+
+和`Link`相似,不同的是`NavLink`知道自己是否处于 "激活"、"待定 "或 "过渡 "状态。
+
+```jsx
+<NavLink to="/us">Us</NavLink>
+```
+
+**Navigate**
+
+用于路由的重定向,元素在渲染时会改变当前位置并跳转至对应组件。
+
+```jsx
+<Navigate to="/dashboard" />
+```
+
+**路由嵌套**
+
+嵌套路由是将 URL 的片段与组件层次结构和数据耦合在一起的总体思路。
+
+```jsx
+<Route path="/about" element={<About></About>}>
+  <Route path="/about/address" element={<Address></Address>}></Route>
+</Route>
+```
+
+以上我们配置了嵌套路由的映射,在`/about`路径下还有一个子路径为`/about/address`
+
+```jsx
+import React, { PureComponent } from 'react'
+
+import { Link, Outlet } from 'react-router-dom'
+
+export default class About extends PureComponent {
+  render() {
+    return (
+      <div>
+        about...
+        <Link to="/about/address">Address</Link>
+        <hr />
+        <Outlet></Outlet>
+      </div>
+    )
+  }
+}
+```
+
+在`About`组件使用**Outlet**配置根路由在哪里呈现子路由
+
+**url 参数**
+
+就像函数参数允许在定义函数时声明占位符一样，URL 参数允许 URL 的各个部分声明占位符。
+
+```jsx
+<Route path="detail/:id" element={<Detail />} />
+```
+
+如果我们将 path 配置为`detail/:id`,呢么`detail/:abc`及`detail/:123`都可以匹配到该 route 并进行显示，这个匹配规则也称之为**动态路由。**
+
+获取路径中参数
+
+```jsx
+import React, { memo } from 'react'
+import { useParams } from 'react-router-dom'
+
+const Deatil = memo(() => {
+  //使用提供的hook获取
+  const params = useParams()
+
+  return (
+    <div>
+      <h1>Deatil page...</h1>
+      id:{params.id}
+    </div>
+  )
+})
+
+export default Deatil
+```
+
+除此之外还有一种常见的携带参数的`route`
+
+```jsx
+<Link to="user?name=zs&age=10">查看详情</Link>
+```
+
+获取对应参数
+
+```jsx
+import React, { memo } from 'react'
+
+import { useSearchParams } from 'react-router-dom'
+
+const User = memo(() => {
+  const [searchParams] = useSearchParams()
+  const query = Object.fromEntries(searchParams)
+  return (
+    <div>
+      <h1>User page...</h1>
+      {query.name}-{query.age}
+    </div>
+  )
+})
+
+export default User
+```
+
+**配置文件**
+
+如果将 route 存放在组件中会过于混乱，将其抽离为单独文件:
+
+```jsx
+const routes: RouteObject[] = [
+  {
+    path: '/',
+    element: <Navigate to="/main"></Navigate>,
+  },
+  {
+    path: '/main',
+    element: <Home />,
+  },
+  {
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
+    path: '*',
+    element: <ErrorPage />,
+  },
+]
+```
+
+在组件中使用`useRoutes`hook
+
+```jsx
+useRoutes(routes)
+```

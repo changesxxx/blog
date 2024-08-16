@@ -1,0 +1,128 @@
+---
+title: Git
+description: Git 是一个免费的开源 分布式版本控制系统。
+---
+
+### 常用命令
+
+| 命令                                           | 说明                                                                                         |
+| :--------------------------------------------- | :------------------------------------------------------------------------------------------- |
+| git init                                       | 初始化文件为 git 本地仓库                                                                    |
+| git clone '地址'                               | 下载远程服务器的代码                                                                         |
+| git add '指定文件'                             | 添加文件存入暂存区                                                                           |
+| git add .                                      | 将所有文件存入暂存区                                                                         |
+| git commit -m '此处推送备注'                   | 将暂存区内容推送至本地仓库(文件如果修改后需重新执行 add 操作存入暂存区)                      |
+| git commit -a -m '此处推送备注'(可以省略为-am) | 相当于执行了 add.和 commit 两部操作                                                          |
+| git status                                     | 查看托管文件状态 1.处于暂存区 2.文件被修改 3.可提交 ...                                      |
+| git -s                                         | git status 的简写方式 获取出来的信息也是简写内容                                             |
+| git log                                        | 查看提交日志                                                                                 |
+| git reset --hard HARD^                         | 回退到上一个版本                                                                             |
+| git reset --hard HARD~number                   | 回退 number 个版本                                                                           |
+| git reset --hard commit id                     | 回退到指定版本 commit id 为每次提交后会生成的唯一标识                                        |
+| git reflog                                     | 回退的详情日志                                                                               |
+| git push                                       | 将本地仓库代码提交至远程服务器中                                                             |
+| git fetch                                      | 从服务器拉取服务器托管代码并存放本地仓库(不会直接添加到目录中)                               |
+| git merge                                      | 将服务器拉取的代码进行合并操作                                                               |
+| git pull                                       | git fetch 和 git merge 的合并操作                                                            |
+| git remote                                     | 查看当前连接的远程服务器仓库地址                                                             |
+| git remote -v                                  | 查看当前连接的远程服务器仓库地址(详细内容)                                                   |
+| git remote add `<远程仓库名称>` `<url>`        | 添加一个新的远程仓库。指定一个远程仓库的名称和 URL，将其添加到当前仓库中。 默认名称为 origin |
+| git tag v1.0.0                                 | 为仓库某一个历史版本创建 tag                                                                 |
+| git tag                                        | 查看当前本地仓库提交的 tag                                                                   |
+| git show `<tag>`                               | 查看指定 tag 的详细内容                                                                      |
+| git push `<远程仓库名称>` `<tag>`              | 指定 tag 推送至远程仓库                                                                      |
+| git push `<远程仓库名称> ` - -tags             | 将本地所有 tag 推送至远程仓库                                                                |
+| git tag -d `<tag> `                            | 删除本地指定 tag                                                                             |
+| git push `<远程仓库名称>` -d `<tag> `          | 删除远程仓库指定 tag                                                                         |
+| git checkout `<tag> `                          | 回退到指定 tag 版本                                                                          |
+| git branch `<分支名称>`                        | 创建一个新的分支                                                                             |
+| git checkout `<分支名称>`                      | 切换至指定分支支                                                                             |
+| git checkout -b `<分支名称>`                   | 上面两种指令的合并操作 创建并切换至支                                                        |
+| git switch -c `<分支名称>`                     | 上面两种指令的合并操作 创建并切换至支                                                        |
+| git branch                                     | 查看本地仓库所有存在分支 支                                                                  |
+| git branch -d `<分支名称>`                     | 删除本地分支                                                                                 |
+| git push origin -d `<分支名称>`                | 删除远程分支                                                                                 |
+| git push `<主机名>` `<分支名称>`               | 远程推送分支,设置了默认的远程主机和分支可以简化命令 git push 即可                            |
+
+---
+
+### 可能会遇到的错误
+
+**本地新建 git 仓库执行 pull 操作时,git 提示:**
+
+<br />
+<code class="code-error">
+  <span>git branch \-\-set \-upstream\-to\=&lt;origin&gt;\/&lt;branch&gt;</span>
+</code>
+
+**原因** :可能存在不同的服务器和不同的分支 git 希望更加详细的仓库和分支信息(执行 fetch 操作时必须有一个上游分支)
+
+**解决方式** :
+
+1. 指定远程仓库名称及分支
+
+```cmd
+git pull  origin branch
+```
+
+2. 配置上游分支
+
+```cmd
+git branch --set -upstream-to=origin/branch
+```
+
+**本地新建 git 仓库第一次执行 push 操作时,git 提示:**
+
+<br />
+
+<code class="code-error">
+  <span>refusing to merge unrelated histories</span>
+</code>
+
+**原因** :git2.9 版本后已不允许两个不存在相交的版本进行合并(项目可能会程序员合并一些毫不相干的代码)
+
+**解决方式** :
+
+允许两个不存在相交的版本进行合并
+
+```cmd
+git merge --allow-unrelated-histories
+```
+
+**本地分支和上游分支名称不匹配并执行了 push 操作:**
+
+<br />
+
+<code class="code-error">
+  <span>fetal:The upstream branch of your current branch does not match</span>
+</code>
+
+**原因** : git2.0 版本后 push.default 默认值为 simple,执行 push 会找寻和自己推送版本相同名字的远程分支如查询不到则报错
+
+**解决方式** :
+
+1. 指定远程仓库及分支进行推送
+
+```cmd
+git push origin head:main
+```
+
+- origin 是远程仓库的名称，通常是默认的远程仓库名称。
+- head 是当前分支的指针，也就是当前分支的最新提交。
+- main 是远程仓库中的目标分支。
+
+2. 设置 push 默认行为为推送到当前分支的上游分支。
+
+```cmd
+git config push.default upstream
+```
+
+如果当前分支已经跟踪了一个远程分支，那么执行 git push 就会推送到这个远程分支。
+
+3. 设置 push 默认行为为推送到远程仓库中同名的分支
+
+```cmd
+git config push.default current
+```
+
+如果当前分支在远程仓库中不存在，Git 会尝试创建一个同名的分支。如果存在则直接推送。
