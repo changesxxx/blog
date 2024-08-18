@@ -1016,3 +1016,107 @@ W3C 原文:The bottom margin of an in-flow block-level element with a 'height' o
    [W3C 官方解释(10.6.7)](https://www.w3.org/TR/CSS21/visudet.html):In addition, if the element has any floating descendants whose bottom margin edge is below the element's bottom content edge, then the height is increased to include those edges. Only floats that participate in this block formatting context are taken into account, e.g., floats inside absolutely positioned descendants or other floats are not.
 
    **如果有浮动元素,BFC 会增加自身高度以包括这些浮动元素的下边缘**
+
+- z-index 
+
+**层和组** : 最初元素被一个个分组到堆叠上下文中。当我们给一个元素设置z-index,该值仅与同一上下文中的其他元素进行比较。**z-index 值不是全局的。**
+
+```html
+<style>
+header {
+ //创建堆叠上下文的方法有很多，但以下是最常见的：
+ position: relative;
+ z-index: 2;
+}
+.tooltip {
+ position: absolute;
+ z-index: 999999;
+}
+main {
+ position: relative;
+ z-index: 1;
+}
+</style>
+
+<header>
+My Cool Site
+</header>
+
+<main>
+<div class="tooltip">
+ A tooltip
+</div>
+
+<p>Some main content</p>
+</main>
+
+```
+此时堆叠上下文如下:
+
+- 根上下文
+  - header
+  - main
+    - `<div class="tooltip">`
+
+我们的.tooltip元素的 z-index 为 999999，但该值仅在`<main>`堆叠上下文中相关。它控制工具提示是否显示在相邻`<p>`标签的上方或下方，仅此而已。
+
+同时，在父上下文中，`<header>`和`<main>`被进行比较。由于`<main>`z-index 较小，它显示在`<header> 下方`。它的所有子元素也随之变化。
+
+我们已经了解了如何通过将相对定位或绝对定位与 相结合来创建堆叠上下文`z-index`**，但这不是唯一的方法**。
+
+**创建堆叠上下文** 
+
+- 设置`opacity`的值小于1  作用:`元素透明度`
+
+- position的值为`fixed`或`sticky`  这些值不需要`z-index`
+
+- mix-blend-mode的值不为`normal` 作用:元素的内容应该与元素的直系父元素的内容和元素的背景如何混合
+
+- 元素配置`display: flex`或`display: grid` 并子元素配置`z-index`
+- 配置`transform`,`filter`,`clip-path`,`perspective`
+- 使用`will-change`配置``opacity` `或`transform`属性值
+- `isolation: isolate`  作用:该关键字定义一个新的堆叠上下文
+
+<Callout icon="⚠️" type="warning">
+ z-index 的常见误解:为了使 z-index 工作，我们只能通过设置`position`为`relative`或 `absolute` 
+</Callout>
+
+**用“隔离”实现密闭抽象**
+
+**isolation**属性
+
+```css
+
+.wrapper {
+  isolation: isolate;
+}
+
+```
+
+它只会做一件事：创建一个新的堆叠上下文。
+
+既然有这么多不同的方法来创建堆叠上下文，为什么我们还需要另一个方法呢？好吧，对于其他所有方法，堆叠上下文都是隐式创建的，是其他一些更改的结果。isolation以最纯粹的方式创建堆叠上下文：
+
+- 无需规定 z-index 值
+- 可用于静态定位*元素
+- 不会以任何方式影响孩子的渲染
+
+**作用:**
+
+确保在顶级元素上使用,它将被定义为一个组:
+
+```css
+
+.box1 {
+  isolation: isolate;
+}
+
+.box2 {
+  isolation: isolate;
+}
+
+```
+
+**box1和box2分别定义为2个组,各个组内部元素z-index不会被其他组内元素影响。只会被组与组的z-index所影响。**
+
+

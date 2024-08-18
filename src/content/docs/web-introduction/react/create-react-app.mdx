@@ -1,0 +1,1286 @@
+---
+title: react+ts项目
+description: '从零搭建一个基础的react+ts项目'
+---
+
+### 1.创建react项目
+
+执行react脚手架命令创建一个react+ts项目
+
+  ``` cmd
+  create-react-app `项目名称`  [--template typescript](ts模板) 
+  ```
+
+  创建后文件目录为:
+
+![](/assets/images/web_introduction/app_init.png)
+
+  但并不是所有文件都符合我们使用,所以精简后目录为:
+
+![](/assets/images/web_introduction/app_after_deletion.png)
+
+---
+
+### 2.配置别名
+
+安装carco 
+
+  ```cmd
+  npm install @craco/craco@alpha -D   
+  ```
+
+<Callout icon="⚠️" type="warning">
+
+可能会出现版本冲突
+
+"react-scripts": "5.0.1" 因为脚手架react-scripts为5.0版本 @craco/craco只支持4.0版本所以安装时要加上@alpha
+
+</Callout>
+
+
+**因react隐藏了webpack配置**如果需要修改配置有两种方式
+
+1. 执行react提供的eject命令 但是无法恢复且难以修改不推荐
+
+2. 安装carco 创建carco文件 执行carco命令 会进行配置合并 更加推荐此方式
+
+创建craco.config.js文件 进行单独配置
+
+<CodeBlock title="craco.config.js">
+
+```js
+  const path = require('path')
+  
+  const resolve = (dir) => path.resolve(__dirname, dir)
+  
+  module.exports = {
+    webpack: {
+      alias: {
+        '@': resolve('src'),// [!code highlight]
+      },
+    },
+  }
+```
+
+</CodeBlock>
+
+
+配置tsconfig.json
+
+<CodeBlock title="tsconfig.json">
+
+```json
+	{
+ 	 "compilerOptions": {
+   	 "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+     // 配置别名
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]// [!code highlight]
+    }
+  	},
+  "include": ["src"]
+	}
+
+```
+
+</CodeBlock>
+
+
+修改package.json文件 启动方式为craco
+
+  ```json
+   "scripts": { 
+      "start": "craco start",  // [!code highlight:4]
+      "build": "craco build",
+      "test": "craco test",
+      "eject": "react-scripts eject"
+    },
+  ```
+---
+
+### 3.代码规范
+
+**集成[editorconfig](http://editorconfig.org)配置EditorConfig** 有助于为不同 IDE 编辑器上处理同一项目的多个开发人员维护一致的编码风格。
+
+  ```yaml
+  root = true
+  
+  [*] # 表示所有文件适用
+  charset = utf-8 # 设置文件字符集为 utf-8
+  indent_style = space # 缩进风格（tab | space）
+  indent_size = 2 # 缩进大小
+  end_of_line = lf # 控制换行类型(lf | cr | crlf)
+  trim_trailing_whitespace = true # 去除行尾的任意空白字符
+  insert_final_newline = true # 始终在文件末尾插入一个新行
+  
+  [*.md] # 表示仅 md 文件适用以下规则
+  max_line_length = off
+  trim_trailing_whitespace = false
+  ```
+
+使用prettier工具 : Prettier 是一款强大的代码格式化工具，支持 JavaScript、TypeScript、CSS、SCSS、Less、JSX、Angular、Vue、GraphQL、JSON、Markdown 等语言，基本上前端能用到的文件格式它都可以搞定，是当下最流行的代码格式化工具。
+
+
+**安装prettier**
+
+  ```cmd
+  npm install prettier -D
+  ```
+
+安装prettier 主要作用为 可以执行命令对所有文件统一进行格式化(也可以不安装,但是需要一个个文件进行保存才可以格式化)
+
+需提前在package.json中的scripts中添加 `"prettier":"prettier --write ."`
+
+**配置.prettierrc文件 ：**
+
+  - useTabs：使用tab缩进还是空格缩进，选择false；
+  - tabWidth：tab是空格的情况下，是几个空格，选择2个；
+  - printWidth：当行字符的长度，推荐80，也有人喜欢100或者120；
+  - singleQuote：使用单引号还是双引号，选择true，使用单引号；
+  - trailingComma：在多行输入的尾逗号是否添加，设置为 `none`，比如对象类型的最后一个属性后面是否加一个，；
+  - semi：语句末尾是否要加分号，默认值true，选择false表示不加；
+
+```json
+{
+  "useTabs": false,
+  "tabWidth": 2,
+  "printWidth": 80,
+  "singleQuote": true,
+  "trailingComma": "none",
+  "semi": false
+}
+```
+
+创建.prettierignore忽略文件
+
+```
+/dist/*
+.local
+.output.js
+/node_modules/**
+
+**/*.svg
+**/*.sh
+
+/public/*
+```
+
+**使用ESLint检测**
+
+  ```cmd
+  npm install eslint -D
+  ```
+
+  初始化eslint
+
+  ```cmd
+  npx eslint --init
+  ```
+
+  进行选项后 会生成eslintrc.js配置文件
+
+  ```js
+  module.exports = {
+    env: {
+      browser: true,
+      es2021: true,
+      //可以在noed环境下使用
+      node: true
+    },
+    extends: [
+      'eslint:recommended',
+      'plugin:@typescript-eslint/recommended',
+      'plugin:react/recommended',
+        //检查是否符合prettier规范
+       'plugin:prettier/recommended'
+    ],
+    overrides: [
+      {
+        env: {
+          node: true
+        },
+        files: ['.eslintrc.{js,cjs}'],
+        parserOptions: {
+          sourceType: 'script'
+        }
+      }
+    ],
+    parser: '@typescript-eslint/parser',
+    parserOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module'
+    },
+    plugins: ['@typescript-eslint', 'react'],
+    rules: {
+        //可以使用require
+      '@typescript-eslint/no-var-requires': 'off',
+        //允许any
+      '@typescript-eslint/no-explicit-any': 'off'
+    }
+  }
+  ```
+eslint和prettier配置保持一致
+  ```cmd
+  npm install eslint-plugin-prettier eslint-config-prettier -D
+  ```
+
+  ---
+
+### 4.创建目录
+![](/assets/images/web_introduction/app_catalogue.png)
+
+---
+
+### 5.样式重置
+
+安装css重置
+
+```js
+npm install normalize.css
+```
+
+创建自己的重置样式文件
+
+<CodeBlock title="reset.less">
+
+```less
+/* 样式的重置 */
+body,
+html,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+ul,
+ol,
+li,
+dl,
+dt,
+dd,
+header,
+menu,
+section,
+p,
+input,
+td,
+th,
+ins {
+  padding: 0;
+  margin: 0;
+}
+
+ul,
+ol,
+li {
+  list-style: none;
+}
+
+a {
+  text-decoration: none;
+  color: #666;
+}
+
+a:hover {
+  color: #666;
+  text-decoration: underline;
+}
+
+i,
+em {
+  font-style: normal;
+}
+
+input,
+textarea,
+button,
+select,
+a {
+  outline: none;
+  border: none;
+}
+
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+img {
+  border: none;
+  vertical-align: middle;
+}
+
+```
+</CodeBlock>
+
+index.tsx导入重置文件
+
+```tsx
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+
+//css重置
+import 'normalize.css'
+//自定义重置css文件
+import '@/assets/css/reset.less'
+
+import App from '@/App'
+
+const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
+
+```
+
+如果想使用less 需额外安装less插件
+
+```js
+npm install craco-less@2.1.0-alpha.0 //使用craco安装引入less插件
+```
+
+craco.config.js 引入less插件
+
+<CodeBlock title="craco.config.js">
+
+```js
+const path = require('path')
+//less插件
+const CracoLessPlugin = require('craco-less')
+
+const resolve = (dir) => path.resolve(__dirname, dir)
+
+module.exports = {
+  //引入less插件
+    plugins: [{ plugin: CracoLessPlugin }],// [!code ++]
+    webpack: {
+      alias: {
+        '@': resolve('src')
+      }
+    }
+}
+```
+
+</CodeBlock>
+
+---
+
+### 6.路由搭建
+
+安装路由
+
+  ```cmd
+  npm install react-router-dom
+  ```
+
+router目录下创建index.tsx
+
+<CodeBlock title="router/index.tsx">
+
+  ```tsx
+  import React from 'react'
+  
+  import type { RouteObject } from 'react-router-dom'
+  
+  import Home from '@/views/Home'
+  
+  const routes: RouteObject[] = [
+    {
+      path: '/',
+      element: <Home />
+    }
+  ]
+  
+  export default routes
+  
+  ```
+
+</CodeBlock>
+
+
+
+  Home 模板
+
+  ```tsx
+  import React, { memo } from 'react'
+  import type { FC, ReactNode } from 'react'
+  //type FC<P = {}> = FunctionComponent<P>; FC为FunctionComponent简称
+  /*  type ReactNode =
+     | ReactElement
+     | string
+     | number
+     | Iterable<ReactNode>
+     | ReactPortal
+     | boolean
+     | null
+     | undefined
+     | DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_REACT_NODES[keyof DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_REACT_NODES]
+   */
+  
+  //children slot
+  
+  type Iprops = {
+    children?: ReactNode
+  }
+  
+  const Home: FC<Iprops> = () => {
+    return <div>index</div>
+  }
+  
+  export default memo(Home)
+  
+  ```
+
+index.tsx页面引入router
+
+  ```tsx
+  import React from 'react'
+  import ReactDOM from 'react-dom/client'
+  
+  //router
+  import { HashRouter } from 'react-router-dom'
+  
+  //css重置
+  import 'normalize.css'
+  import '@/assets/css/index.less'
+  
+  import App from '@/App'
+  
+  const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
+  root.render(
+    <React.StrictMode>
+      <HashRouter>
+        <App />
+      </HashRouter>
+    </React.StrictMode>
+  )
+  
+  ```
+
+---
+
+### 7.状态管理
+
+安装redux
+
+```cmd
+npm install @reduxjs/toolkit react-redux
+```
+
+创建store
+
+counter.ts
+<CodeBlock title="store/modules/counter.ts">
+
+  ```typescript
+  import { createSlice } from '@reduxjs/toolkit'
+  
+  const counterSlice = createSlice({
+    name: 'counterSlice',
+    initialState: {
+      count: 100
+    },
+    reducers: {}
+  })
+  
+  export default counterSlice.reducer
+  
+  ```
+
+</CodeBlock>
+
+index.ts
+
+<CodeBlock title="store/index.ts">
+
+
+  ```typescript
+  import { configureStore } from '@reduxjs/toolkit'
+  
+  import counterSlice from './modules/counter/counter'
+  
+  const store = configureStore({
+    reducer: {
+      counter: counterSlice
+    }
+  })
+  
+  export default store
+  
+  ```
+
+</CodeBlock>
+
+修改主页index
+
+  ```tsx
+  import React from 'react'
+  import ReactDOM from 'react-dom/client'
+  
+  //router
+  import { HashRouter } from 'react-router-dom'
+  //redux
+  import { Provider } from 'react-redux'
+  //store
+  import store from '@/store'
+  
+  //css重置
+  import 'normalize.css'
+  import '@/assets/css/index.less'
+  
+  import App from '@/App'
+  
+  const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
+  root.render(
+    // <React.StrictMode>
+    <HashRouter>
+      <Provider store={store}>// [!code highlight]
+        <App />
+      </Provider>
+    </HashRouter>
+  
+    // </React.StrictMode>
+  )
+  
+  ```
+
+页面使用状态
+
+<CodeBlock title="src/App.tsx">
+
+  ```tsx
+  import React from 'react'
+  import { useRoutes } from 'react-router-dom'
+  import routes from '@/router'
+  import { useSelector, shallowEqual } from 'react-redux'
+  
+  function App() {
+    // [!code highlight:7]
+    const { count } = useSelector(
+      (state: any) => ({
+        count: state.counter.count
+      }),
+      shallowEqual
+    )
+  
+    return (
+      <div className="App">
+        count:{count}
+        {useRoutes(routes)}
+      </div>
+    )
+  }
+  
+  export default App
+  
+  ```
+
+</CodeBlock>
+
+state类型为any不太合适,需要更加友好的提示
+
+  ```tsx
+  import React from 'react'
+  import { useRoutes } from 'react-router-dom'
+  import routes from '@/router'
+  import { useSelector, shallowEqual } from 'react-redux'
+  
+  function App() {
+    /* 手动定义类型 但无法解决 state.counter发生了改变这边类型就不匹配的问题,
+    例:state.counter添加message属性 我们又要手动添加message属性 */
+    // [!code highlight:7]
+    interface IState {
+      counter: {
+        count: number
+        //message
+      }
+    }
+  
+    const { count } = useSelector(
+      (state: IState) => ({// [!code highlight]
+        //拥有更加友好的提示
+        count: state.counter.count
+      }),
+      shallowEqual
+    )
+  
+    return (
+      <div className="App">
+        count:{count}
+        {useRoutes(routes)}
+      </div>
+    )
+  }
+  
+  export default App
+  
+  ```
+
+  实现state自动添加类型 :   修改store配置
+
+  <CodeBlock title="store/index.ts">
+
+  ```typescript
+  import { configureStore } from '@reduxjs/toolkit'
+      import { useSelector, TypedUseSelectorHook } from 'react-redux'// [!code ++]
+  import counterSlice from './modules/counter/counter'
+  
+  const store = configureStore({
+    reducer: {
+      counter: counterSlice
+    }
+  })
+  
+  //获取store.getState函数类型
+      type getStateFnType = typeof store.getState// [!code ++]
+  //获取getStateFnType返回值类型
+      type IRootType = ReturnType<getStateFnType>// [!code ++]
+  
+  //自定对state进行类型添加
+  /*
+  export interface TypedUseSelectorHook<TState> {
+       (state: TState) => TSelected 这里会帮我们把类型赋值给state
+      <TSelected>(selector: (state: TState) => TSelected, equalityFn?: EqualityFn<NoInfer<TSelected>>): TSelected;
+  }
+  */
+     export const useAppSelector: TypedUseSelectorHook<IRootType> = useSelector// [!code ++]
+  
+  export default store
+  
+  ```
+
+</CodeBlock>
+
+修改App.jsx
+
+<CodeBlock title="src/App.tsx">
+
+  ```jsx
+  import React from 'react'
+  import { useRoutes } from 'react-router-dom'
+  import routes from '@/router'
+  import { shallowEqual } from 'react-redux'
+  import { useAppSelector } from '@/store'
+  
+  function App() {
+    const { count } = useAppSelector(
+      (state) => ({
+        count: state.counter.count// [!code highlight]
+      }),
+      shallowEqual
+    )
+  
+    return (
+      <div className="App">
+        count:{count}
+        {useRoutes(routes)}
+      </div>
+    )
+  }
+  
+  export default App
+  ```
+
+</CodeBlock>
+  
+---
+
+### 8.服务请求
+
+安装axios
+
+  ```cmd
+  npm install axios
+  ```
+
+添加service配置文件 service目录下创建request管理axios实例 
+
+配置请求常量
+
+<CodeBlock title="service/config/index.ts">
+
+  ```typescript
+  export const BASE_URL = "xxx"
+  export const TIME_OUT = 10000
+  ```
+
+</CodeBlock>
+
+创建axios配置文件
+
+<CodeBlock title="service/request/index.ts">
+
+  ```typescript
+  import axios from 'axios'
+  import type { AxiosInstance, CreateAxiosDefaults, AxiosRequestConfig } from 'axios'
+  
+  class MyRequest {
+    //生命实例type
+    instance: AxiosInstance
+    //创建axios实例
+    //config添加type类型
+    constructor(config: CreateAxiosDefaults) {
+      this.instance = axios.create(config)
+    }
+  
+    //请求配置type
+    request(config: AxiosRequestConfig) {
+      return this.instance.request(config)
+    }
+  
+  }
+  
+  export default MyRequest
+  ```
+
+</CodeBlock>
+
+暴漏axios
+
+<CodeBlock title="service/index.ts">
+
+  ```typescript
+  import MyRequest from './request'
+  import { BASE_URL, TIME_OUT } from './config'
+  
+  const Request = new MyRequest({
+    baseURL: BASE_URL,
+    timeout: TIME_OUT
+  })
+  
+  
+  export default Request
+  ```
+
+</CodeBlock>
+
+实际请求文件
+
+<CodeBlock title="service/modules/home/index.ts">
+
+  ```typescript
+  import Request from '@/service'
+  
+  export function test() {
+    return Request.request({
+      url: '/home/multidata'
+    })
+  }
+  ```
+
+</CodeBlock>
+
+**对单个Request实例添加自定义拦截器**
+
+修改实例配置 
+
+<CodeBlock title="service/request/index.ts">
+
+
+  ```typescript
+  import axios from 'axios'
+  import type { AxiosInstance, AxiosRequestConfig } from 'axios'
+  
+  //自定义拦截器类型
+  import type customInterceptorsType from './type'
+  
+  class MyRequest {
+    //生命实例type
+    instance: AxiosInstance
+    //创建axios实例
+    //config添加type类型
+    constructor(config: customInterceptorsType) {
+      this.instance = axios.create(config)
+  
+      //添加全局拦截器
+      //全局请求拦截器
+      this.instance.interceptors.request.use(// [!code ++]
+        (config) => {// [!code ++]
+          console.log('全局请求成功拦截器')// [!code ++]
+          return config// [!code ++]
+        },// [!code ++]
+        (err) => {// [!code ++]
+          console.log('全局请求失败拦截器')// [!code ++]
+        }// [!code ++]
+      )// [!code ++]
+      //全局响应拦截器
+      this.instance.interceptors.response.use(// [!code ++]
+        (response) => {// [!code ++]
+          console.log('全局响应成功拦截器')// [!code ++]
+          return response// [!code ++]
+        },// [!code ++]
+        (err) => {// [!code ++]
+          console.log('全局响应失败拦截器')// [!code ++]
+        }// [!code ++]
+      )// [!code ++]
+  
+      //对于单个请求的拦截器
+      //全局请求拦截器
+      this.instance.interceptors.request.use(// [!code ++]
+        config.interceptors?.requestSuccessFn// [!code ++]
+      )// [!code ++]
+      //全局响应拦截器
+      this.instance.interceptors.response.use(// [!code ++]
+        config.interceptors?.responseSuccessFn// [!code ++]
+      )// [!code ++]
+    }
+  
+    //请求配置type
+    request(config: AxiosRequestConfig) {
+      return this.instance.request(config)
+    }
+  }
+  
+  export default MyRequest
+  
+  ```
+
+</CodeBlock>
+
+自定义拦截器类型
+
+<CodeBlock title="service/request/type.ts">
+
+  ```typescript
+  import type {
+    CreateAxiosDefaults,
+    AxiosResponse,
+    InternalAxiosRequestConfig
+  } from 'axios'
+  
+  interface IInterceptors {
+    requestSuccessFn?: (
+      config: InternalAxiosRequestConfig	//axios request config type
+    ) => InternalAxiosRequestConfig
+    requestFailFn?: () => void
+    responseSuccessFn?: (response: AxiosResponse) => AxiosResponse //axios response config type
+    responseFailFn?: () => void
+  }
+  
+  interface customInterceptorsType extends CreateAxiosDefaults {
+    interceptors?: IInterceptors
+  }
+  
+  export default customInterceptorsType
+  
+  ```
+
+</CodeBlock>
+
+ 修改axios暴漏实例
+
+ <CodeBlock title="service/index.ts">
+
+  ```typescript
+  import MyRequest from './request'
+  import { BASE_URL, TIME_OUT } from './config'
+  
+  const Request = new MyRequest({
+    baseURL: BASE_URL,
+    timeout: TIME_OUT
+  })
+  
+      export const AirRequest = new MyRequest({// [!code ++]
+        baseURL: 'xxx',// [!code ++]
+        timeout: TIME_OUT,// [!code ++]
+        //自定义拦截器
+        interceptors: {// [!code ++]
+          requestSuccessFn(config) {// [!code ++]
+            console.log('AirRequest全局请求成功拦截器')// [!code ++]
+            return config// [!code ++]
+          },// [!code ++]
+          responseSuccessFn(response) {// [!code ++]
+            console.log('AirRequest全局响应成功拦截器')// [!code ++]
+            return response// [!code ++]
+          }// [!code ++]
+        }// [!code ++]
+      })// [!code ++]
+  
+  export default Request
+  ```
+
+</CodeBlock>
+
+
+创建新的请求
+
+<CodeBlock title="service/modules/home/index.ts">
+
+  ```typescript
+  import Request from '@/service'
+  
+  import { AirRequest } from '@/service'
+  
+  export function test() {
+    return Request.request({
+      url: '/home/multidata'
+    })
+  }
+  
+  //添加了自定义拦截器的新请求
+      export function airTest() {// [!code ++]
+        return AirRequest.request({// [!code ++]
+          url: '/home/highscore'// [!code ++]
+        })// [!code ++]
+      }// [!code ++]
+  
+  ```
+
+</CodeBlock>
+
+
+
+
+
+**对单次请求添加自定义拦截器**
+
+修改request实例
+
+<CodeBlock title="webpack.config.js">
+
+```typescript
+import axios from 'axios'
+
+//自定义拦截器类型
+import type customInterceptorsType from './type'
+import type { coverAxiosInstance } from './type'
+
+class MyRequest {
+  //生命实例type
+  instance: coverAxiosInstance
+  //创建axios实例
+  //config添加type类型
+  constructor(config: customInterceptorsType) {
+    this.instance = axios.create(config)
+
+    //添加全局拦截器
+    //全局请求拦截器
+    this.instance.interceptors.request.use(
+      (config) => {
+        console.log('全局请求成功拦截器')
+        return config
+      },
+      (err) => {
+        console.log('全局请求失败拦截器')
+      }
+    )
+    //全局响应拦截器
+    this.instance.interceptors.response.use(
+      (response) => {
+        console.log('全局响应成功拦截器')
+        return response
+      },
+      (err) => {
+        console.log('全局响应失败拦截器')
+      }
+    )
+
+    //对于单个实例请求的拦截器
+    //全局请求拦截器
+    this.instance.interceptors.request.use(
+      config.interceptors?.requestSuccessFn
+    )
+    //全局响应拦截器
+    this.instance.interceptors.response.use(
+      config.interceptors?.responseSuccessFn
+    )
+  }
+
+  //请求配置type
+  /*
+  customInterceptorsType: extends AxiosRequestConfig 继承自AxiosRequestConfig
+  又因requestSuccessFn:AxiosRequestConfig
+  所以这里才可以直接传参config
+  否则axios要求拦截器中的config type为InternalAxiosRequestConfig(headers必传项)
+  */
+    request(config: customInterceptorsType) {// [!code ++]
+      if (config?.interceptors?.requestSuccessFn) {// [!code ++]
+       config = config.interceptors.requestSuccessFn(config)// [!code ++]
+      }// [!code ++]
+
+    /*
+      原有方式:return this.instance.request(config)
+      无法获取响应结果 相应拦截器无法添加
+      新建new Promise返回response结果 并在返回前添加响应拦截
+    */
+      return new Promise<any>((resolve, reject) => {// [!code ++]
+        this.instance// [!code ++]
+          .request(config)// [!code ++]
+          .then((res) => {// [!code ++]
+            if (config?.interceptors?.responseSuccessFn) {// [!code ++]
+              res = config.interceptors.responseSuccessFn(res)// [!code ++]
+            }// [!code ++]
+            resolve(res)// [!code ++]
+          })// [!code ++]
+          .catch((err) => {// [!code ++]
+            reject(err)// [!code ++]
+          })// [!code ++]
+      })// [!code ++]
+    }// [!code ++]
+}
+
+export default MyRequest
+
+```
+
+</CodeBlock>
+
+重新配置类型文件
+
+
+
+<CodeBlock title="service/request/type.ts">
+
+
+
+
+
+```typescript
+import type {
+  AxiosRequestConfig,
+  AxiosResponse,
+  AxiosInstance,
+  AxiosInterceptorManager
+} from 'axios'
+
+interface IInterceptors {
+  requestSuccessFn?: (
+    config: AxiosRequestConfig //axios request config type
+  ) => AxiosRequestConfig
+  requestFailFn?: () => void
+  responseSuccessFn?: (response: AxiosResponse) => AxiosResponse //axios response config type
+  responseFailFn?: () => void
+}
+
+interface customInterceptorsType extends AxiosRequestConfig {
+  interceptors?: IInterceptors
+}
+
+/*
+重写axios实例 去除原本interceptors类型 重新定义interceptors
+*/
+    export interface coverAxiosInstance// [!code ++]
+      extends Omit<AxiosInstance, 'interceptors'> {// [!code ++]
+      interceptors: {// [!code ++]
+        request: AxiosInterceptorManager<AxiosRequestConfig>// [!code ++]
+        response: AxiosInterceptorManager<AxiosResponse>// [!code ++]
+      }// [!code ++]
+    }// [!code ++]
+
+export default customInterceptorsType
+
+```
+
+</CodeBlock>
+
+新建请求并在请求中添加拦截器
+
+<CodeBlock title="service/modules/home/index.ts">
+
+```typescript
+import Request from '@/service'
+
+import { AirRequest } from '@/service'
+
+export function test() {
+  return Request.request({
+    url: '/home/multidata'
+  })
+}
+
+//添加了自定义拦截器的新请求
+export function airTest() {
+  return AirRequest.request({
+    url: '/home/highscore'
+  })
+}
+
+//单次请求拦截器
+   export function longforTest() {// [!code ++]
+      return AirRequest.request({// [!code ++]
+        url: '/home/longfor',// [!code ++]
+        interceptors: {// [!code ++]
+          requestSuccessFn(config) {// [!code ++]
+            console.log('/home/longfor 单次请求拦截')// [!code ++]
+            return config// [!code ++]
+          },// [!code ++]
+          responseSuccessFn(response) {// [!code ++]
+            console.log('/home/longfor 单次相应拦截')// [!code ++]
+            return response// [!code ++]
+          }// [!code ++]
+        }// [!code ++]
+      })// [!code ++]
+    }// [!code ++]
+
+```
+
+</CodeBlock>
+
+**对单次请求添加自定义拦截器(优化:请求结果返回类型提示)**
+
+优化response类型
+
+
+<CodeBlock title="service/request/index.ts">
+
+```typescript
+import axios from 'axios'
+import type { AxiosResponse } from 'axios'
+//自定义拦截器类型
+import type customInterceptorsType from './type'
+import type { coverAxiosInstance } from './type'
+
+class MyRequest {
+  //生命实例type
+  instance: coverAxiosInstance
+  //创建axios实例
+  //config添加type类型
+  constructor(config: customInterceptorsType) {
+    this.instance = axios.create(config)
+
+    //添加全局拦截器
+    //全局请求拦截器
+    this.instance.interceptors.request.use(
+      (config) => {
+        console.log('全局请求成功拦截器')
+        return config
+      },
+      (err) => {
+        console.log('全局请求失败拦截器')
+      }
+    )
+    //全局响应拦截器
+    this.instance.interceptors.response.use(
+      (response) => {
+        console.log('全局响应成功拦截器')
+        return response.data
+      },
+      (err) => {
+        console.log('全局响应失败拦截器')
+      }
+    )
+
+    //对于单个实例请求的拦截器
+    //全局请求拦截器
+    this.instance.interceptors.request.use(
+      config.interceptors?.requestSuccessFn
+    )
+    //全局响应拦截器
+    this.instance.interceptors.response.use(
+      config.interceptors?.responseSuccessFn
+    )
+  }
+
+  //请求配置type
+  /*
+  customInterceptorsType: extends AxiosRequestConfig 继承自AxiosRequestConfig
+  又因requestSuccessFn:AxiosRequestConfig
+  所以这里才可以直接传参config
+  否则axios要求拦截器中的config type为InternalAxiosRequestConfig(headers必传项)
+  */
+
+  /*
+    泛型作用:
+    1.new Promise没有声称泛型时返回值类型为unknow 无法对返回值进行任何操作
+      #解决方法: #new Promise<any> 可以解决上述问题 但是any提醒不友好
+               #request<T = any>  new Promise<T >   this.instance
+      .request<any, T> 让用户调用接口时传一个泛型 Promise遵循返回泛型
+      例:(请求)AirRequest.request<IData> 这里resolve(res) res:IData
+    2.res报错 Axios认为这个Res为AxiosResponse T类型不匹配
+      #解决方法:config: customInterceptorsType<T> 将泛型传入之前定义的类型中
+      responseSuccessFn?: 
+        (response: T) => T //axios response config type 将response类型改为我们传入的泛型
+  */
+      request<T = any>(config: customInterceptorsType<T>) {// [!code ++]
+        if (config?.interceptors?.requestSuccessFn) {
+          config = config.interceptors.requestSuccessFn(config)
+        }
+
+    /*
+      原有方式:return this.instance.request(config)
+      无法获取响应结果 响应拦截器无法添加
+      new Promise返回response结果 并在返回前添加响应拦截
+    */
+        return new Promise<T>((resolve, reject) => {// [!code ++]
+          this.instance
+            .request<any, T>(config)// [!code ++]
+            .then((res) => {
+              if (config?.interceptors?.responseSuccessFn) {
+                res = config.interceptors.responseSuccessFn(res)
+              }
+              resolve(res)
+            })
+            .catch((err) => {
+              reject(err)
+            })
+        })
+      }
+}
+
+export default MyRequest
+
+```
+
+</CodeBlock>
+
+---
+
+### 9.额外补充
+
+css-in-js : styled-components  classnames
+
+```cmd
+  npm install styled-components -D
+  
+  npm install classnames
+```
+
+vscode@路径提示:ctrl + 鼠标左键跳转到对应文件,添加以下文件获得更好的支持。
+
+
+
+<CodeBlock title="jsconfig.json">
+
+```json
+{
+  "compilerOptions": {
+    "target": "es5",
+    "module": "esnext",
+    "baseUrl": "./",
+    "moduleResolution": "node",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    },
+    "jsx": "preserve",
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable",
+      "scripthost"
+    ]
+  }
+}
+```
+
+</CodeBlock>
+

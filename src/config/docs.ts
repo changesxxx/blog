@@ -66,12 +66,20 @@ export const docsConfig: DocsConfig = {
           href: '/notes/web-introduction/react/expand',
         },
         {
+          title: 'Redux',
+          href: '/notes/web-introduction/react/redux',
+        },
+        {
           title: 'Router',
           href: '/notes/web-introduction/react/router',
         },
         {
           title: '官方文档',
           href: '/notes/web-introduction/react/doc',
+        },
+        {
+          title: '搭建react+ts项目',
+          href: '/notes/web-introduction/react/create-react-app',
         },
       ],
     },

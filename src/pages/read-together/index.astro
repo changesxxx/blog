@@ -1,0 +1,22 @@
+---
+import ExampleGrid from '@/components/example-grid.astro'
+import PageHeader from '@/components/page-header.astro'
+import { booksConfig } from '@/config/books'
+import MainLayout from '@/layouts/main-layout.astro'
+
+const pages = booksConfig.pagesNav[0].items
+---
+
+<MainLayout title="">
+  <div class="bg-background-200">
+    <section class="container py-12">
+      <PageHeader
+        heading="推荐书籍"
+        text="我这儿有几本武林秘籍，见与你有缘就送你了！"
+      />
+
+      <ExampleGrid title="语言层面" items={pages} />
+      <!-- <ExampleGrid title="Examples Apps" items={examples} /> -->
+    </section>
+  </div>
+</MainLayout>

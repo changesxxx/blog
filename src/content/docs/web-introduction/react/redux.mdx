@@ -1,0 +1,867 @@
+---
+title: Redux
+description: 一个可预测、可维护的全局状态管理的 JS 库
+---
+### 为什么要使用 Redux？
+
+随着前端快速的发展,页面涉及的数据也随之增多。这些数据包含了服务器返回的数据、缓存数据、用户操作产生的数据、也包括了一些ui数据:是否被选中,是否加载动效,当前分页等等。普通的数据共享(上下文共享)已经无法满足现有业务。管理这些不断变化的数据变得十分困难,状态之间可能会存在相互之间的依赖(孙子组件依赖父组件的值)一个状态会引起另外一个状态的变化,导致页面重新渲染,而且状态将变得难以控制及跟踪。
+
+Redux 帮你管理“全局”状态,Redux提供的模式和工具使更容易理解应用程序中的状态何时、何地、为什么、state 如何被更新，以及当这些更改发生时你的应用程序逻辑将如何表现。
+
+---
+
+### 基本使用
+
+安装redux
+
+```cmd
+npm i redux
+```
+
+创建存放action描述对象type名称,避免出现type名称输入错误。
+
+<CodeBlock title="store/constant.js">
+
+```js
+const CHANGES_NAME = 'changes_name'
+
+const ADD_COUNT = 'add_count'
+
+module.exports = { CHANGES_NAME, ADD_COUNT }
+```
+
+</CodeBlock>
+
+生成描述对象文件
+
+<CodeBlock title="store/createAction.js">
+
+```js
+const { CHANGES_NAME, ADD_COUNT } = require('./constant.js')
+
+function changesNameAction(name) {
+  return { type: CHANGES_NAME, name }
+}
+
+function addCountAction(count) {
+  return { type: ADD_COUNT, count }
+}
+
+module.exports = {
+  changesNameAction,
+  addCountAction,
+}
+```
+
+</CodeBlock>
+
+对于dispatch派发action做出相应的处理,根据描述对象type更新对应的state
+
+<CodeBlock title="store/reducer.js">
+
+```js
+const { CHANGES_NAME, ADD_COUNT } = require('./constant.js')
+
+/* 
+  初始数据
+*/
+const initialState = {
+  count: 100,
+  name: 'zs',
+}
+
+/* 
+  store创建时会自动执行reducer
+  将state,及action传入
+  state:store目前state的数据
+  action:
+  当外界通过store.dispatch发送事件 reducer将会被重新执行 把state action重新传入 根据最新的action返回最新的state
+  reducer返回值就是之后存储的state
+*/
+const reducer = (state = initialState, action) => {
+  //有数据更新返回更新后的state 没有更新返回之前的state
+  switch (action.type) {
+    case CHANGES_NAME:
+      return { ...state, name: action.name }
+    case ADD_COUNT:
+      return { ...state, count: state.count + action.count }
+    default:
+      return state
+  }
+}
+
+module.exports = reducer
+```
+
+</CodeBlock>
+
+创建store : object tree 根据reducer返回值存储state数据
+
+<CodeBlock title="store/store.js">
+
+```js
+
+const { createStore } = require('redux')
+
+const reducer = require('./reducer')
+/* 
+创建store
+参数1:reducer store所有的数据都来自于reducer reducer返回什么样的数据store将会有什么样的数据
+参数2:StoreEnhancer 增强store 后续使用redux-thunk将会使用到
+ */
+
+const store = createStore(reducer)
+
+module.exports = store
+```
+
+</CodeBlock>
+
+组件通过dispatch派发action reducer自动执行更新state数据
+
+<CodeBlock title="store/index.js">
+
+```js
+const store = require('./store/index.js')
+const { changesNameAction, addCountAction } = require('./store/createAction.js')
+
+/* 
+  subscribe:监听store 当store数据发生了变化会自动执行回调函数
+  subscribe返回值:取消订阅函数 执行取消订阅函数后回调函数将不会被执行
+*/
+store.subscribe(() => {
+  console.log(store.getState())
+})
+
+store.dispatch(changesNameAction('wangwu'))
+
+store.dispatch(addCountAction(10))
+
+```
+
+</CodeBlock>
+
+---
+
+### redux三大原则
+
+**单一数据源**
+
+整个应用程序应被存储在一个object tree中,并不强制不能创建多个store,但是创建多个store不利于数据维护,单一数据源可以使整个应用的state方便维护,追踪,更改。
+
+**state是只读的**
+
+**唯一改变 state 的方法就是触发 action,不要试图在其他地方通过任何方式修改state**,这样可以确保所有修改被集中化处理,并且按照严格的顺序执行,不需要担心竞态的问题(两个进程同时修改state),单独修改state还会造成状态发生改变subscribe不会执行回调,subscribe只有在发现state发生了改变才会进行执行回调。
+
+**使用纯函数来执行修改(所有reducer都应该为纯函数)**
+
+确保状态的可预测性和可维护性。每次状态都是通过dispatch一个action来触发的,reducer负责根据action的类型来处理变更逻辑,由于reducer是一个纯函数所以给定相同的输入必定得到相同的输出,使得我们可以方便的对状态变更进行追踪和回溯,另外由于纯函数的特性我们不必担心reducer会污染外部环境。
+
+---
+
+### reducer合并
+
+**combinerReducers函数**
+
+<CodeBlock title="store/index.js">
+
+```js
+//多个reducer 合并为一个
+const reducer = combinerReducers({// [!code highlight:4]
+	homeReducer:homeReducer,
+	aboutReducer:aboutReducer
+})
+
+const store = createStore(reducer)
+
+//页面使用
+store.getState().homeReducer.count
+```
+
+</CodeBlock>
+
+---
+
+### react-redux
+
+使用connect函数省去组件(class组件)需要手动执行监听的过程及store状态值映射,dispatch方法的解耦操作。
+
+不使用react-redux
+
+```jsx
+
+import { PureComponent } from 'react'
+
+import store from '../../store'
+import { addCountAction } from '../../store/actionCreate'
+
+export default class Home extends PureComponent {
+  constructor() {
+    super()
+
+    this.state = {
+      count: store.getState().count,
+    }
+  }
+
+    //需要手动添加监听
+  componentDidMount() {
+    store.subscribe(() => {// [!code ++]
+      this.setState({// [!code ++]
+        count: store.getState().count,// [!code ++]
+      })// [!code ++]
+    })// [!code ++]
+  }
+
+  addCount(count = 1) {
+    store.dispatch(addCountAction(count))
+  }
+
+  render() {
+    const { count } = this.state
+
+    return (
+      <div>
+        <h1>{count}</h1>
+        <button
+          onClick={() => {
+            this.addCount()
+          }}
+        >
+          count++
+        </button>
+      </div>
+    )
+  }
+}
+
+```
+
+使用react-redux : 在react首页通过react-redux配置store
+
+```js
+// import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
+
+//结合react-redux
+import store from './store'
+import { Provider } from 'react-redux'// [!code ++]
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+//配置store (通过共享上下文进行存储)
+  <Provider store={store}>// [!code ++]
+    <App />,
+  </Provider>,// [!code ++]
+)
+
+```
+组件中使用
+
+```jsx
+import { PureComponent } from 'react'
+
+//react-redux connect:高阶函数
+    import { connect } from 'react-redux'// [!code ++]
+//action 描述对象
+import { addCountAction } from '../../store/actionCreate'
+export class About extends PureComponent {
+  btnHandle(num) {
+    this.props.addCount(num)
+  }
+
+  render() {
+    const { count } = this.props
+    return (
+      <div>
+        {count}
+        <button onClick={() => this.btnHandle(10)}>abuout++</button>
+      </div>
+    )
+  }
+}
+
+/* 
+connect(fn1,fn2)()
+connect第一个函数接收两个参数
+fn1:映射store state数据
+fn2:映射store dispatch 执行action
+*/
+const stateMapToProps = (state) => ({
+  count: state.count,
+})
+
+const dispatchMapToProps = (dispatch) => ({
+  addCount(num) {
+    dispatch(addCountAction(num))
+  },
+})
+//connect基本原理:通过高阶组件将上述函数返回的对象映射到组件当中
+//<About ...props,...stateMapToProps,...dispatchMapToProps></About>
+    export default connect(stateMapToProps, dispatchMapToProps)(About)// [!code ++]
+
+```
+**提供的hook**
+
+useSelector
+
+```jsx
+
+ /* 
+	useSelector(fn,shallowEqual)
+	fn:回调函数 并接收state数据
+	shallowEqual:浅层比较 判断接受的state是否发生改变 只有判断发生了改变当前组件才会重新渲染
+ */
+const { count } = useSelector(
+    (state) => ({ count: state.count }),
+    shallowEqual,
+  )
+
+```
+
+useDispatch
+
+```jsx
+
+import { memo } from 'react'
+
+import { useSelector, useDispatch, shallowEqual } from 'react-redux'
+
+import { addCountAction } from '../../store/actionCreate'
+
+const Other = memo(() => {
+  const { count } = useSelector(
+    (state) => ({ count: state.count }),
+    shallowEqual,
+  )
+
+  //获取dispatch
+  const dispatch = useDispatch()
+
+  return (
+    <div>
+      <h1>{count}</h1>
+      <button
+        onClick={() => {
+          //直接派发action        
+          dispatch(addCountAction(1))
+        }}
+      >
+        +
+      </button>
+    </div>
+  )
+})
+
+Other.displayName = 'Other'
+
+export default Other
+
+```
+
+TypedUseSelectorHook
+
+
+```jsx
+
+// 推导store state类型
+
+//获取store.getState函数类型
+type getStateType = typeof store.getState
+//获取store.getState函数返回值类型
+type Istate = ReturnType<getStateType>
+
+type DispatchType = typeof store.dispatch
+
+export const useAppSelector: TypedUseSelectorHook<Istate> = useSelector
+export const useAppDispatch: () => DispatchType = useDispatch
+```
+
+---
+
+### 手写connect
+
+<CodeBlock title="connect.jsx">
+
+```jsx
+/* 
+  connect(参数1,参数2)(组件)
+  参数1:state映射  (state) => state中各个状态
+  参数2:dispatch映射 (dispatcg) => 各个dispatch处理函数
+  组件:组件
+*/
+import { PureComponent } from 'react'
+//将store存储在共享上下文中
+import StoreContext from './StoreContext'
+//解决: 不用考虑store 路径问题
+
+/* 
+const stateMapToProps = (state) => ({
+  count: state.count,
+})
+
+const dispatchMapToProps = (dispatch) => ({
+  addCount(num) {
+    dispatch(addCountAction(num))
+  },
+})
+*/
+export default function connect(stateMapProps, dispatchMapProps) {
+  //返回的函数 接收一个组件
+  return (WrapperComponent) => {
+    class NewComponent extends PureComponent {
+      //props   context:共享上下文中的store
+      constructor(props, context) {
+        super(props)
+		
+        //初始数据即为store中的数据
+        this.state = stateMapProps(context.getState())
+      }
+
+        //手动监听 
+      componentDidMount() {
+        this.unSubscribe = this.context.subscribe(() => {
+          //状态发送改变 重新赋值给this.state 当this.state执行render渲染界面
+          this.setState(stateMapProps(this.context.getState()))
+        })
+      }
+
+      componentWillUnmount() {
+        this.unSubscribe()
+      }
+
+      render() {
+        //state数据  stateMapProps(store.state)
+        const stateProps = stateMapProps(this.context.getState())
+        //dispatch事件 stateMapProps(store.dispatch)
+        const dispatchProps = dispatchMapProps(this.context.dispatch)
+
+        return (
+          <WrapperComponent
+            {...this.props}
+            {...stateProps}
+            {...dispatchProps}
+          ></WrapperComponent>
+        )
+      }
+    }
+
+    //将存储在共享上下文中store传入NewComponent
+    NewComponent.contextType = StoreContext
+	//返回封装后的组件
+    return NewComponent
+  }
+}
+
+```
+
+</CodeBlock>
+
+创建上下文用于储存store 解决store路径问题
+
+
+<CodeBlock title="storeContext.js">
+
+```js
+
+import { createContext } from 'react'
+
+const StoreContext = createContext()
+
+export default StoreContext
+
+```
+
+</CodeBlock>
+
+暴露StoreContext 及connect
+
+<CodeBlock title="storeContext.js">
+
+```js
+
+import StoreContext from './StoreContext'
+
+import connect from './connect.jsx'
+
+export { StoreContext, connect }
+
+```
+
+</CodeBlock>
+
+使用
+
+```jsx
+
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
+
+//结合自己的StoreContext
+import store from './store'
+import { StoreContext } from '../src/hoc'
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+    //将store存储在共享上下文
+  <StoreContext.Provider value={store}>
+    <App />
+  </StoreContext.Provider>,
+)
+
+```
+
+---
+
+### redux-thunk
+
+Thunk 是在 Redux 应用程序中编写异步逻辑的标准方法通常用于数据获取。
+
+<CodeBlock title="store/constant.js">
+
+```js
+export const ADD_COUNT = 'add_count'
+
+//新增type常量 修改BANNERS
+export const CHANGE_BANNERS = 'change_banners'
+//新增type常量 修改Recommends
+export const CHANGE_Recommends = 'change_recommends'
+
+```
+
+</CodeBlock>
+
+
+<CodeBlock title="store/actionCreate.js">
+
+```js
+import { ADD_COUNT, CHANGE_BANNERS, CHANGE_Recommends } from './constant'
+
+import axios from 'axios'
+
+//构建action 方便使用
+export const addCountAction = (count) => ({ type: ADD_COUNT, count })
+
+//常规action 需返回一个对象
+/* 
+  普通情况下action描述对象要求返回类型应为对象形式
+  但如果是返回一个对象我们将没有办法将异步操作的返回结果赋值给返回对象,并不能解决我们的需求
+*/
+//没有办法将返回结果赋值给aciton对象中
+export const changeBannersAction = (banners) => ({
+  type: CHANGE_BANNERS,
+  banners,
+})
+
+export const changeRecommendsAction = (recommends) => ({
+  type: CHANGE_Recommends,
+  recommends,
+})
+
+//需要异步请求操作 使用redux-thunk 使action可以返回一个函数
+export const fetchChangeBanners = () => {
+	//redux-thunk会判断返回的是一个对象还是一个函数,如果使函数则会执行函数,并将dispatch, getState传入
+  return (dispatch, getState) => {
+    axios.get('http://xxx.com:9002/album/list').then((res) => {
+      //拿到结果后派发action更新数据  
+      dispatch(changeBannersAction(res.data.products))
+    })
+  }
+}
+
+export const fetchChangeRecommends = () => {
+  return (dispatch, getState) => {
+    axios.get('http://xxx.com:9002/personalized').then((res) => {
+      dispatch(changeRecommendsAction(res.data.result))
+    })
+  }
+}
+
+```
+
+</CodeBlock>
+
+<CodeBlock title="store/index.js">
+
+```js
+
+import { applyMiddleware, createStore } from 'redux'
+import reducer from './reducer'
+import { thunk } from 'redux-thunk'
+
+/* 
+  1.创建store 保存状态
+  2.创建reducer createStore会自动执行reducer函数 reducer函数返回的状态则是我们保存的状态
+    其中reducer必须为纯函数,是redux三大原则之一:
+    (剩下两个为:
+      1.确保单一数据源,既:尽量保持一个object tree 方便管理和排查
+      2.state只可读:修改state的方式只有一种就是通过dispatch派发事件触发action进行修改,避免除此之外的其他方式
+        原因:可以确保state修改集中管理按照严格顺序执行,避免竟态导致数据出现不可预知的错误
+    )
+*/
+
+/* 使用 redux-thunk增强action
+    redux-thunk作用:可以使dispatch一个action函数,如果发现action返回的是一个函数,就执行返回的函数并将dispatch和getState传参给返回的函数
+    applyMiddleware:store提供的增强函数 
+*/
+const store = createStore(reducer, applyMiddleware(thunk))
+
+export default store
+
+```
+
+</CodeBlock>
+
+<CodeBlock title="About.jsx">
+
+```js
+import { PureComponent } from 'react'
+
+import PropTypes from 'prop-types'
+
+//react-redux connect:高阶函数
+import { connect } from 'react-redux'
+
+import {
+  addCountAction,
+  fetchChangeBanners,
+  fetchChangeRecommends,
+} from '../../store/actionCreate'
+
+export class About extends PureComponent {
+  //发送异步请求获取数据
+  componentDidMount() {
+    
+    this.props.bannersHandle()
+
+    this.props.recommendsHandle()
+  }
+
+  btnHandle(num) {
+    this.props.addCount(num)
+  }
+
+  render() {
+    const { count, banners, recommends } = this.props
+
+    return (
+      <div>
+        {count}
+        <button onClick={() => this.btnHandle(10)}>abuout++</button>
+        <div style={{ display: 'flex' }}>
+          <ul>
+            {banners &&
+              banners
+                .splice(0, 5)
+                .map((item, index) => <li key={index}>{item.albumName}</li>)}
+          </ul>
+
+          <ul style={{ marginLeft: '20px' }}>
+            {recommends &&
+              recommends
+                .splice(0, 5)
+                .map((item, index) => <li key={index}>{item.name}</li>)}
+          </ul>
+        </div>
+      </div>
+    )
+  }
+}
+
+//props
+About.propTypes = {
+  count: PropTypes.number.isRequired,
+  banners: PropTypes.array,
+  recommends: PropTypes.array,
+  addCount: PropTypes.func.isRequired,
+  recommendsHandle: PropTypes.func.isRequired,
+  bannersHandle: PropTypes.func.isRequired,
+}
+
+/* 
+connect(fn1,fn2)()
+connect第一个函数接收两个参数
+fn1:映射store state数据
+fn2:映射store dispatch
+*/
+const stateMapToProps = (state) => ({
+  count: state.count,
+  banners: state.banners,
+  recommends: state.recommends,
+})
+
+const dispatchMapToProps = (dispatch) => ({
+  addCount(num) {
+    dispatch(addCountAction(num))
+  },
+  bannersHandle() {
+    dispatch(fetchChangeBanners())
+  },
+  recommendsHandle() {
+    dispatch(fetchChangeRecommends())
+  },
+})
+
+export default connect(stateMapToProps, dispatchMapToProps)(About)
+
+```
+
+</CodeBlock>
+
+### redux-devtool
+
+redux调试工具,方便我们查看state数据更新过程,及store存储的state
+
+谷歌浏览器扩展商店直接搜索 redux-devtool进行下载(需科学上网)
+
+store.js需额外进行配置 使devtool可以进行生效(生产环境切记关闭)
+
+```js
+
+//redux-devtool 开启redux-devtool
+const composeEnhancers = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose
+
+const store = createStore(reducer, composeEnhancers(applyMiddleware(thunk)))
+
+```
+
+### redux toolkit
+
+redux编写逻辑过于繁琐和麻烦,并且代码通常需要拆分为多个文件(type常量文件,action创建文件,reducer文件,创建store文件)。
+
+redux toolkit在创建store默认集成了redux-thunk和redux-devtool。
+
+创建分片(即reducer)
+
+
+<CodeBlock title="store/aboutSlice.js">
+
+```js
+
+import { createSlice } from '@reduxjs/toolkit'
+
+//创建分片 实际就是创建reducer
+const aboutSlice = createSlice({
+  //redux-devtool type名称 相当于之前redux中描述对象中的type
+  name: 'about',
+  //初始数据
+  initialState: {
+    count: 100,
+  },
+  //reducer
+  reducers: {
+    //dispatch 会将state及更新状态传入 action.payload
+    addCount(state, { payload }) {
+      /* 
+        这里不用向最开始redex执行redecer呢样需将state结构赋值给一个新的对象
+         {...state,count: action.count}
+        原因:redux toolkit中使用了 immer(数据不可变性) 
+        简单理解为:帮我们的数据映射成一个个节点 当发现数据某个节点发生了改变  
+        将会返回一个新的对象,但这个对象尽可能地会利用之前重复的节点 而不会造成性能的浪费
+        笔记会有详细描述
+      */
+      state.count = state.count + payload
+    },
+  },
+})
+
+//将创建描述对象函数暴漏
+export const { addCount } = aboutSlice.actions
+
+export default aboutSlice.reducer
+
+```
+
+</CodeBlock>
+
+创建store
+
+<CodeBlock title="store/index.js">
+
+```js
+import { configureStore } from '@reduxjs/toolkit'
+import aboutReducer from './aboutSlice.js'
+
+
+export const store = configureStore({
+  reducer: {
+    about: aboutReducer
+  }
+})
+```
+
+</CodeBlock>
+
+使用异步请求场景
+
+<CodeBlock title="store/main.ts">
+
+```ts
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+
+import { IDepartmentList, IRoleList } from '@/types/main'
+
+//请求方法
+import { getDepartmentList, getRoleList } from '@/service/modules/main'
+
+interface IInitialState {
+  departmentList: IDepartmentList
+  roleList: IRoleList
+}
+
+const initialState: IInitialState = {
+  departmentList: {
+    list: [],
+    totalCount: 0
+  },
+  roleList: {
+    list: [],
+    totalCount: 0
+  }
+}
+
+/* 
+创建异步亲请求:
+main/async:redux-devtool显示请求名称
+callbackFn:回调函数(调用这个异步请求传参数据,
+Redux 提供一整组的API，例如获取getState、dispatch、extra 传入其他参数等API。
+)
+ */
+export const fetchMainAsync = createAsyncThunk(
+  'main/async',
+  async (arg, { dispatch }) => {
+    const departmentResults = await getDepartmentList()
+    const roleResults = await getRoleList()
+
+    dispatch(changeDepartmentList(departmentResults.data))
+    dispatch(changeRoleList(roleResults.data))
+  }
+)
+
+const mainReducer = createSlice({
+  name: 'main',
+  initialState,
+  reducers: {
+    changeDepartmentList(state, { payload }) {
+      state.departmentList = payload
+    },
+    changeRoleList(state, { payload }) {
+      state.roleList = payload
+    }
+  }
+})
+
+//暴漏以便异步请求使用
+export const { changeDepartmentList, changeRoleList } = mainReducer.actions
+
+export default mainReducer.reducer
+
+
+```
+
+</CodeBlock>
+
+
+
+
+
+

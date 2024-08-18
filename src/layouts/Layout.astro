@@ -8,11 +8,7 @@ const { title } = Astro.props
 
 //重新配置doc menu菜单状态
 
-import { docsConfig } from '@/config/docs'
-
-
 import '@/styles/globals.css'
-
 ---
 
 <!doctype html>
@@ -43,7 +39,3 @@ import '@/styles/globals.css'
     height: calc(100% - 4rem);
   }
 </style>
-
-<script define:vars={{docsConfig}}>
-localStorage.setItem('menu', JSON.stringify(docsConfig))
-</script>

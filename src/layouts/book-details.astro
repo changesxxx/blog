@@ -1,0 +1,41 @@
+---
+import PageHeader from '@/components/PageHeader.astro'
+import Footer from '@/components/layout/footer.astro'
+
+import { cn } from '@/lib/utils'
+
+interface Props {
+  title: string
+  bodyClass?: string
+}
+
+const { title, bodyClass } = Astro.props
+
+//重新配置doc menu菜单状态
+
+import { docsConfig } from '@/config/docs'
+
+import '@/styles/globals.css'
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content="Astro description" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+  </head>
+  <body class={cn('flex flex-col min-h-screen', bodyClass)}>
+    <head>
+      <PageHeader />
+    </head>
+    <main>
+      <slot />
+    </main>
+    <!-- <footer>footer</footer> -->
+    <Footer />
+  </body>
+</html>
