@@ -1,43 +1,37 @@
 ---
 import BookDetails from '@/layouts/book-details.astro'
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button'
 
-import { FcBrokenLink } from "react-icons/fc";
+import { FcBrokenLink } from 'react-icons/fc'
 
-import {books} from '@/config/books'
-
+import { books } from '@/config/books'
 
 export function getStaticPaths() {
-
-  return books.map(b => ({params:{id:b.id}}))
+  return books.map((b) => ({ params: { id: b.id } }))
 }
 
-const { id } = Astro.params;
+const { id } = Astro.params
 
-
-const book = books.find( b => b.id === id )!
-
+const book = books.find((b) => b.id === id)!
 ---
+
 <BookDetails title="共读系列">
   <div class="bg-background-200 h-full">
     <section class="container py-18">
       <div class="info flex">
         <!-- 封面 -->
-        <div class="cover w-full h-[820px]   rounded-md overflow-hidden bg-muted-foreground/15">
-   <img
-            src={book.image}
-            class="size-full  object-center"
-            alt=""
-          /> 
+        <div
+          class="cover w-full h-[820px] rounded-md overflow-hidden bg-muted-foreground/15"
+        >
+          <img src={book.image} class="size-full object-center" alt="" />
         </div>
- 
-        <div class="more px-4 h-[820px]">
 
+        <div class="more px-8 h-[820px]">
           <div class="title">
             <div class="name-description">
               <h1
-                class="text-balance font-heading text-3xl sm:text-4xl md:text-6xl lg:text-[32px]"
+                class="text-balance font-heading text-3xl sm:text-4xl md:text-6xl lg:text-[22px] py-4"
               >
                 <font style="vertical-align: inherit;"
                   ><span class="font-extrabold"
@@ -50,67 +44,106 @@ const book = books.find( b => b.id === id )!
                 >
               </h1>
 
+              <hr class="my-4" />
+
               <p
-                class="text-balance leading-normal text-muted-foreground sm:text-xs sm:leading-8 mt-4"
+                class="leading-normal text-muted-foreground sm:text-xs sm:leading-8 mt-4 px-2"
               >
-                <font style="vertical-align: inherit;">
-                  <font style="vertical-align: inherit;"
-                    >{book.description}</font
-                  >
-                </font>
+                <font style="vertical-align: inherit;">{book.description}</font>
               </p>
             </div>
           </div>
 
-          
-          <div class="catalogue  overflow-hidden">
-            <div class="catalogue-item py-12 ">
+          <hr class="my-4" />
 
-              <div class="item-container">
-              {
-                book.chapter.map((m,index) => {
-                  if(index%2 === 0){
-                      return (
-                         <div class="content" >
-              <div class="right sm:text-2xl md:text-3xl lg:text-[32px] text-gradient_indigo-purple" >{index+1 < 10 ? (index+1).toString().padStart(2, '0') : (index+1).toString() }</div>
-              <div  class="right sm:text-1xl md:text-2xl lg:text-[14px]" >
-                <a href={m.href}>{m.title}</a>
+          <div class="catalogue overflow-auto">
+            <div class="item flex">
+              <div class="serial lg:text-[32px]">01</div>
+              <div class="book-catalogue-info">
+                <div class="catalogue-title">历史余元</div>
+
+                <div
+                  class="catalogue-introduce sm:text-xs sm:leading-8 text-balance leading-normal text-muted-foreground"
+                >
+                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
+                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
                 </div>
-            </div>
-                      )
-                  }else {
-return (
-  <div class="content" >
-              <div class="left sm:text-2xl md:text-4xl lg:text-[32px] text-gradient_indigo-purple">{index+1 < 10 ? (index+1).toString().padStart(2, '0') : (index+1).toString() }</div>
-              <div class="left sm:text-1xl md:text-2xl lg:text-[14px]" > <a href={m.href}>{m.title}</a></div>
-            </div>
-)
-                  }
-                })
-              }
               </div>
+              <div class="occupy"></div>
+            </div>
 
+            <div class="item flex">
+              <div class="serial lg:text-[32px]">01</div>
+              <div class="book-catalogue-info">
+                <div class="catalogue-title">历史余元</div>
 
+                <div
+                  class="catalogue-introduce sm:text-xs sm:leading-8 text-balance leading-normal text-muted-foreground"
+                >
+                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
+                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
+                </div>
+              </div>
+              <div class="occupy"></div>
+            </div>
+
+            <div class="item flex">
+              <div class="serial lg:text-[32px]">01</div>
+              <div class="book-catalogue-info">
+                <div class="catalogue-title">历史余元</div>
+
+                <div
+                  class="catalogue-introduce sm:text-xs sm:leading-8 text-balance leading-normal text-muted-foreground"
+                >
+                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
+                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
+                </div>
+              </div>
+              <div class="occupy"></div>
+            </div>
+
+            <div class="item flex">
+              <div class="serial lg:text-[32px]">01</div>
+              <div class="book-catalogue-info">
+                <div class="catalogue-title">历史余元</div>
+
+                <div
+                  class="catalogue-introduce sm:text-xs sm:leading-8 text-balance leading-normal text-muted-foreground"
+                >
+                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
+                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
+                </div>
+              </div>
+              <div class="occupy"></div>
+            </div>
+
+            <div class="item flex">
+              <div class="serial lg:text-[32px]">01</div>
+              <div class="book-catalogue-info">
+                <div class="catalogue-title">历史余元</div>
+
+                <div
+                  class="catalogue-introduce sm:text-xs sm:leading-8 text-balance leading-normal text-muted-foreground"
+                >
+                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
+                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
+                </div>
+              </div>
+              <div class="occupy"></div>
             </div>
           </div>
 
-        
-        
-         <div class="link-container">     
-            <Button
-                    variant="secondary"
-                    size="sm"
-                    rounded="xl"
-                    className="px-4"
-                  >
-                    <a href={book.link} class="flex items-center gap-2">
-                      <span>原文地址</span>
-                      <FcBrokenLink></FcBrokenLink>
-                    </a>
-                  </Button></div>
+          <hr class="my-4" />
+
+          <div class="link-container">
+            <Button variant="secondary" size="sm" rounded="xl" className="px-4">
+              <a href={book.link} class="flex items-center gap-2">
+                <span>原文地址</span>
+                <FcBrokenLink />
+              </a>
+            </Button>
+          </div>
         </div>
-     
-      
       </div>
     </section>
   </div>
@@ -119,10 +152,14 @@ return (
 <style lang="less">
   .info {
     overflow: hidden;
+    padding: 0.8rem;
   }
 
   .cover {
     flex: 2;
+    box-shadow: 0px 0px 13px #71716a;
+    -moz-box-shadow: 0px 0px 13px #71716a;
+    -webkit-box-shadow: 0px 0px 13px #71716a;
   }
 
   .more {
@@ -130,76 +167,71 @@ return (
     flex-direction: column;
     flex: 4;
 
+    .name-description {
+      h1 {
+        background-color: rgba(143, 143, 139, 0.2);
+        border-radius: 1rem;
+        padding-left: 1rem;
+      }
+    }
+
     .catalogue {
       flex: 1;
-      .catalogue-item {
-        overflow-y: auto;
-        height: 100%;
-   /*      position: relative;
 
-                 &::before {
-        content: "";
-        position: absolute;
-        display: block;
-        height: calc(100% - 6rem);
-        width: 3px;
-        left:50%;
-        background-color: skyblue;
-      } */
+      box-shadow: 0px 0px 7px #7f7f76 inset;
+      -moz-box-shadow: 0px 0px 7px #7f7f76 inset;
+      -webkit-box-shadow: 0px 0px 7px #7f7f76 inset;
+      border-radius: 1rem;
 
-        .item-container {
-          min-height: 100%;
-         position: relative;
-            &::before {
-        content: "";
-        position: absolute;
-        display: block;
-        height: 100%;
-        width: 2px;
-        left:50%;
-        background-color: #ccc;
-        } 
-
-        }
-
-        .content {
-          display: flex;
-          flex-direction: column;
-
-          padding-top: 1rem;
-          padding-bottom: 1.45rem;
-
-          div {
-            width: 50%;
-          }
-
-          .left {
-            padding-right: 1rem;
-            text-align: right;
-          }
-       
-          .right {
-            position: relative;
-            padding-left: 1rem;
-
-            left :50%;
-          }
-        
+      &::-webkit-scrollbar {
+        width: 6px;
+        margin-right: 10px;
       }
 
+      &::-webkit-scrollbar-thumb {
+        // background: #7f7f76; /* 滚动条滑块颜色 */
+        background: rgb(255, 255, 255);
+        background: linear-gradient(
+          rgba(255, 255, 255, 0.3) 0%,
+          rgba(155, 155, 145, 0.3) 31%,
+          rgba(103, 103, 88, 0.3) 53%,
+          rgba(142, 142, 132, 0.3) 77%,
+          rgba(204, 204, 204, 0.3) 100%
+        );
+        border-radius: 10px; /* 滑块圆角 */
+      }
 
-   
+      .item {
+        padding: 3rem 0;
+        .serial {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex: 2;
+        }
+
+        .book-catalogue-info {
+          flex: 9;
+          .catalogue-title {
+            padding: 0.1rem 0;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+          }
+          .catalogue-introduce {
+            padding: 0.1rem 0;
+          }
+        }
+
+        .occupy {
+          flex: 2;
+        }
+      }
     }
 
-   
-  }
-
-   .link-container {
+    .link-container {
       display: flex;
       justify-content: flex-end;
-      align-items: center;
+      align-items: flex-end;
       height: 4rem;
     }
-
-}
+  }
 </style>
