@@ -7,4 +7,12 @@ const docs = defineCollection({
   }),
 })
 
-export const collections = { docs }
+const books = defineCollection({
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    name: z.string(),
+  }),
+})
+
+export const collections = { docs, books }
