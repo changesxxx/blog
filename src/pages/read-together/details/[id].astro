@@ -7,7 +7,6 @@ import { FcBrokenLink } from 'react-icons/fc'
 
 import { books } from '@/config/books'
 
-import { FcBookmark } from 'react-icons/fc'
 
 export function getStaticPaths() {
   return books.map((b) => ({ params: { id: b.id } }))
@@ -70,7 +69,7 @@ const book = books.find((b) => b.id === id)!
                     </div>
                     <div class="book-catalogue-info">
                       <a href={c.href} class="catalogue-title">
-                        <h3>{c.title}</h3> <FcBookmark size={18} />
+                        <h3>{c.title}</h3>
                       </a>
 
                       <div class="catalogue-introduce sm:text-xs sm:leading-8  leading-normal text-muted-foreground">
@@ -173,6 +172,10 @@ const book = books.find((b) => b.id === id)!
             align-items: center;
             padding: 0.1rem 0;
             border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+
+            &:hover > h3 {
+              color: var(--sl-color-text-accent);
+            }
           }
           .catalogue-introduce {
             padding: 0.1rem 0;
