@@ -7,6 +7,8 @@ import { FcBrokenLink } from 'react-icons/fc'
 
 import { books } from '@/config/books'
 
+import { FcBookmark } from 'react-icons/fc'
+
 export function getStaticPaths() {
   return books.map((b) => ({ params: { id: b.id } }))
 }
@@ -57,87 +59,40 @@ const book = books.find((b) => b.id === id)!
           <hr class="my-4" />
 
           <div class="catalogue overflow-auto">
-            <div class="item flex">
-              <div class="serial lg:text-[32px]">01</div>
-              <div class="book-catalogue-info">
-                <div class="catalogue-title">历史余元</div>
+            {
+              book.chapter.map((c, index) => {
+                return (
+                  <div class="item flex">
+                    <div class="serial lg:text-[32px]">
+                      {index < 10
+                        ? (index + 1).toString().padStart(2, '0')
+                        : (index + 1).toString()}
+                    </div>
+                    <div class="book-catalogue-info">
+                      <a href={c.href} class="catalogue-title">
+                        <h3>{c.title}</h3> <FcBookmark size={18} />
+                      </a>
 
-                <div
-                  class="catalogue-introduce sm:text-xs sm:leading-8 text-balance leading-normal text-muted-foreground"
-                >
-                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
-                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
-                </div>
-              </div>
-              <div class="occupy"></div>
-            </div>
-
-            <div class="item flex">
-              <div class="serial lg:text-[32px]">01</div>
-              <div class="book-catalogue-info">
-                <div class="catalogue-title">历史余元</div>
-
-                <div
-                  class="catalogue-introduce sm:text-xs sm:leading-8 text-balance leading-normal text-muted-foreground"
-                >
-                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
-                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
-                </div>
-              </div>
-              <div class="occupy"></div>
-            </div>
-
-            <div class="item flex">
-              <div class="serial lg:text-[32px]">01</div>
-              <div class="book-catalogue-info">
-                <div class="catalogue-title">历史余元</div>
-
-                <div
-                  class="catalogue-introduce sm:text-xs sm:leading-8 text-balance leading-normal text-muted-foreground"
-                >
-                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
-                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
-                </div>
-              </div>
-              <div class="occupy"></div>
-            </div>
-
-            <div class="item flex">
-              <div class="serial lg:text-[32px]">01</div>
-              <div class="book-catalogue-info">
-                <div class="catalogue-title">历史余元</div>
-
-                <div
-                  class="catalogue-introduce sm:text-xs sm:leading-8 text-balance leading-normal text-muted-foreground"
-                >
-                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
-                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
-                </div>
-              </div>
-              <div class="occupy"></div>
-            </div>
-
-            <div class="item flex">
-              <div class="serial lg:text-[32px]">01</div>
-              <div class="book-catalogue-info">
-                <div class="catalogue-title">历史余元</div>
-
-                <div
-                  class="catalogue-introduce sm:text-xs sm:leading-8 text-balance leading-normal text-muted-foreground"
-                >
-                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
-                  历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元历史余元
-                </div>
-              </div>
-              <div class="occupy"></div>
-            </div>
+                      <div class="catalogue-introduce sm:text-xs sm:leading-8  leading-normal text-muted-foreground">
+                        {c.syllabus}
+                      </div>
+                    </div>
+                    <div class="occupy" />
+                  </div>
+                )
+              })
+            }
           </div>
 
           <hr class="my-4" />
 
           <div class="link-container">
             <Button variant="secondary" size="sm" rounded="xl" className="px-4">
-              <a href={book.link} class="flex items-center gap-2">
+              <a
+                href={book.link}
+                class="flex items-center gap-2"
+                target="_blank"
+              >
                 <span>原文地址</span>
                 <FcBrokenLink />
               </a>
@@ -213,11 +168,20 @@ const book = books.find((b) => b.id === id)!
         .book-catalogue-info {
           flex: 9;
           .catalogue-title {
+            display: flex;
+
+            align-items: center;
             padding: 0.1rem 0;
             border-bottom: 2px solid rgba(0, 0, 0, 0.1);
           }
           .catalogue-introduce {
             padding: 0.1rem 0;
+
+            display: -webkit-box; /* 兼容 Safari */
+            -webkit-box-orient: vertical; /* 垂直排列子元素 */
+            -webkit-line-clamp: 3; /* 限制显示三行 */
+            overflow: hidden; /* 隐藏超出内容 */
+            text-overflow: ellipsis; /* 显示省略号 */
           }
         }
 
@@ -228,6 +192,8 @@ const book = books.find((b) => b.id === id)!
     }
 
     .link-container {
+      position: relative;
+      transform: translateY(25%);
       display: flex;
       justify-content: flex-end;
       align-items: flex-end;

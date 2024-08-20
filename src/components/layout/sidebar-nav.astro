@@ -1,57 +1,48 @@
 ---
-import { cn } from "@/lib/utils";
-import type { SidebarNavItem } from "@/types";
+import { cn } from '@/lib/utils'
+import type { SidebarNavItem } from '@/types'
 
-import { Button } from "@/components/ui/button";
-import { FcBrokenLink } from "react-icons/fc";
+import { Button } from '@/components/ui/button'
 
-
+import { FcDataBackup } from 'react-icons/fc'
 
 type Props = {
-  items: SidebarNavItem[];
-  bookPath:string
-};
+  items: SidebarNavItem[]
+  bookPath: string
+}
 
-const { items,bookPath } = Astro.props;
-const { pathname } = Astro.url;
-
+const { items, bookPath } = Astro.props
+const { pathname } = Astro.url
 ---
+
 {
   items.length ? (
     <>
-        <div class="w-full">
-      {items.map((item) => (
-        <div class={cn("pb-8")}>
-                       <a
-                           href={item.href}
-                         target={item.external ? "_blank" : ""}
-                      rel={item.external ? "noreferrer" : ""}
-                        class={cn(
-                    'mb-1 rounded-md px-2 text-sm font-medium block',
-                    {
-                      'current-link': pathname === item.href,
-                    },
-                  )}
-                      >
-                       {item.title}
-                      </a>
-          
-        </div>
-      ))}
-    </div>
- <Button
-                    variant="secondary"
-                    size="sm"
-                    rounded="xl"
-                    className="px-4"
-                  >
-                    <a href={`/read-together/details/${bookPath}`} class="flex items-center gap-2">
-                      <span>返回至目录</span>
-                      <FcBrokenLink></FcBrokenLink>
-                    </a>
-                  </Button>
+      <div class="w-full">
+        {items.map((item) => (
+          <div class={cn('pb-8')}>
+            <a
+              href={item.href}
+              target={item.external ? '_blank' : ''}
+              rel={item.external ? 'noreferrer' : ''}
+              class={cn('mb-1 rounded-md px-2 text-sm font-medium block', {
+                'current-link': pathname === item.href,
+              })}
+            >
+              {item.title}
+            </a>
+          </div>
+        ))}
+      </div>
+      <Button variant="secondary" size="sm" rounded="xl" className="px-4">
+        <a
+          href={`/read-together/details/${bookPath}`}
+          class="flex items-center gap-2"
+        >
+          <span>返回至目录</span>
+          <FcDataBackup size={22} />
+        </a>
+      </Button>
     </>
-
-    
   ) : null
 }

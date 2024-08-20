@@ -25,9 +25,6 @@ pre code {
   pre code .highlighted span {
     background-color: var(--code-highlighted) !important;
   }
-
-  
-
 }
 
 @layer {
@@ -36,24 +33,19 @@ pre code {
     display: inline-block;
     width: 100%;
     background-color: var(--code-diff-add) !important;
-  } 
-
-  pre code .add span {
-    background-color:   rgba(255, 0, 0, 0)!important;
   }
 
+  pre code .add span {
+    background-color: rgba(255, 0, 0, 0) !important;
+  }
 
   pre code .add::before {
     content: "+";
     position: absolute;
-    color:var(--vp-c-green);
+    color: var(--vp-c-green);
     left: 10px;
   }
-
-
-
 }
-
 
 .lang {
   position: absolute;
@@ -64,4 +56,10 @@ pre code {
   font-weight: 500;
 
   color: aliceblue;
+}
+
+mark {
+  background: #fdffb4;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.4rem;
 }

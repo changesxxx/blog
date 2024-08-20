@@ -1,63 +1,52 @@
 ---
-import { MdxComponents } from "@/components/content/mdx-components";
-import DocsSidebarNav from "@/components/layout/sidebar-nav.astro";
-import DocsPageHeader from "@/components/page-header.astro";
-import DocsPager from "@/components/pager.astro";
-import { DashboardTableOfContents } from "@/components/toc";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { docsConfig } from "@/config/docs";
-import DocsLayout from "@/layouts/docs-layout.astro";
-import { getTableOfContents } from "@/lib/toc";
-import { getCollection, type CollectionEntry ,getEntry} from "astro:content";
+import { MdxComponents } from '@/components/content/mdx-components'
+import DocsSidebarNav from '@/components/layout/sidebar-nav.astro'
+import DocsPageHeader from '@/components/page-header.astro'
+import DocsPager from '@/components/pager.astro'
+import { DashboardTableOfContents } from '@/components/toc'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { docsConfig } from '@/config/docs'
+import DocsLayout from '@/layouts/docs-layout.astro'
+import { getTableOfContents } from '@/lib/toc'
+import { getCollection, type CollectionEntry, getEntry } from 'astro:content'
 
 import { FaChevronRight } from 'react-icons/fa'
-import { books } from '@/config/books';
+import { books } from '@/config/books'
 
+export function getStaticPaths() {
+  const paths = books.flatMap((book) =>
+    book.chapter.flatMap((c) =>
+      c.items.map((item) => {
+        return {
+          params: { id: book.id, chapter: item.name },
+          props: {
+            title: c.title,
+            items: c.items,
+          },
+        }
+      }),
+    ),
+  )
 
-
-export  function getStaticPaths() {
-
-  const paths = books.flatMap(book => 
-    book.chapter.flatMap(c => 
-      c.items.map( item =>   {
-        return ({params: { id: book.id, chapter:item.name },props:{
-          title:c.title,
-          items:c.items
-        }}) 
-      })
-    )
-  );
-
-  return paths;
-
+  return paths
 }
 
-const { id,chapter } = Astro.params;
+const { id, chapter } = Astro.params
 
-
-
-
-const {title,items} = Astro.props;
-
+const { title, items } = Astro.props
 
 const draftBlogPosts = await getCollection('books', ({ data }) => {
-
-  return data.name === chapter;
-});
+  return data.name === chapter
+})
 
 const doc = draftBlogPosts[0]
 
-
-
 const slug = doc.slug
 
-const toc = await getTableOfContents(doc.body);
+const toc = await getTableOfContents(doc.body)
 
-const { Content } = await doc.render();
-
+const { Content } = await doc.render()
 ---
-
-
 
 <DocsLayout title={doc.data.title} description={doc.data.description}>
   <div class="container flex-1">
@@ -68,14 +57,16 @@ const { Content } = await doc.render();
         class="fixed top-14 z-30 -ml-2 hidden h-[calc(100vh-3.5rem)] w-full shrink-0 md:sticky md:block"
       >
         <ScrollArea className="h-full py-6 pr-6 lg:py-8" client:load>
-          <DocsSidebarNav items={items} bookPath = {id} />
+          <DocsSidebarNav items={items} bookPath={id} />
         </ScrollArea>
       </aside>
       <main
         class="relative py-6 lg:gap-10 lg:py-8 xl:grid xl:grid-cols-[1fr_300px]"
       >
-        <div class="mx-auto w-full min-w-0">
-          <div class="mb-4 flex items-center space-x-1 text-sm text-muted-foreground">
+        <div class="mx-auto w-full min-w-0 text-sm">
+          <div
+            class="mb-4 flex items-center space-x-1 text-sm text-muted-foreground"
+          >
             <div class="truncate">{title}</div>
             <FaChevronRight size={10} />
             <div class="font-medium text-foreground">
