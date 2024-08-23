@@ -13,6 +13,9 @@ import {
 export default defineConfig({
   vite: {
     css: { devSourcemap: false },
+    server: {
+      open: "/",
+    },
   },
   integrations: [
     mdx({

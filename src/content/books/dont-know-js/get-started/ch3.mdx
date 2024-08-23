@@ -1,0 +1,442 @@
+---
+title: "挖掘 JS 的根源"
+description: "如果您已经阅读了第 1 章和第 2 章，并花时间消化和渗透，希望您能开始对JS 有更多了解。如果您跳过/略读了它们（尤其是第 2 章），我建议您回头花更多时间阅读这些内容。
+
+在第 2 章中，我们概括介绍了语法、模式和行为。在本章中，我们将注意力转移到 JS 的一些底层根特性，这些特性几乎支撑着我们编写的每一行代码。
+
+请注意：本章的深度比你对编程语言的理解要深得多。我的目标是帮助你理解 JS 的核心工作原理，以及它是如何运转的。本章应该开始回答你在探索 JS 时可能出现的一些“为什么？”问题。然而，这些内容仍然不是对该语言的详尽阐述；这就是本书其余部分的目的！我们的目标仍然是开始，并逐渐适应JS 的感觉，以及它是如何起伏的。
+
+不要太快地看完这些内容，否则你会迷失在杂乱无章的内容中。正如我已经说过十几次的那样，慢慢来。即便如此，你也可能会在读完本章后仍有疑问。没关系，因为前面还有一整套书等着你继续探索！"
+name: "get-started-ch3"
+---
+
+### 迭代
+
+由于程序本质上是为了处理数据（并根据数据做出决策）而构建的，因此用于处理数据的模式对程序的可读性有很大影响。
+
+迭代器模式已经存在了几十年，它提出了一种“标准化”方法来一次一块地使用来自源的数据。这个想法是，迭代数据源更常见且更有帮助——通过处理第一部分，然后处理下一部分，依此类推，逐步处理数据集合，而不是一次性处理整个集合。
+
+想象一下表示关系数据库查询的数据结构SELECT，该结构通常将结果组织为行。如果此查询只有一行或几行，您可以一次处理整个结果集，并将每行分配给局部变量，然后对该数据执行适当的任何操作。
+
+但是如果查询有 100 或 1,000（或更多！）行，您将需要迭代处理来处理这些数据（通常是一个循环）。
+
+迭代器模式定义了一个称为“迭代器”的数据结构，它引用了底层数据源（如查询结果行），并公开了类似 的方法next()。调用next()将返回下一个数据（即来自数据库查询的“记录”或“行”）。
+
+您并不总是知道需要迭代多少数据，因此一旦迭代整个集合并越过结尾，模式通常会通过某些特殊值或异常来指示完成。
+
+迭代器模式的重要性在于遵循迭代处理数据的标准方式，从而创建更清晰、更易于理解的代码，而不是让每个数据结构/源都定义自己的处理数据的自定义方式。
+
+经过多年的 JS 社区努力，最终达成了一致迭代技术，ES6 终于在语言中直接为迭代器模式制定了一套特定的协议。<mark>该协议定义了一个next()方法，该方法的返回值是一个称为迭代器结果的对象；该对象具有value和done属性，其中done是一个布尔值，即false直到对底层数据源的迭代完成。</mark>
+
+**使用迭代器**
+
+随着 ES6 迭代协议的引入，可以逐个值地消耗数据源，在每次调用 next() 后检查 done 是否为 true，以停止迭代。但这种方法相对手动，因此 ES6 还包含了几种机制（语法和 API）来标准化这些迭代器的消费方式。
+
+其中一种机制就是for..of循环：
+
+```js
+// 给定某个数据源的迭代器：
+var it = /* .. */;
+
+// 逐一循环其结果
+for (let val of it) {
+    console.log(`Iterator value: ${ val }`);
+}
+// 迭代器值: ..
+// 迭代器值: ..
+// ..
+```
+
+<Callout icon="💡" type="info">
+  我们在这里省略手动循环的等效写法，但它的可读性肯定不如 for..of 循环！
+</Callout>
+
+另一个常用的消费迭代器的机制是 ... 运算符。这个运算符实际上有两种对称的形式：spread 和 rest（或者我更喜欢称之为 gather）。spread 形式是一个迭代器消费者。
+
+<Callout icon="📝" type="notes">
+
+在 JavaScript 中，spread 和 rest（有时称为 gather）都是使用三个点 ... 来表示的运算符，但它们的用途和上下文有所不同。
+
+1. Spread（展开）
+
+Spread 运算符用于将可迭代对象（如数组或字符串）展开成单个元素。常见的用法有：
+
+在数组字面量中展开数组：
+
+```js
+const arr1 = [1, 2, 3];
+const arr2 = [0, ...arr1, 4]; // 结果是 [0, 1, 2, 3, 4]
+```
+
+在函数调用中展开参数：
+
+```js
+const numbers = [1, 2, 3];
+const max = Math.max(...numbers); // 结果是 3
+```
+
+2. Rest（收集）
+
+Rest 运算符用于将多个参数收集成一个数组，通常在函数参数中使用。它允许你将不确定数量的参数传递给函数。
+
+在函数定义中收集参数：
+
+```js
+function sum(...numbers) {
+  return numbers.reduce((acc, curr) => acc + curr, 0);
+}
+
+console.log(sum(1, 2, 3)); // 结果是 6
+```
+
+</Callout>
+
+要扩展一个迭代器，你必须有一个可以扩展到的对象。在 JavaScript 中，有两种可能性：数组或函数调用的参数列表。
+
+数组扩展：
+
+```js
+// 将迭代器展开为数组，,
+// 每个迭代的值占据数组中的一个元素位置。
+var vals = [...it];
+```
+
+函数调用传播：
+
+```js
+// 将迭代器展开到一个函数中,
+//调用时每个迭代的值占据一个参数的位置。
+doSomethingUseful(...it);
+```
+
+在这两种情况下，迭代器展开形式的 ... 遵循迭代器消费协议（与 for..of 循环相同），用于从迭代器中检索所有可用的值，并将它们放入接收上下文中（数组或参数列表）。
+
+**可迭代对象**
+
+迭代器消费协议在技术上是为消费可迭代对象而定义的；可迭代对象是指可以被迭代的值。
+
+该协议会自动从可迭代对象创建一个迭代器实例，并仅消费该迭代器实例直至完成。这意味着单个可迭代对象可以被多次消费；每次消费时，都会创建并使用一个新的迭代器实例。
+
+那么，我们在哪里可以找到可迭代对象呢？
+
+ES6 在 JavaScript 中定义了基本的数据结构/集合类型作为可迭代对象。这包括字符串、数组、映射、集合等。
+
+考虑：
+
+```js
+// an array is an iterable
+var arr = [10, 20, 30];
+
+for (let val of arr) {
+  console.log(`Array value: ${val}`);
+}
+// Array value: 10
+// Array value: 20
+// Array value: 30
+```
+
+由于数组是可迭代的，我们可以通过扩展运算符`...`消耗迭代器来浅复制数组：
+
+```js
+var arrCopy = [...arr];
+```
+
+我们还可以一次性迭代字符串中的字符：
+
+```js
+var greeting = "Hello world!";
+var chars = [...greeting];
+
+chars;
+// [ "H", "e", "l", "l", "o", " ",
+//   "w", "o", "r", "l", "d", "!" ]
+```
+
+Map 数据结构使用对象作为键，将任意类型的值与该对象关联。与上面提到的不同，Map 的默认迭代方式不仅仅是迭代其值，而是迭代其条目（entries）。条目是一个包含键和值的元组（2 元素数组）。
+
+考虑：
+
+```js
+// given two DOM elements, `btn1` and `btn2`
+
+var buttonNames = new Map();
+buttonNames.set(btn1, "Button 1");
+buttonNames.set(btn2, "Button 2");
+
+for (let [btn, btnName] of buttonNames) {
+  btn.addEventListener("click", function onClick() {
+    console.log(`Clicked ${btnName}`);
+  });
+}
+```
+
+在对默认 Map 迭代的 for..of 循环中，我们使用 [btn, btnName] 语法（称为“数组解构”）来将每个消费的元组分解为相应的键/值对（例如 btn1 / "Button 1" 和 btn2 / "Button 2"）。
+
+JavaScript 中的所有内置可迭代对象都提供了默认迭代，这种迭代方式通常符合直觉。但如果需要，您也可以选择更具体的迭代方式。例如，如果我们只想消费上面 buttonNames Map 的值，可以调用 values() 来获取仅值的迭代器：
+
+```js
+for (let btnName of buttonNames.values()) {
+  console.log(btnName);
+}
+// Button 1
+// Button 2
+```
+
+或者如果我们想在数组迭代中获得索引和值，可以使用 entries() 方法创建一个条目迭代器：
+
+```js
+var arr = [10, 20, 30];
+
+for (let [idx, val] of arr.entries()) {
+  console.log(`[${idx}]: ${val}`);
+}
+// [0]: 10
+// [1]: 20
+// [2]: 30
+```
+
+在大多数情况下，JavaScript 中的所有内置可迭代对象都有三种迭代形式可用：仅键（keys()）、仅值（values()）和条目（entries()）。
+
+除了使用内置可迭代对象外，您还可以确保自己的数据结构遵循迭代协议；这样做意味着您可以选择使用 `for..of` 循环和 `...` 运算符消费您的数据。“标准化”这一协议使得代码整体上更易于识别和阅读。
+
+<Callout icon="💡" type="info">
+
+您可能注意到在这段讨论中发生了一个微妙的转变。我们最开始是谈论消费迭代器，但随后转向了迭代可迭代对象。迭代消费协议期望的是一个可迭代对象，但我们能够直接提供一个迭代器的原因在于，迭代器实际上是一个其自身的可迭代对象！当从现有的迭代器创建一个新的迭代器实例时，返回的就是该迭代器本身。
+
+这意味着您可以将迭代器视为一种特殊的可迭代对象，能够被多次消费。每次消费时，都会从该迭代器中提取值，这种灵活性使得使用迭代器和可迭代对象变得更加方便和一致。通过这种方式，您可以轻松地在不同的上下文中使用迭代器，无论是通过 for..of 循环、展开运算符 ...，还是其他需要迭代的场景。
+
+</Callout>
+
+### 闭包
+
+或许在您没有意识到的情况下，几乎每个 JavaScript 开发者都使用过闭包。实际上，闭包是大多数编程语言中最普遍的功能之一。理解它可能和理解变量或循环一样重要；这就是它的基础性。
+
+然而，闭包感觉有些隐藏，几乎像魔法一样。它通常以非常抽象或非正式的术语进行讨论，这对我们准确把握它的含义没有太大帮助。
+
+我们需要能够识别出程序中使用闭包的地方，因为闭包的存在或缺失有时会导致 bugs（错误）（甚至可能导致性能问题）。
+
+因此，让我们以务实和具体的方式来定义闭包：
+
+<Callout icon="💡" type="info">
+  闭包是指一个函数能够记住并持续访问其外部作用域中的变量，即使该函数在不同的作用域中执行时也能保持这种访问。
+</Callout>
+
+我们在这里看到了两个定义特征。首先，闭包是函数本身的特性。对象没有闭包，只有函数才有。其次，要观察到一个闭包，您必须在不同于该函数最初定义的作用域中执行该函数。
+
+考虑：
+
+```js
+function greeting(msg) {
+  return function who(name) {
+    console.log(`${msg}, ${name}!`);
+  };
+}
+
+var hello = greeting("Hello");
+var howdy = greeting("Howdy");
+
+hello("Kyle");
+// Hello, Kyle!
+
+hello("Sarah");
+// Hello, Sarah!
+
+howdy("Grant");
+// Howdy, Grant!
+```
+
+首先，外部函数 greeting(..) 被执行，创建了内部函数 who(..) 的一个实例；该函数闭合了变量 msg，这是 greeting(..) 外部作用域中的一个参数。当这个内部函数被返回时，它的引用被赋值给外部作用域中的变量 hello。然后我们再次调用 greeting(..)，创建一个新的内部函数实例，闭合一个新的 msg，并将该引用赋值给 howdy。
+
+当 greeting(..) 函数执行完毕时，我们通常会期望它的所有变量被垃圾回收（从内存中移除）。我们会期待每个 msg 都消失，但实际上并没有。原因在于闭包。由于内部函数实例（分别赋值给 hello 和 howdy）仍然存在，它们的闭包仍然保留着 msg 变量。
+
+&nbsp;<mark>这些闭包并不是 msg 变量值的快照；它们是对变量本身的直接链接和保留。</mark>这意味着闭包实际上可以观察（或更新）这些变量的值。
+
+```js
+function counter(step = 1) {
+  var count = 0;
+  return function increaseCount() {
+    count = count + step;
+    return count;
+  };
+}
+
+var incBy1 = counter(1);
+var incBy3 = counter(3);
+
+incBy1(); // 1
+incBy1(); // 2
+
+incBy3(); // 3
+incBy3(); // 6
+incBy3(); // 9
+```
+
+每个内部函数 increaseCount() 的实例都闭合了外部函数 counter(..) 作用域中的 count 和 step 变量。step 在时间上保持不变，但每次调用该内部函数时，count 都会被更新。由于闭包是对变量的引用，而不仅仅是对值的快照，因此这些更新得以保留。
+
+闭包在处理异步代码时最为常见，例如使用回调函数时。考虑以下例子：
+
+```js
+function getSomeData(url) {
+  ajax(url, function onResponse(resp) {
+    console.log(`Response (from ${url}): ${resp}`);
+  });
+}
+
+getSomeData("https://some.url/wherever");
+// Response (from https://some.url/wherever): ...
+```
+
+内部函数 onResponse(..) 闭合了 url 变量，因此它会保持并记住这个变量，直到 Ajax 调用返回并执行 onResponse(..)。即使 getSomeData(..) 很快就完成了，url 参数变量在闭包中仍然会被保留，直到需要为止。
+
+&nbsp;<mark>外部作用域不一定是一个函数——虽然通常是，但并不总是如此——只要有至少一个变量在外部作用域中被内部函数访问即可。</mark>
+
+```js
+for (let [idx, btn] of buttons.entries()) {
+  btn.addEventListener("click", function onClick() {
+    console.log(`Clicked on button (${idx})!`);
+  });
+}
+```
+
+{/* todo */}
+
+由于这个循环使用了 let 声明，每次迭代都会生成新的块作用域（即局部）idx 和 btn 变量；每次循环还会创建一个新的内部 onClick(..) 函数。这个内部函数闭合了 idx，在按钮的点击处理程序被设置时，idx 会被保留。因此，当每个按钮被点击时，其处理程序可以打印其对应的索引值，因为处理程序记住了各自的 idx 变量。
+
+请记住：这个闭包是对变量 idx 本身的闭合，而不是对值（如 1 或 3）的闭合。
+
+闭包是任何编程语言中最普遍和重要的编程模式之一。但在 JavaScript 中尤其如此；很难想象不以某种方式利用闭包来完成任何有用的事情。
+
+如果您对闭包仍感到不清楚或不确定，《书籍 2：作用域与闭包》的大部分内容都集中在这个主题上。
+
+### this关键词
+
+JavaScript 中最强大的机制之一也是最常被误解的：this 关键字。一个常见的误解是，函数的 this 指的是函数本身。由于其他语言中的 this 工作方式，另一个误解是 this 指向一个方法所属的实例。这两种理解都是错误的。
+
+如前所述，当一个函数被定义时，它通过闭包附加到其包围作用域。作用域是一组控制变量引用解析方式的规则。
+
+但是，函数除了其作用域外，还有另一个特性影响其能访问的内容。这个特性被描述为执行上下文，并通过 this 关键字暴露给函数。
+
+&nbsp;<mark>作用域是静态的，包含在定义函数时可用的一组固定变量，而函数的执行上下文是动态的，完全依赖于函数的调用方式（与其定义位置或被调用位置无关）。</mark>
+
+&nbsp;<mark>this 不是基于函数定义的固定特性，而是每次调用函数时动态确定的特性。</mark>
+
+&nbsp;<mark>可以将执行上下文视为一个具体的对象，其属性在函数执行时可用。与此相比，作用域也可以被视为一个对象；不同的是，作用域对象隐藏在 JavaScript 引擎内部，对于该函数始终是相同的，其属性以函数内部可用的标识符变量的形式存在。</mark>
+
+```js
+function classroom(teacher) {
+  return function study() {
+    console.log(`${teacher} says to study ${this.topic}`);
+  };
+}
+var assignment = classroom("Kyle");
+```
+
+外部的 classroom(..) 函数没有引用 this 关键字，因此它就像我们之前看到的任何其他函数一样。但内部的 study() 函数引用了 this，这使得它成为一个对 this 具有意识的函数。换句话说，它是一个依赖于其执行上下文的函数。
+
+<Callout icon="💡" type="info">
+
+study() 也闭合了来自其外部作用域的 teacher 变量。
+
+</Callout>
+
+由 classroom("Kyle") 返回的内部 study() 函数被赋值给一个名为 assignment 的变量。那么，assignment()（即 study()）是如何被调用的呢？
+
+```js
+assignment();
+// Kyle说要研究undefined——哎呀：(
+```
+
+在这个代码片段中，我们将 assignment() 作为一个普通函数调用，没有提供任何执行上下文。
+
+因为这个程序不在严格模式下（参见第一章《严格来说》），因此没有指定任何上下文的上下文感知函数默认将上下文设置为全局对象（在浏览器中为 window）。由于没有名为 topic 的全局变量（因为在全局对象上也没有这样的属性），this.topic 解析为 undefined。
+
+现在考虑一下：
+
+```js
+var homework = {
+  topic: "JS",
+  assignment: assignment,
+};
+
+homework.assignment();
+// Kyle说要研究JS
+```
+
+assignment 函数的引用被作为属性设置在 homework 对象上，然后通过 homework.assignment() 调用。这意味着该函数调用的 this 将是 homework 对象。因此，this.topic 解析为 "JS"。
+
+最后：
+
+```js
+var otherHomework = {
+  topic: "Math",
+};
+
+assignment.call(otherHomework);
+// Kyle说要研究数学
+```
+
+调用函数的第三种方式是使用 call(..) 方法，该方法接受一个对象（这里是 otherHomework），用来设置函数调用的 this 引用。此时，属性引用 this.topic 解析为 "Math"。
+
+同一个上下文感知函数以三种不同的方式调用，每次对 this 的引用对象都有不同的结果。
+
+&nbsp;<mark>具有 this 意识的函数及其动态上下文的好处在于能够更灵活地重用单个函数，以处理来自不同对象的数据。一个闭合于某个作用域的函数永远无法引用不同的作用域或变量集合。但具有动态 this 上下文意识的函数在某些任务中可以非常有用。</mark>
+
+<Callout icon="📝" type="notes">
+  上述内容可以理解为:函数作用域是在函数定义时确定的,而函数this指向是在调用时确定的。
+</Callout>
+
+### 原型
+
+this 是函数执行的一个特性，<mark>而原型是对象的一个特性，特别是属性访问的解析。</mark>
+
+可以把原型看作是两个对象之间的链接；这个链接是在幕后发生的，虽然有一些方法可以暴露和观察它。<mark>这个原型链接在一个对象被创建时发生；它链接到一个已经存在的对象。</mark>
+
+&nbsp;<mark>通过原型链接在一起的一系列对象被称为“原型链”。</mark>
+
+这个<mark>原型链接的目的（即从对象 B 到另一个对象 A）是为了使对 B 的属性/方法访问，如果 B 不具备这些属性/方法，就委托给 A 来处理。属性/方法访问的委托允许两个（或更多！）对象相互协作以执行某个任务。</mark>
+
+考虑将一个对象定义为普通字面量：
+
+```js
+var homework = {
+  topic: "JS",
+};
+```
+
+homework 对象上只有一个属性：topic。然而，它的默认原型链接连接到 Object.prototype 对象，该对象上有一些常见的内置方法，例如 toString() 和 valueOf() 等。
+
+我们可以观察到这种从 homework 到 Object.prototype 的原型链接委托：
+
+```js
+homework.toString(); // [object Object]
+```
+
+homework.toString() 可以正常工作，即使 homework 并没有定义 toString() 方法；这种委托会调用 Object.prototype.toString() 方法。
+
+**对象链接**
+
+要定义一个对象的原型链接，可以使用 Object.create(..) 工具创建对象：
+
+```js
+var homework = {
+  topic: "JS",
+};
+
+var otherHomework = Object.create(homework);
+
+otherHomework.topic; // "JS"
+```
+
+Object.create(..) 的第一个参数指定一个对象，用于链接新创建的对象，然后返回新创建的（并已链接的）对象。
+
+图 4 显示了三个对象（otherHomework、homework 和 Object.prototype）在原型链中的链接关系：
+
+![图 4：原型链中的对象](/assets/images/books/know-js/fig4.png)
+
+通过原型链的委托仅适用于查找属性值的访问。如果你给一个对象的属性赋值，则该赋值将直接作用于该对象，而不管该对象的原型链接在哪里。
+
+<Callout icon="💡" type="info">
+  Object.create(null)
+  创建一个不链接到任何原型的对象，因此它纯粹是一个独立的对象；在某些情况下，这可能是更可取的选择。
+</Callout>
+`

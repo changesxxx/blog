@@ -57,6 +57,11 @@ export const books = [
             href: "/read-together/details/dont-know-js/get-started-ch2",
             name: "get-started-ch2",
           },
+          {
+            title: "挖掘 JS 的根源",
+            href: "/read-together/details/dont-know-js/get-started-ch3",
+            name: "get-started-ch3",
+          },
         ],
       },
     ],
