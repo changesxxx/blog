@@ -62,6 +62,21 @@ export const books = [
             href: "/read-together/details/dont-know-js/get-started-ch3",
             name: "get-started-ch3",
           },
+          {
+            title: "宏观视角",
+            href: "/read-together/details/dont-know-js/get-started-ch4",
+            name: "get-started-ch4",
+          },
+          {
+            title: "附录 A",
+            href: "/read-together/details/dont-know-js/get-started-apA",
+            name: "get-started-apA",
+          },
+          {
+            title: "附录 B",
+            href: "/read-together/details/dont-know-js/get-started-apB",
+            name: "get-started-apB",
+          },
         ],
       },
     ],

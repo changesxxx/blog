@@ -1,0 +1,346 @@
+---
+title: "附录 A：进一步探索"
+description: "在本附录中，我们将更详细地探讨主要章节文本中的一些主题。可将此内容视为本书其他部分中涵盖的一些更细微细节的可选预览。"
+name: "get-started-apA"
+---
+
+### 值与引用
+
+在第 2 章中，我们介绍了两种主要的值类型：原始值和对象。但我们还没有讨论两者之间的一个关键区别：这些值是如何分配和传递的。
+
+在许多语言中，开发人员可以选择将值分配/传递为值本身，或作为值的引用。然而，在 JS 中，这个决定完全取决于值的类型。当许多使用其他语言的开发人员开始使用 JS 时，他们对此感到惊讶。
+
+如果您分配/传递一个值本身，则该值会被复制。例如：
+
+```js
+var myName = "Kyle";
+
+var yourName = myName;
+```
+
+在这里，`yourName` 变量拥有一个与 `myName` 中存储的 `"Kyle"` 字符串不同的副本。这是因为值是原始值，而原始值总是按值的副本进行赋值/传递。
+
+```js
+var myName = "Kyle";
+
+var yourName = myName;
+
+myName = "Frank";
+
+console.log(myName);
+// Frank
+
+console.log(yourName);
+// Kyle
+```
+
+注意到 `yourName` 并没有受到 `myName` 被重新赋值为 `"Frank"` 的影响吗？这就是因为每个变量都持有自己值的副本。
+
+相对而言，引用的概念是指两个或更多变量指向同一个值，因此修改这个共享的值会通过任何这些引用进行反映。在 JavaScript 中，只有对象值（数组、对象、函数等）被视为引用。
+
+考虑：
+
+```js
+var myAddress = {
+  street: "123 JS Blvd",
+  city: "Austin",
+  state: "TX",
+};
+
+var yourAddress = myAddress;
+
+// I've got to move to a new house!
+myAddress.street = "456 TS Ave";
+
+console.log(yourAddress.street);
+// 456 TS Ave
+```
+
+因为赋值给 `myAddress` 的值是一个对象，所以它是通过引用持有/赋值的，因此赋值给 `yourAddress` 变量的是引用的副本，而不是对象的值本身。这就是为什么我们在访问 `yourAddress.street` 时可以看到更新后的 `myAddress.street` 的值。`myAddress` 和 `yourAddress` 拥有指向同一个共享对象的引用副本，所以对一个的更新会反映到两个上。
+
+再次强调，JavaScript 根据值的类型选择值复制与引用复制的行为。原始值按值持有，对象按引用持有。在 JavaScript 中，没有办法在这两种方式之间进行重写。
+
+---
+
+### 如此多的函数形式
+
+回想一下第二章“函数”部分的这段代码：
+
+```js
+var awesomeFunction = function (coolThings) {
+  // ..
+  return amazingStuff;
+};
+```
+
+这里的函数表达式被称为匿名函数表达式，因为它在 function 关键字与参数列表 `(..)` 之间没有名称标识符。这个点让许多 JavaScript 开发者感到困惑，因为从 ES6 开始，JavaScript 对匿名函数进行了“名称推断”：
+
+```js
+awesomeFunction.name;
+// "awesomeFunction"
+```
+
+函数的 name 属性将显示其直接给定的名称（在声明情况下）或匿名函数表达式中推断出的名称。这个值通常在开发工具中用于检查函数值或报告错误堆栈跟踪。
+
+因此，即使是匿名函数表达式也可能会有一个名称。然而，名称推断仅在有限的情况下发生，例如当函数表达式被赋值时（使用 =）。例如，如果你将一个函数表达式作为参数传递给函数调用，则不会发生名称推断；name 属性将是一个空字符串，开发者控制台通常会报告“(anonymous function)”。
+
+即使推断出一个名称，它仍然是一个匿名函数。为什么？因为推断出的名称是一个元数据字符串值，而不是可以用来引用该函数的可用标识符。匿名函数没有标识符来从内部引用自己——用于递归、事件解绑等。
+
+将匿名函数表达式形式与以下内容进行比较：
+
+```js
+// let awesomeFunction = ..
+// const awesomeFunction = ..
+var awesomeFunction = function someName(coolThings) {
+  // ..
+  return amazingStuff;
+};
+
+awesomeFunction.name;
+// "someName"
+```
+
+这个函数表达式是一个命名函数表达式，因为标识符 `someName` 在编译时直接与函数表达式关联；与标识符 `awesomeFunction` 的关联在运行时的那条语句时才会发生。这两个标识符不必相同；有时让它们不同是有意义的，而其他时候让它们保持一致则更好。
+
+还要注意，<mark>显式函数名称` someName` 在为 name 属性分配名称时优先。</mark>
+
+函数表达式应该命名还是匿名？对此的观点差异很大。大多数开发者似乎对使用匿名函数并不太在意。它们更简短，毫无疑问在广泛的 JavaScript 代码中更为常见。
+
+在我看来，如果函数在你的程序中存在，它就有其目的；否则，就把它去掉！而如果它有目的，它应该有一个自然的名称来描述这个目的。
+
+如果函数有名称，作为代码作者的你应该将这个名称包含在代码中，这样读者就不必通过阅读和心理执行函数的源代码来推断这个名称。即使是像 x \* 2 这样的简单函数体，也需要阅读以推断出像“double”或“multBy2”这样的名称；当你可以花几秒钟将函数命名为“double”或“multBy2”时，这种额外的思维工作是没有必要的，可以节省读者在未来每次阅读时的重复思考。
+
+遗憾的是，截至2020年初，JavaScript 中有许多其他函数定义形式（未来可能会更多！）。
+
+以下是一些其他的声明形式：
+
+```js
+// generator function declaration
+function *two() { .. }
+
+// async function declaration
+async function three() { .. }
+
+// async generator function declaration
+async function *four() { .. }
+
+// named function export declaration (ES6 modules)
+export function five() { .. }
+```
+
+这里还有更多（很多！）函数表达式形式：
+
+```js
+// IIFE
+(function(){ .. })();
+(function namedIIFE(){ .. })();
+
+// asynchronous IIFE
+(async function(){ .. })();
+(async function namedAIIFE(){ .. })();
+
+// arrow function expressions
+var f;
+f = () => 42;
+f = x => x * 2;
+f = (x) => x * 2;
+f = (x,y) => x * y;
+f = x => ({ x: x * 2 });
+f = x => { return x * 2; };
+f = async x => {
+    var y = await doSomethingAsync(x);
+    return y * 2;
+};
+someOperation( x => x * 2 );
+// ..
+
+```
+
+请记住，箭头函数表达式在语法上是匿名的，这意味着语法没有提供直接为函数提供名称标识符的方式。函数表达式可能会得到一个推断的名称，但仅在它是赋值形式之一时才会出现，而不是在（更常见的！）作为函数调用参数传递的形式中（如代码片段的最后一行）。
+
+由于我认为在程序中频繁使用匿名函数并不理想，所以我不喜欢使用 => 箭头函数形式。这种函数实际上有一个特定的目的（即处理 this 关键字的词法作用），但这并不意味着我们应该为每个编写的函数使用它。为每个工作选择最合适的工具。
+
+函数还可以在类定义和对象字面量定义中指定。当处于这些形式时，通常称为“方法”，尽管在 JavaScript 中，这个术语与“函数”之间没有太多可观察的差别：
+
+```js
+class SomethingKindaGreat {
+    // class methods
+    coolMethod() { .. }   // no commas!
+    boringMethod() { .. }
+}
+
+var EntirelyDifferent = {
+    // object methods
+    coolMethod() { .. },   // commas!
+    boringMethod() { .. },
+
+    // (anonymous) function expression property
+    oldSchool: function() { .. }
+};
+```
+
+哇！这有很多不同的函数定义方式。
+
+这里没有简单的捷径；你只需要熟悉所有函数形式，以便在现有代码中识别它们，并在你编写的代码中适当地使用它们。仔细研究并加以练习！
+
+---
+
+### 条件表达式与强制转换比较
+
+是的，这个部分的名称确实很长。但我们在讨论什么呢？我们在讨论条件表达式如何需要进行强制转换导向的比较以做出决策。
+
+&nbsp;<mark>if 和 ? : 三元运算符，以及 while 和 for 循环中的测试子句，都会执行隐式的值比较。</mark>但是什么样的比较呢？是“严格”的还是“强制”的？实际上，两者都有。
+
+考虑以下情况：
+
+```js
+var x = 1;
+
+if (x) {
+  // will run!
+}
+
+while (x) {
+  // will run, once!
+  x = false;
+}
+```
+
+你可能会将这些（x）条件表达式这样理解：
+
+```js
+var x = 1;
+
+if (x == true) {
+  // will run!
+}
+
+while (x == true) {
+  // will run, once!
+  x = false;
+}
+```
+
+在这个特定的情况下——x 的值为 1——这个心理模型是有效的，但在更广泛的范围内并不准确。考虑以下：
+
+```js
+var x = "hello";
+
+if (x) {
+  // will run!
+}
+
+if (x == true) {
+  // won't run :(
+}
+```
+
+<Callout icon="📝" type="notes">
+  在这个比较中，x 会被强制转换为布尔值进行比较。JavaScript 会执行以下步骤： true
+  在强制转换为数字时是 1。 "hello" 在强制转换为数字时会变成
+  NaN（因为它不是可以被转换为数字的字符串）。 因此，比较变成了 NaN ==
+  1，这是不成立的，所以这个块不会运行。
+</Callout>
+
+哎呀。那么 if 语句实际上在做什么呢？这是一个更准确的心理模型：
+
+```js
+var x = "hello";
+
+if (Boolean(x) == true) {
+  // will run
+}
+
+// which is the same as:
+
+if (Boolean(x) === true) {
+  // will run
+}
+```
+
+由于 Boolean(..) 函数始终返回布尔类型的值，因此在这个代码片段中，== 与 === 的差别并不重要；它们都将执行相同的操作。但重要的是要看到，在比较之前，发生了强制转换，将 x 当前的任何类型转换为布尔值。
+
+在 JavaScript 的比较中，你无法摆脱强制转换。要认真学习这些规则。
+
+---
+
+### 原型类
+
+在第三章中，我们介绍了原型，并展示了如何通过原型链链接对象。
+
+另一种连接这种原型关系的方式，虽然老旧（实话说，挺丑陋的），是 ES6 类系统优雅性的前身，这种方式被称为原型类。
+
+<Callout icon="⚠️" type="warning">
+
+虽然这种编码风格在现代 JavaScript 中相当不常见，但令人困惑的是，在求职面试中仍然常常被问到！
+
+</Callout>
+
+首先，让我们回顾一下 Object.create(..) 风格的编码：
+
+```js
+var Classroom = {
+  welcome() {
+    console.log("Welcome, students!");
+  },
+};
+
+var mathClass = Object.create(Classroom);
+
+mathClass.welcome();
+// Welcome, students!
+```
+
+在这里，mathClass 对象通过其原型链接到 Classroom 对象。通过这种链接，函数调用 mathClass.welcome() 被委托给在 Classroom 中定义的方法。
+
+&nbsp;<mark>原型类模式将这种委托行为称为“继承”，</mark>并且以相同的行为定义为：
+
+```js
+function Classroom() {
+  // ..
+}
+
+Classroom.prototype.welcome = function hello() {
+  console.log("Welcome, students!");
+};
+
+var mathClass = new Classroom();
+
+mathClass.welcome();
+// Welcome, students!
+```
+
+所有函数默认引用一个名为 prototype 的空对象。尽管这个命名令人困惑，但这并不是函数的原型（函数链接到的地方），而是当通过 new 调用函数时，要链接到的原型对象。
+
+我们在这个空对象（称为 Classroom.prototype）上添加一个 welcome 属性，指向 hello() 函数。
+
+然后，new Classroom() 创建了一个新对象（赋值给 mathClass），并将其原型链接到现有的 Classroom.prototype 对象。
+
+尽管 mathClass 没有 welcome() 属性/函数，但它成功地委托给了 Classroom.prototype.welcome() 函数。
+
+<Callout icon="📝" type="notes">
+
+这里描述的就是构造函数拥有一个`prototype`属性,这个属性指向一个对象。这个对象通常被称为原型对象。当使用构造函数创建一个新对象时（即通过`new`关键词），被创建对象的内部链接（`[[Prototype]]`）就会指向构造函数的`prototype`对象。当我们试图访问一个对象的属性或方法时,如果该对象本身没有定义该属性或方法,JavaScript引擎会沿着原型链向上查找,直到找到一个匹配的属性或方法,或者到达原型链的顶端。
+
+</Callout>
+
+这种“原型类”模式现在被强烈不鼓励使用，推荐使用 ES6 的类机制：
+
+```js
+class Classroom {
+  constructor() {
+    // ..
+  }
+
+  welcome() {
+    console.log("Welcome, students!");
+  }
+}
+
+var mathClass = new Classroom();
+
+mathClass.welcome();
+// Welcome, students!
+```
+
+在底层，仍然建立了相同的原型链接，但这种类语法比“原型类”更清晰地契合了面向类的设计模式。

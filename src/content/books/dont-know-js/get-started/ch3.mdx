@@ -439,4 +439,81 @@ Object.create(..) 的第一个参数指定一个对象，用于链接新创建�
   Object.create(null)
   创建一个不链接到任何原型的对象，因此它纯粹是一个独立的对象；在某些情况下，这可能是更可取的选择。
 </Callout>
-`
+
+考虑:
+
+```js
+homework.topic;
+// "JS"
+
+otherHomework.topic;
+// "JS"
+
+otherHomework.topic = "Math";
+otherHomework.topic;
+// "Math"
+
+homework.topic;
+// "JS" -- not "Math"
+```
+
+对 topic 的赋值直接在 otherHomework 上创建了一个同名属性，这并不影响 homework 上的 topic 属性。接下来的语句访问 otherHomework.topic，因此我们看到的是那个新属性的值：“Math”。
+
+图5展示了在创建 otherHomework.topic 属性后，对象和属性的状态：
+
+![图 5](/assets/images/books/know-js/fig5.png)
+
+otherHomework 上的 topic 属性“遮蔽”了在原型链上 homework 对象中同名的属性。
+
+{/* todo */}
+
+<Callout icon="💡" type="info">
+
+另一种更复杂但可能更常见的创建具有原型链接的对象的方法是使用“原型类”模式，这种方式是在 ES6 引入类之前的（参见第2章“类”）。我们将在附录A“原型‘类’”中对此主题进行更详细的讨论。
+
+</Callout>
+
+**再次探讨 this**
+
+我们之前讨论过 this 关键字，但它的真正重要性在于它如何支持原型委托的函数调用。实际上，this 支持基于函数调用方式的动态上下文的主要原因之一是，原型链上通过委托调用的方法仍然能够保持预期的 this。
+
+考虑：
+
+```js
+var homework = {
+  study() {
+    console.log(`Please study ${this.topic}`);
+  },
+};
+
+var jsHomework = Object.create(homework);
+jsHomework.topic = "JS";
+jsHomework.study();
+// Please study JS
+
+var mathHomework = Object.create(homework);
+mathHomework.topic = "Math";
+mathHomework.study();
+// Please study Math
+```
+
+这两个对象 jsHomework 和 mathHomework 都通过原型链接到单个的 homework 对象，该对象具有 study() 函数。jsHomework 和 mathHomework 各自都有自己的 topic 属性（见图6）。
+
+![图6：两个链接到共同父对象的对象](/assets/images/books/know-js/fig6.png)
+
+jsHomework.study() 委托给 homework.study()，但在该执行上下文中，this（即 this.topic）解析为 jsHomework，因为函数的调用方式，所以 this.topic 是 "JS"。同样，mathHomework.study() 委托给 homework.study()，但 this 仍然解析为 mathHomework，因此 this.topic 是 "Math"。
+
+如果 this 被解析为 homework，那么前面的代码片段将不太有用。然而，在许多其他语言中，似乎 this 会是 homework，因为 study() 方法确实是在 homework 中定义的。
+
+与许多其他语言不同，JavaScript 中 this 的动态性是允许原型委托以及类按预期工作的重要组成部分！
+
+### 提问 " 为什么？"
+
+本章的主要收获是，JavaScript 的内部机制远比表面看起来要复杂得多。
+
+在你开始学习和深入了解 JavaScript 的过程中，最重要的技能之一就是培养好奇心，以及在遇到语言中的某些内容时，学会提问“为什么？”
+
+尽管本章深入探讨了一些主题，但许多细节仍然被略过。这里还有很多值得学习的内容，而通往这些知识的途径始于你对代码提出正确的问题。提问的能力是成为更好开发者的关键技能。
+
+{/* todo */}
+在本书的最后一章，我们将简要探讨 JavaScript 的各个部分，内容涵盖在《你不知道的 JavaScript》系列书籍中。此外，不要错过本书的附录B，其中包含一些练习代码，以复习本书中涉及的一些主要主题。
