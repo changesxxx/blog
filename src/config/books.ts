@@ -80,6 +80,20 @@ export const books = [
         ],
       },
       {
+        id: "scope-closures",
+        title: "作用域与闭包",
+        href: "/read-together/details/dont-know-js/scope-closures-ch1",
+        syllabus:
+          "JS 如何知道任何给定语句可以访问哪些变量，以及它如何处理两个同名变量？这些问题的答案以明确定义的规则的形式出现，称为作用域。本书将深入探讨作用域的各个方面——它如何工作、它有什么用处、要避免哪些问题——然后指出指导程序结构的常见作用域模式。",
+        items: [
+          {
+            title: "什么是作用域?",
+            href: "/read-together/details/dont-know-js/scope-closures-ch1", //真实的地址
+            name: "scope-closures-ch1", //用于寻找对应的doc 和拼接动态路径所需
+          },
+        ],
+      },
+      {
         id: "objects-classes",
         title: "对象和类",
         href: "/read-together/details/dont-know-js/objects-classes-ch1",
@@ -91,111 +105,10 @@ export const books = [
             href: "/read-together/details/dont-know-js/objects-classes-ch1", //真实的地址
             name: "objects-classes-ch1", //用于寻找对应的doc 和拼接动态路径所需
           },
-          {
-            title: "测量 JS",
-            href: "/read-together/details/dont-know-js/get-started-ch2",
-            name: "get-started-ch2",
-          },
-          {
-            title: "挖掘 JS 的根源",
-            href: "/read-together/details/dont-know-js/get-started-ch3",
-            name: "get-started-ch3",
-          },
-          {
-            title: "宏观视角",
-            href: "/read-together/details/dont-know-js/get-started-ch4",
-            name: "get-started-ch4",
-          },
-          {
-            title: "附录 A",
-            href: "/read-together/details/dont-know-js/get-started-apA",
-            name: "get-started-apA",
-          },
-          {
-            title: "附录 B",
-            href: "/read-together/details/dont-know-js/get-started-apB",
-            name: "get-started-apB",
-          },
         ],
       },
+ 
     ],
   },
 ];
 
-/* 
-{
-        id: 'get-started111',
-        title: '范围与闭包',
-        href: 'get-started111',
-        items: [
-          {
-            title: '范围与闭包1',
-            href: 'get-started111-ch1',
-          },
-          {
-            title: '范围与闭包2',
-            href: 'get-started111-ch2',
-          },
-        ],
-      },
-      {
-        id: 'objects-classes',
-        title: '对象和类别',
-        href: 'objects-classes',
-        items: [
-          {
-            title: '对象和类别1',
-            href: 'objects-classes-cn1',
-          },
-          {
-            title: '对象和类别2',
-            href: 'objects-classes-ch2',
-          },
-        ],
-      },
-      {
-        id: 'scope-closures',
-        title: '类型和语法',
-        href: 'scope-closures',
-        items: [
-          {
-            title: '类型和语法1',
-            href: 'scope-closures-ch1',
-          },
-          {
-            title: '类型和语法2',
-            href: 'scope-closures-ch2',
-          },
-        ],
-      },
-      {
-        id: 'sync-async',
-        title: '同步和异步',
-        href: 'sync-async',
-        items: [
-          {
-            title: '同步和异步1',
-            href: 'sync-async-ch1',
-          },
-          {
-            title: '同步和异步2',
-            href: 'sync-async-ch2',
-          },
-        ],
-      },
-      {
-        id: 'types-grammar',
-        title: 'ES.Next & Beyond',
-        href: 'types-grammar',
-        items: [
-          {
-            title: 'ES.Next & Beyond1',
-            href: 'types-grammar-ch1',
-          },
-          {
-            title: 'ES.Next & Beyond2',
-            href: 'types-grammar-ch2',
-          },
-        ],
-      },
-*/
