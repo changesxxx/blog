@@ -19,7 +19,10 @@ const { title, bodyClass } = Astro.props
 
 <!doctype html>
 <html lang="en" class="scroll-smooth">
-  <meta charset="utf-8" />
+  <head>
+    <meta charset="utf-8" />
+  </head>
+
   <PageHeader title={title} />
 
   <body class={cn('flex flex-col min-h-screen', bodyClass)}>
@@ -27,4 +30,6 @@ const { title, bodyClass } = Astro.props
     <TailwindIndicator />
     <Toaster richColors client:only="react" />
   </body>
+
+
 </html>

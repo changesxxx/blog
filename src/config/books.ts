@@ -79,6 +79,45 @@ export const books = [
           },
         ],
       },
+      {
+        id: "objects-classes",
+        title: "对象和类",
+        href: "/read-together/details/dont-know-js/objects-classes-ch1",
+        syllabus:
+          "这是一个广泛流传但极其错误的“事实”，在关于 JavaScript 的讨论中不断出现。让我们来揭穿这个神话。JavaScript 确实有对象，但这并不意味着所有值都是对象。然而，对象无疑是语言中最重要（也是最复杂）的一种值类型，因此掌握它们对于您在 JavaScript 的旅程至关重要。",
+        items: [
+          {
+            title: "对象基础",
+            href: "/read-together/details/dont-know-js/objects-classes-ch1", //真实的地址
+            name: "objects-classes-ch1", //用于寻找对应的doc 和拼接动态路径所需
+          },
+          {
+            title: "测量 JS",
+            href: "/read-together/details/dont-know-js/get-started-ch2",
+            name: "get-started-ch2",
+          },
+          {
+            title: "挖掘 JS 的根源",
+            href: "/read-together/details/dont-know-js/get-started-ch3",
+            name: "get-started-ch3",
+          },
+          {
+            title: "宏观视角",
+            href: "/read-together/details/dont-know-js/get-started-ch4",
+            name: "get-started-ch4",
+          },
+          {
+            title: "附录 A",
+            href: "/read-together/details/dont-know-js/get-started-apA",
+            name: "get-started-apA",
+          },
+          {
+            title: "附录 B",
+            href: "/read-together/details/dont-know-js/get-started-apB",
+            name: "get-started-apB",
+          },
+        ],
+      },
     ],
   },
 ];

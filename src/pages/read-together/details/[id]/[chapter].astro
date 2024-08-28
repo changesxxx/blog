@@ -2,13 +2,13 @@
 import { MdxComponents } from '@/components/content/mdx-components'
 import DocsSidebarNav from '@/components/layout/sidebar-nav.astro'
 import DocsPageHeader from '@/components/page-header.astro'
-import DocsPager from '@/components/pager.astro'
+
 import { DashboardTableOfContents } from '@/components/toc'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { docsConfig } from '@/config/docs'
+
 import DocsLayout from '@/layouts/docs-layout.astro'
 import { getTableOfContents } from '@/lib/toc'
-import { getCollection, type CollectionEntry, getEntry } from 'astro:content'
+import { getCollection } from 'astro:content'
 
 import { FaChevronRight } from 'react-icons/fa'
 import { books } from '@/config/books'
@@ -40,8 +40,6 @@ const draftBlogPosts = await getCollection('books', ({ data }) => {
 })
 
 const doc = draftBlogPosts[0]
-
-const slug = doc.slug
 
 const toc = await getTableOfContents(doc.body)
 
