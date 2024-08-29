@@ -91,6 +91,11 @@ export const books = [
             href: "/read-together/details/dont-know-js/scope-closures-ch1", //真实的地址
             name: "scope-closures-ch1", //用于寻找对应的doc 和拼接动态路径所需
           },
+          {
+            title: "阐明词法作用域",
+            href: "/read-together/details/dont-know-js/scope-closures-ch2", //真实的地址
+            name: "scope-closures-ch2", //用于寻找对应的doc 和拼接动态路径所需
+          },
         ],
       },
       {
@@ -105,6 +110,7 @@ export const books = [
             href: "/read-together/details/dont-know-js/objects-classes-ch1", //真实的地址
             name: "objects-classes-ch1", //用于寻找对应的doc 和拼接动态路径所需
           },
+        
         ],
       },
  
