@@ -96,6 +96,21 @@ export const books = [
             href: "/read-together/details/dont-know-js/scope-closures-ch2", //真实的地址
             name: "scope-closures-ch2", //用于寻找对应的doc 和拼接动态路径所需
           },
+          {
+            title: "作用域链",
+            href: "/read-together/details/dont-know-js/scope-closures-ch3", //真实的地址
+            name: "scope-closures-ch3", //用于寻找对应的doc 和拼接动态路径所需
+          },
+           {
+            title: "全局作用域",
+            href: "/read-together/details/dont-know-js/scope-closures-ch4", //真实的地址
+            name: "scope-closures-ch4", //用于寻找对应的doc 和拼接动态路径所需
+          },
+           {
+            title: "变量的（不那么）隐秘生命周期",
+            href: "/read-together/details/dont-know-js/scope-closures-ch5", //真实的地址
+            name: "scope-closures-ch5", //用于寻找对应的doc 和拼接动态路径所需
+          },
         ],
       },
       {

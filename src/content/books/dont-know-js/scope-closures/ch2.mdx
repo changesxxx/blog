@@ -50,7 +50,7 @@ console.log(nextStudent); // Suzy
 
 图 2 通过在每个作用域周围绘制彩色气泡（即桶）来帮助可视化这些作用域的边界：
 
-![Fig. 2: Colored Scope Bubbles](/assets/images/books/know-js/objects-classes/fig2.png)
+![Fig. 2: Colored Scope Bubbles](/assets/images/books/know-js/scope-closures/fig2.png)
 
 1. 气泡 1（红色）包含了全局作用域，其中有三个标识符/变量：students（第 1 行）、getStudentName（第 8 行）和 nextStudent（第 16 行）。
 
@@ -230,7 +230,7 @@ console.log(nextStudent);
 
   在执行阶段，JavaScript 引擎按顺序执行代码，并处理变量的初始化和赋值：
 
-  1. 对于var声明的变量,在声明时已经初始化为 undefined，因此在执行阶段仅需要赋值。而let 和 const 声明的变量,当执行到 let 和 const 声明语句时，才会初始化这些变量。对于 let 声明的变量，它们会被初始化为 undefined，然后再赋值；对于 const 声明的变量，它们必须在声明时初始化。
+  1. 对于var声明的变量,在声明时已经初始化为 undefined，因此在执行阶段仅需要赋值。而let 和 const 声明的变量,当执行到 let 和 const 声明语句时，才会初始化这些变量。对于 let 声明的变量同样是直接赋值；对于 const 声明的变量，它们必须在声明时初始化。
 
 </Callout>
 
@@ -327,7 +327,7 @@ console.log(nextStudent);
 
 为了可视化嵌套作用域解析，我更喜欢另一个比喻——办公大楼，如图 3 所示：
 
-![Fig. 3: Scope "Building"](/assets/images/books/know-js/objects-classes/fig3.png)
+![Fig. 3: Scope "Building"](/assets/images/books/know-js/scope-closures/fig3.png)
 
 这栋建筑代表了我们程序的嵌套作用域集合。大楼的第一层代表当前执行的作用域。大楼的顶层代表全局作用域。
 

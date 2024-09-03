@@ -1,0 +1,629 @@
+---
+title: "变量的（不那么）隐秘生命周期"
+description: "到现在为止，你应该对作用域的嵌套有所了解，从全局作用域到下层——这被称为程序的作用域链。
+
+但仅仅知道一个变量来自哪个作用域只是故事的一部分。如果一个变量声明出现在作用域的第一条语句之后，那么在声明之前对该标识符的任何引用将如何表现？如果你尝试在一个作用域中两次声明同一个变量，会发生什么？
+
+JavaScript 特有的词法作用域在变量何时以及如何存在和可用方面充满了细微差别。"
+name: "scope-closures-ch5"
+---
+
+### 什么时候我可以使用一个变量？
+
+一个变量在其作用域内何时变得可用？似乎有一个明显的答案：在变量被声明/创建之后。对吧？其实并不完全如此。
+
+考虑：
+
+```js
+greeting();
+// Hello!
+
+function greeting() {
+    console.log("Hello!");
+}
+```
+
+这段代码运行得很好。你可能见过或者甚至写过类似的代码。但你有没有想过它是如何工作的？具体来说，为什么你可以从第 1 行访问标识符 greeting（以检索并执行一个函数引用），尽管 greeting() 函数的声明直到第 4 行才出现？
+
+回想一下，第 1 章指出，所有标识符在编译时都会被注册到各自的作用域。此外，每个标识符在其所属作用域开始时都会被创建，每次进入该作用域时都会如此。
+
+&zwj;<mark>一个最常用的术语是“提升”（hoisting），用于描述一个变量在其封闭作用域的开头可见，尽管它的声明可能出现在作用域的下方。</mark>
+
+
+但仅仅提升并不能完全回答这个问题。我们可以从作用域的开头看到一个名为 greeting 的标识符，但为什么我们可以在它被声明之前调用 greeting() 函数？
+
+换句话说，为什么变量 greeting 在作用域开始运行的那一刻就已经被赋予了某个值（函数引用）？答案是一个特殊的特性，称为“函数提升”（function hoisting）。<mark>当一个函数声明的名称标识符在其作用域的顶部被注册时，它还会自动初始化为该函数的引用。这就是为什么这个函数可以在整个作用域内被调用的原因！</mark>
+
+一个关键细节是，<mark>无论是函数提升还是 var 变量的提升，它们的名称标识符都附加到最近的封闭函数作用域（或者，如果没有，则是全局作用域），而不是块作用域。</mark>
+
+{/* todo */}
+<Callout icon="💡" type="info">
+使用 let 和 const 的声明仍然会提升（见本章后面的 TDZ 讨论）。但这两种声明形式会附加到其封闭块，而不仅仅是像 var 和函数声明那样附加到封闭函数。有关更多信息，请参见第 6 章的“块作用域”。
+</Callout>
+
+
+
+**提升：声明与表达式**
+{/* todo */}
+函数提升仅适用于正式的函数声明（尤其是那些出现在块外的函数—见第 6 章的“FiB”），而不适用于函数表达式赋值。考虑：
+
+```js
+greeting();
+// TypeError
+
+var greeting = function greeting() {
+    console.log("Hello!");
+};
+```
+
+第 1 行 (greeting();) 会抛出一个错误。但这种错误的类型非常重要。TypeError 意味着我们正在尝试对一个不允许的值进行某种操作。根据你的 JavaScript 环境，错误信息可能会显示为“'undefined' 不是一个函数”，或者更明确地说，“'greeting' 不是一个函数”。
+
+注意，这个错误不是 ReferenceError。JavaScript 并没有告诉我们在作用域中找不到 greeting 这个标识符。它告诉我们找到了 greeting，但此时它并不持有函数引用。只有函数可以被调用，因此尝试调用某个非函数值会导致错误。
+
+那么，greeting 变量此时持有什么呢，如果不是函数引用？
+
+除了被提升，<mark>使用 var 声明的变量在其作用域的开头也会自动初始化为 undefined——同样是最近的封闭函数作用域，或者全局作用域。</mark>一旦初始化，它们可以在整个作用域内使用（赋值、取值等）。
+
+&zwj;<mark>因此，在第一行中，greeting 确实存在，但它仅持有默认的 undefined 值。直到第 4 行，greeting 才被赋予函数引用。</mark>
+
+
+请密切注意这里的区别。函数声明被提升并初始化为其函数值（再次称为函数提升）。而 var 变量同样被提升，然后自动初始化为 undefined。<mark>对该变量的任何后续函数表达式赋值，直到在运行时执行期间处理该赋值时才会发生。</mark>
+
+
+在这两种情况下，标识符的名称都被提升。但是，函数引用的关联不会在初始化时（作用域开始时）处理，除非该标识符是在正式函数声明中创建的。
+
+让我们看一个变量提升的另一个例子：
+
+```js
+
+greeting = "Hello!";
+console.log(greeting);
+// Hello!
+
+var greeting = "Howdy!";
+```
+
+尽管 greeting 直到第 5 行才被声明，但它从第 1 行开始就可以被赋值。为什么？
+
+解释有两个必要的部分：
+
+1. 标识符被提升。
+2. 它从作用域的顶部自动初始化为 undefined。
+
+{/* todo */}
+<Callout icon="💡" type="info">
+使用这种变量提升可能会让人觉得不自然，许多读者可能会合理地想要避免在程序中依赖它。但所有的提升（包括函数提升）都应该被避免吗？我们将在附录 A 中更详细地探讨对提升的不同看法。
+</Callout>
+
+---
+
+### 提升：又一个隐喻
+
+第 2 章充满了隐喻（用以阐明作用域），但我们现在面临的又是一个隐喻：提升（hoisting）本身。与其将提升视为 JS 引擎执行的具体步骤，不如将其视为 JS 在执行前为设置程序所采取的各种动作的可视化。
+
+对提升的典型定义是：提升——就像将重物向上提起——将所有标识符提升到作用域的顶部。通常的解释是，JS 引擎会在执行之前实际重写程序，使其看起来更像这样：
+
+```js
+
+var greeting;           //声明被提升
+greeting = "Hello!";    //原来的第1行
+console.log(greeting);  // Hello!
+greeting = "Howdy!";    // 变量已经存在
+
+```
+
+提升（隐喻）提出 JS 在执行之前对原始程序进行预处理，并稍微重新排列，使得所有声明都被移动到各自作用域的顶部。此外，提升隐喻主张函数声明的整体会被提升到每个作用域的顶部。考虑以下内容：
+
+```js
+studentName = "Suzy";
+greeting();
+// Hello Suzy!
+
+function greeting() {
+    console.log(`Hello ${ studentName }!`);
+}
+var studentName;
+```
+
+提升隐喻的“规则”是，函数声明首先被提升，然后变量在所有函数之后立即被提升。因此，提升的故事暗示程序被 JS 引擎重新排列，变成这样：
+
+```js
+function greeting() {
+    console.log(`Hello ${ studentName }!`);
+}
+var studentName;
+
+studentName = "Suzy";
+greeting();
+// Hello Suzy!
+```
+
+这个提升隐喻是方便的。它的好处在于让我们可以忽略寻找所有深埋在作用域中的声明并将其（提升）到顶部所需的神秘向前处理；我们可以把程序看作是由 JS 引擎在单次遍历中自上而下执行的。
+
+单次遍历确实似乎比第 1 章所声称的两阶段处理更直接。
+
+作为重新排序代码的一种机制，提升可能是一个吸引人的简化，但这并不准确。JS 引擎并不会实际重新排列代码。它无法神奇地向前查看并找到声明；准确找到它们以及程序中的所有作用域边界的唯一方法是完全解析代码。
+
+你知道解析是什么吗？就是两阶段处理的第一阶段！没有什么神秘的思维技巧可以绕过这一事实。
+
+那么，如果提升隐喻（充其量）是不准确的，我们应该如何处理这个术语？我认为它仍然是有用的——实际上，TC39 的成员们经常使用它！——但我不认为我们应该声称这是对源代码的实际重新排列。
+
+<Callout icon="⚠️" type="warning">
+不正确或不完整的思维模型往往看似足够，因为它们偶尔会导致意外的正确答案。但从长远来看，如果你的思维与 JS 引擎的工作方式没有特别一致，那么准确分析和预测结果会变得更加困难。
+</Callout>
+
+
+我认为，提升应该用来指代在编译时生成运行时指令的操作，用以在每次进入作用域时自动注册变量的过程。
+
+这是一种微妙但重要的转变，将提升从运行时行为转变为编译时任务的适当位置。
+
+<Callout icon="📝" type="notes">
+翻译一下:提升是指在JavaScript中，变量和函数声明在执行之前被“提升”到其作用域的顶部。提升的隐喻是将所有声明（变量和函数）想象成在执行前被自动移动到作用域的顶部。这使得理解代码执行顺序变得更简单。实际上，JavaScript引擎在执行代码时并不会重新排列代码，而是通过解析来识别所有的声明和作用域边界。解析是代码处理的第一阶段。提升应该被理解为一种编译时的操作，指的是在每次进入作用域时，自动注册变量的过程，而不是运行时的行为。
+</Callout>
+
+---
+
+### 重新声明？
+
+当一个变量在同一作用域中被多次声明时，会发生什么？考虑以下代码：
+
+```js
+
+var studentName = "Frank";
+console.log(studentName);
+// Frank
+
+var studentName;
+console.log(studentName);   // ???
+
+```
+
+你对第二条消息的预期输出是什么？许多人认为第二个 var studentName 重新声明了变量（因此“重置”了它），所以他们预期会打印出 undefined。
+
+但是，在同一作用域中是否真的存在“重新声明”变量的情况？并没有。
+
+如果从提升的隐喻角度来看待这个程序，代码在执行时会被重新排列成这样：
+
+```js
+var studentName;
+var studentName;    // 显然这是毫无意义的！
+
+studentName = "Frank";
+console.log(studentName);
+// Frank
+
+console.log(studentName);
+// Frank
+```
+
+由于提升实际上是关于在作用域开始时注册一个变量，因此在原始程序中第二个 var studentName 语句所在的中间部分没有任何操作需要进行。这只是一个无操作（no-op），是一个毫无意义的语句。
+
+
+<Callout icon="💡" type="info">
+按照第 2 章中对话叙述的风格，编译器会找到第二个 var 声明语句，并询问作用域管理器是否已经见过 studentName 标识符；由于它已经见过，因此没有其他事情需要做。
+</Callout>
+
+还需要指出的是，var studentName; 并不意味着<mark> var studentName = undefined;</mark>正如大多数人所假设的。我们可以通过考虑程序的这个变体来证明它们是不同的：
+
+```js
+
+var studentName = "Frank";
+console.log(studentName);   // Frank
+
+var studentName;
+console.log(studentName);   // Frank <--- 仍然是!
+
+// 让我们显式地添加初始化
+var studentName = undefined;
+console.log(studentName);   // undefined <--- see!?
+
+```
+
+看看显式的 = undefined 初始化如何与省略时的隐式行为产生不同的结果。接下来，我们将重新审视变量从声明中初始化的主题。
+
+在一个作用域中重复声明同一个标识符的 var 实际上是一个无操作。这里还有另一个例子，这次是在同名函数中：
+
+第一个 greeting 声明将标识符注册到作用域中，因为它是 var 类型，自动初始化为 undefined。函数声明不需要重新注册标识符，但由于函数提升，它会覆盖自动初始化，使用函数引用。第二个 var greeting 本身不会做任何事情，因为 greeting 已经是一个标识符，并且函数提升已经优先于自动初始化。
+
+```js
+var greeting;
+
+function greeting() {
+    console.log("Hello!");
+}
+
+// basically, a no-op
+var greeting;
+
+typeof greeting;        // "function"
+
+var greeting = "Hello!";
+
+typeof greeting;        // "string"
+```
+
+实际上，将 "Hello!" 赋值给 greeting 会将其值从初始的函数 greeting() 改为字符串；var 本身没有任何影响。
+
+如果在作用域内使用 let 或 const 重复声明会怎样？
+
+```js
+let studentName = "Frank";
+
+console.log(studentName);
+
+let studentName = "Suzy";
+```
+这个程序将不会执行，而是立即抛出一个 SyntaxError。根据你的 JS 环境，错误信息会表明类似于：“studentName 已经被声明过。”换句话说，这是一个明确不允许进行“重新声明”的情况！
+
+不仅仅是两个 let 声明会抛出此错误。如果其中一个声明使用了 let，另一个可以是 let 或 var，错误仍然会发生，这在以下两个变体中得到了说明：
+```js
+var studentName = "Frank";
+
+let studentName = "Suzy";
+
+```
+或:
+```js
+let studentName = "Frank";
+
+var studentName = "Suzy";
+
+```
+在这两种情况下，<mark>第二个声明都会抛出 SyntaxError。换句话说，“重新声明”变量的唯一方式是对其所有（两个或更多）声明使用 var。</mark>
+
+但是，为什么要禁止这样做呢？产生错误的原因并不是技术上的，因为 var 的“重新声明”一直是被允许的；显然，对于 let 也可以采取同样的允许。
+
+这实际上更像是一个“社会工程”问题。许多人，包括 TC39 的很多成员，都认为变量的“重新声明”是一种坏习惯，可能导致程序错误。因此，当 ES6 引入 let 时，他们决定通过错误来防止“重新声明”。
+
+
+{/* todo */}
+<Callout icon="⚠️" type="warning">
+这当然是一个风格上的观点，而不是一个真正的技术论点。许多开发者同意这一立场，部分原因可能是 TC39 包括了这个错误（以及 let 符合 const 的特性）。但也可以合理地认为，保持与 var 的先例一致更为谨慎，而这样的观点强制执行最好留给像 linter 这样的选择性工具。在附录 A 中，我们将探讨 var（及其相关行为，如“重新声明”）在现代 JS 中是否仍然有用。
+</Callout>
+
+
+当编译器询问作用域管理器有关声明的问题时，如果该标识符已经被声明，并且如果其中一个或两个声明是用 let 进行的，则会抛出一个错误。传达给开发者的意图是：“停止依赖于马虎的重新声明！”
+
+**常量？**
+
+const 关键字比 let 更加严格。<mark>与 let 一样，const 在同一作用域内不能重复使用相同的标识符。</mark>但实际上，存在一个覆盖的技术原因，为什么这种“重新声明”是被禁止的，而不是像 let 那样主要因为风格原因。
+
+&zwj;<mark>const 关键字要求必须对变量进行初始化，因此在声明中省略赋值会导致 SyntaxError：</mark>
+
+```js
+
+const empty;   // SyntaxError
+
+```
+
+&zwj;<mark>const 声明创建的变量不能被重新赋值：</mark>
+
+```js
+const studentName = "Frank";
+console.log(studentName);
+// Frank
+
+studentName = "Suzy";   // TypeError
+```
+
+
+<Callout icon="⚠️" type="warning">
+在重新赋值 studentName 时抛出的错误是 TypeError，而不是 SyntaxError。这个微妙的区别实际上非常重要，但不幸的是，很多人容易忽视。语法错误表示程序中的故障，阻止程序开始执行。类型错误则是在程序执行过程中出现的故障。在前面的代码片段中，“Frank” 在处理 studentName 的重新赋值之前被打印出来，随后抛出错误。
+</Callout>
+
+
+
+因此，如果 const 声明不能被重新赋值，并且 const 声明始终要求赋值，那么我们就有了明确的技术原因，为什么 const 必须禁止任何“重新声明”：任何 const 的“重新声明”必然也是一次 const 的重新赋值，这是不允许的！
+
+```js
+const studentName = "Frank";
+
+// 显然，这一定是个错误
+const studentName = "Suzy";
+```
+
+由于 const 的“重新声明”必须被禁止（基于这些技术理由），TC39 基本上认为 let 的“重新声明”也应该被禁止，以保持一致性。是否这是最佳选择是有争议的，但至少我们知道这一决定背后的理由。
+
+**循环**
+
+因此，从我们之前的讨论中可以清楚地看出，JavaScript 实际上并不希望我们在同一作用域内“重新声明”变量。这可能看起来是一个简单的警告，但当你考虑在循环中重复执行声明语句时，它的含义就变得复杂了。考虑以下代码：
+
+```js
+var keepGoing = true;
+while (keepGoing) {
+    let value = Math.random();
+    if (value > 0.5) {
+        keepGoing = false;
+    }
+}
+```
+
+
+在这个程序中，value 被“重新声明”了吗？会抛出错误吗？不会。
+
+作用域的所有规则（包括 let 创建的变量的“重新声明”）都是针对每个作用域实例应用的。换句话说，<mark>每次在执行期间进入一个作用域时，一切都会重置。</mark>
+
+
+&zwj;<mark>每次循环迭代都有其自己的新作用域实例，而在每个作用域实例中，value 只被声明一次。因此，没有尝试“重新声明”，因此也不会有错误。</mark>在我们考虑其他循环形式之前，如果将前面代码片段中的 value 声明改为 var 会怎么样？
+
+```js
+var keepGoing = true;
+while (keepGoing) {
+    var value = Math.random();
+    if (value > 0.5) {
+        keepGoing = false;
+    }
+}
+
+```
+
+在这里，value 被“重新声明”了吗，尤其是我们知道 var 允许它？不会。因为 <mark>var 并不被视为块作用域的声明（见第 6 章）</mark>，它附加到全局作用域。因此，这里只有一个 value 变量，跟 keepGoing 在同一作用域（在这种情况下是全局作用域）。这里也没有“重新声明”！
+
+保持这一切清晰的一种方法是记住，在代码开始执行之前，var、let 和 const 关键字实际上已经被移除。它们完全由编译器处理。
+
+如果你在脑海中抹去声明关键字，然后尝试处理代码，这应该可以帮助你判断何时（重新）声明可能会发生。
+
+那么，使用其他循环形式，比如 for 循环时，“重新声明”又会怎样呢？
+
+```js
+for (let i = 0; i < 3; i++) {
+    let value = i * 10;
+    console.log(`${ i }: ${ value }`);
+}
+// 0: 0
+// 1: 10
+// 2: 20
+```
+
+应该很清楚，每个作用域实例中只声明了一个 value。但 i 呢？它被“重新声明”了吗？
+
+要回答这个问题，考虑 i 的作用域。它可能看起来像是在外部（在这种情况下是全局）作用域，但并不是。它在 for 循环体的作用域中，就像 value 一样。实际上，你可以把那个循环想象成更详细的等效形式：
+
+```js
+{
+   //用于说明的虚构变量
+    let $$i = 0;
+
+    for ( /* nothing */; $$i < 3; $$i++) {
+        // 这是我们实际的循环“i”！
+        let i = $$i;
+
+        let value = i * 10;
+        console.log(`${ i }: ${ value }`);
+    }
+    // 0: 0
+    // 1: 10
+    // 2: 20
+}
+```
+
+现在应该清楚：i 和 value 变量在每个作用域实例中都只声明了一次。这里没有“重新声明”。
+
+其他 for 循环形式呢？
+
+```js
+for (let index in students) {
+    // this is fine
+}
+
+for (let student of students) {
+    // so is this
+}
+```
+
+&zwj;<mark>对于 for..in 和 for..of 循环也是如此：声明的变量被视为在循环体内，因此在每次迭代时（即每个作用域实例）处理。</mark>没有“重新声明”。
+
+好的，我知道你可能觉得我在重复同样的内容。但让我们探讨一下 const 如何影响这些循环结构。考虑以下代码：
+
+```js
+var keepGoing = true;
+while (keepGoing) {
+    //哦，一个闪亮的常数！
+    const value = Math.random();
+    if (value > 0.5) {
+        keepGoing = false;
+    }
+}
+```
+
+就像我们之前看到的 let 变体一样，const 在每次循环迭代中只运行一次，因此它免受“重新声明”的困扰。但是，当我们谈论传统的 for 循环时，事情就复杂了。
+
+for..in 和 for..of 可以与 const 一起使用：
+
+```js
+for (const index in students) {
+    // this is fine
+}
+
+for (const student of students) {
+    // this is also fine
+}
+```
+
+但传统的 for 循环就不行：
+
+```js
+for (const i = 0; i < 3; i++) {
+//哎呀，这会失败的
+//a第一次迭代后出现类型错误
+}
+```
+
+这里有什么问题？我们在这个结构中完全可以使用 let，而且我们断言它为每次循环迭代的作用域创建一个新的 i，所以这似乎并不是“重新声明”。
+
+让我们像之前一样“展开”这个循环：
+
+```js
+{
+    // 用于说明的虚构变量
+    const $$i = 0;
+
+    for ( ; $$i < 3; $$i++) {
+      //这是我们实际的循环“i”！
+        const i = $$i;
+        // ..
+    }
+}
+```
+
+你发现问题了吗？我们的 i 确实在循环内部只被创建一次。这不是问题。问题在于每次必须通过 $$i++ 表达式来递增的概念性 $$i。那是重新赋值（而不是“重新声明”），这是不允许的。
+
+记住，这种“展开”的形式只是一个概念模型，帮助你理解问题的来源。你可能会想，JavaScript 是否可以有效地将 const $$i = 0 改为 let $ii = 0，这将允许 const 在我们的经典 for 循环中工作？这是可能的，但那可能会引入对 for 循环语义的潜在令人惊讶的例外。
+
+例如，允许在 for 循环头部的 i++ 避免 const 赋值的严格性，而不允许在循环迭代中对 i 的其他重新赋值，这将是一个相当任意（且可能令人困惑）的细微例外，因为这在某些情况下是有用的。
+
+简单的答案是：const 不能与经典的 for 循环形式一起使用，因为需要重新赋值。
+
+有趣的是，如果你不进行重新赋值，那么它就是有效的：
+
+```js
+var keepGoing = true;
+
+for (const i = 0; keepGoing; /* nothing here */ ) {
+    keepGoing = (Math.random() > 0.5);
+    // ..
+}
+```
+
+这可以工作，但毫无意义。因为在那个位置用 const 声明 i 没有理由，因为在那个位置声明这样的变量的整个目的是用于计数迭代。只需使用其他循环形式，如 while 循环，或者使用 let！
+
+---
+
+### 未初始化的变量（即，TDZ）
+
+使用 var 声明时，变量会被“提升”到其作用域的顶部。但它也会自动初始化为 undefined 值，因此变量可以在整个作用域中使用。
+
+然而，let 和 const 声明在这方面有所不同。
+
+考虑以下代码：
+
+```js
+console.log(studentName);
+// ReferenceError
+
+let studentName = "Suzy";
+```
+
+这个程序的结果是在第一行抛出 ReferenceError。根据你的 JavaScript 环境，错误消息可能会显示为：“Cannot access studentName before initialization.”（在初始化之前无法访问 studentName。）
+
+
+<Callout icon="💡" type="info">
+这里看到的错误消息过去通常更模糊或误导。值得庆幸的是，社区中的我们几个人成功游说 JavaScript 引擎改善了这个错误消息，以更准确地告诉你出了什么问题！
+</Callout>
+
+
+这个错误消息很能说明问题：studentName 在第 1 行存在，但尚未初始化，因此无法使用。让我们试试这个：
+
+
+```js
+studentName = "Suzy";   // let's try to initialize it!
+// ReferenceError
+
+console.log(studentName);
+
+let studentName;
+```
+
+哎呀。我们仍然会得到 ReferenceError，但现在是在第一行尝试给这个所谓的“未初始化”变量 studentName 赋值（即初始化）时。到底是怎么回事？
+
+真正的问题是，我们如何初始化一个未初始化的变量？对于 let 和 const，唯一的方式就是通过附加在声明语句上的赋值来进行初始化。单独的赋值是不够的！考虑以下代码：
+
+```js
+let studentName = "Suzy";
+console.log(studentName);   // Suzy
+
+```
+在这里，我们通过与赋值结合的 let 声明语句形式来初始化 studentName（在这种情况下初始化为 "Suzy" 而不是 undefined）。
+
+或者：
+
+```js
+
+let studentName;
+// or:
+// let studentName = undefined;
+
+// ..
+
+studentName = "Suzy";
+
+console.log(studentName);
+// Suzy
+```
+
+<Callout icon="⚠️" type="warning">
+这很有趣！回想一下，我们之前说过 var studentName; 与 var studentName = undefined; 并不相同，但在这里使用 let 时，它们的行为是相同的。区别在于 var studentName 会在作用域顶部自动初始化，而 let studentName 则不会。
+</Callout>
+
+记住，我们之前已经多次断言，编译器最终会移除任何 var、let 或 const 声明符号，将它们替换为在每个作用域顶部注册适当标识符的指令。
+
+因此，如果我们分析这里发生的事情，我们可以看到一个额外的细微之处，即编译器还在程序中间添加了一条指令，在声明变量 studentName 的地方，处理该声明的自动初始化。在初始化发生之前，我们无法在任何点使用该变量。对于 const 来说也是如此。
+
+TC39 提出的一个术语，<mark>用于指代从进入作用域到变量自动初始化发生之间的这一段时间：Temporal Dead Zone（TDZ）。</mark>
+
+
+&zwj;<mark>TDZ 是一个时间窗口，在这个时间窗口内，变量存在但仍未初始化，因此无法以任何方式访问。只有在编译器在原始声明点留下的指令执行后，才能进行初始化。在那一刻之后，TDZ 结束，变量可以在该作用域的剩余部分自由使用。</mark>
+
+&zwj;<mark>var 也在技术上有一个 TDZ，但它的长度为零，因此在我们的程序中不可观察！只有 let 和 const 具有可观察的 TDZ。</mark>
+
+顺便提一下，<mark>TDZ 中的“temporal”确实是指**时间**，而不是代码中的位置。</mark>考虑一下：
+
+```js
+askQuestion();
+// ReferenceError
+
+let studentName = "Suzy";
+
+function askQuestion() {
+    console.log(`${ studentName }, do you know?`);
+}
+```
+
+尽管在位置上 console.log(..) 引用 studentName 的语句是在 let studentName 声明之后，但在时间上，askQuestion() 函数在遇到 let 语句之前就已经被调用了，此时 studentName 仍处于暂时性死区（TDZ）！因此会发生错误。
+
+&zwj;<mark>有一种常见的误解认为 TDZ 意味着 let 和 const 不会提升。这是一种不准确，或至少是稍微误导的说法。它们确实会提升。</mark>
+
+&zwj;<mark>实际的区别在于，let/const 声明不会像 var 那样在作用域开始时自动初始化。</mark>争论点在于，自动初始化是否是提升的一部分？我认为在作用域顶部自动注册变量（即我所称的“提升”）和在作用域顶部自动初始化（为 undefined）是不同的操作，不应该被归为“提升”这个单一术语下。
+
+我们已经看到 let 和 const 不会在作用域顶部自动初始化。但让我们证明 let 和 const 确实会提升（在作用域顶部自动注册），这要感谢我们的朋友“遮蔽”（参见第三章的“遮蔽”）：
+
+```js
+var studentName = "Kyle";
+
+{
+    console.log(studentName);
+    // ???
+
+    // ..
+
+    let studentName = "Suzy";
+
+    console.log(studentName);
+    // Suzy
+}
+```
+
+第一个 console.log(..) 语句会发生什么？如果 let studentName 没有提升到作用域的顶部，那么第一个 console.log(..) 应该打印“Kyle”，对吧？在那一刻，似乎只有外部的 studentName 存在，所以 console.log(..) 应该访问并打印该变量。
+
+但实际上，第一个 console.log(..) 抛出了一个 TDZ 错误，因为事实是，内部作用域的 studentName 被提升了（在作用域顶部自动注册）。然而，内部的 studentName 还没有（自动）初始化；在那一刻它仍未初始化，因此违反了 TDZ！
+
+总结一下，TDZ 错误发生的原因是，<mark>let/const 声明确实会将它们的声明提升到它们作用域的顶部，但不像 var 那样，它们会推迟变量的自动初始化，直到代码执行到声明的那一刻。不管这个时间窗口有多长（提示：**时间上的**），这就是 TDZ。</mark>
+
+如何避免 TDZ 错误？
+
+我的建议是：总是把你的 let 和 const 声明放在任何作用域的顶部。将 TDZ 窗口缩小到零（或接近零），那么这个问题就无关紧要了。
+
+{/* todo */}
+但为什么 TDZ 存在？为什么 TC39 没有规定 let/const 像 var 一样自动初始化？耐心点，我们会在附录 A 中回到这个问题，探讨 TDZ 的原因。
+
+### 最终初始化完成
+
+处理变量比最初看起来要复杂得多。提升（Hoisting）、（重新）声明以及暂时性死区（TDZ）是开发者常见的困惑来源，尤其是那些在接触 JavaScript 之前已经使用过其他语言的开发者。在继续深入之前，请确保你的思维模型已经完全理解了 JavaScript 作用域和变量的这些方面。
+
+提升通常被认为是 JavaScript 引擎的一种显式机制，但实际上它更像是一种隐喻，用来描述 JavaScript 在编译期间如何处理变量声明。即使作为一种隐喻，提升也为思考变量的生命周期提供了有用的结构——变量何时被创建，何时可用，何时消失。
+
+如果将变量的声明和重新声明视为运行时操作，它们往往会引起混淆。但如果你将这些操作转向编译时思维，这些怪癖和阴影就会减少。
+
+当遇到 TDZ（暂时性死区）错误时，它会显得既奇怪又令人沮丧。幸运的是，如果你总是小心地将 let/const 声明放在任何作用域的顶部，TDZ 相对容易避免。
+
+当你成功地在变量作用域的这些曲折中导航时，下一章将阐述指导我们在各个作用域（尤其是嵌套块）中放置声明的因素。

@@ -1,0 +1,443 @@
+---
+title: "全局作用域"
+description: "第 3 章多次提到“全局作用域”，但你可能仍在想，程序的最外层作用域在现代 JS 中为什么如此重要。绝大多数工作现在是在函数和模块内部完成的，而不是全局范围内。
+
+仅仅声称“避免使用全局作用域”就足够了吗？
+
+JavaScript 程序的全局作用域是一个丰富的话题，其实用性和细微之处远比你想象的要多。本章将首先探讨全局作用域在今天编写 JavaScript 程序时是如何（仍然）有用和相关的，然后查看在不同的 JavaScript 环境中访问全局作用域的不同方式和方法。
+
+充分理解全局作用域对于掌握使用词法作用域来构建程序至关重要。"
+name: "scope-closures-ch4"
+---
+
+### 为何选择全局作用域？
+
+对于读者来说，最常见的应用程序都由多个（有时很多！）独立的 JavaScript 文件组成，这可能并不令人惊讶。那么，这些独立的文件是如何在 JavaScript 引擎中的单一运行时上下文中连接在一起的呢？
+
+在浏览器执行的应用程序方面，主要有三种方式。
+
+首先，如果你直接使用 ES 模块（而不是将它们转译成其他模块捆绑格式），这些文件将由 JavaScript 环境单独加载。每个模块会导入它所需访问的其他模块的引用。这些独立的模块文件通过这些共享的导入相互协作，而不需要任何共享的外部作用域。
+
+其次，如果你在构建过程中使用了捆绑工具，所有文件通常会在交付给浏览器之前被串联在一起，JavaScript 引擎随后只处理一个大文件。即使应用程序的所有部分都位于单个文件中，也需要某种机制让每个部分注册一个名称，以便其他部分引用，以及某种设施以便进行访问。
+
+{/* todo */}
+
+在某些构建设置中，文件的全部内容会被包装在一个单一的封闭作用域中，例如一个包装函数、通用模块（UMD——见附录 A）等。每个部分可以通过在该共享作用域中的局部变量注册自己，以便其他部分访问。例如：
+
+```js
+(function wrappingOuterScope(){
+    var moduleOne = (function one(){
+        // ..
+    })();
+
+    var moduleTwo = (function two(){
+        // ..
+
+        function callModuleOne() {
+            moduleOne.someMethod();
+        }
+
+        // ..
+    })();
+})();
+```
+
+如上所示，wrappingOuterScope() 函数作用域内的 moduleOne 和 moduleTwo 局部变量被声明，以便这些模块能够相互访问，以便进行协作。
+
+虽然 wrappingOuterScope() 的作用域是一个函数，而不是完整的全局环境作用域，但它确实作为一种“应用程序范围”，一个可以存储所有顶级标识符的容器，尽管不在真实的全局作用域中。从这个角度来看，它有点像全局作用域的替代品。
+
+最后，第三种方式：无论应用程序是否使用捆绑工具，或者是否仅通过`<script>` 标签或其他动态 JavaScript 资源加载将（非 ES 模块）文件单独加载到浏览器中，如果没有一个包围所有这些部分的单一作用域，全局作用域就是它们相互协作的唯一方式：
+
+这种类型的捆绑文件通常看起来像这样：
+```js
+
+var moduleOne = (function one(){
+    // ..
+})();
+var moduleTwo = (function two(){
+    // ..
+
+    function callModuleOne() {
+        moduleOne.someMethod();
+    }
+
+    // ..
+})();
+```
+
+在这里，由于没有包围的函数作用域，这些 moduleOne 和 moduleTwo 的声明就简单地被放入了全局作用域。这实际上与文件没有被串联而是单独加载是一样的：
+
+<CodeBlock title="module1.js">
+
+```js
+var moduleOne = (function one(){
+    // ..
+})();
+```
+
+</CodeBlock>
+
+<CodeBlock title="module1.js">
+
+```js
+var moduleTwo = (function two(){
+    // ..
+
+    function callModuleOne() {
+        moduleOne.someMethod();
+    }
+
+    // ..
+})();
+```
+
+</CodeBlock>
+
+如果这些文件作为普通独立的 .js 文件在浏览器环境中单独加载，每个顶级变量声明都会最终成为全局变量，因为全局作用域是这两个独立文件之间唯一的共享资源——从 JavaScript 引擎的角度来看，它们是独立的程序。
+
+除了（可能）考虑到应用程序的代码在运行时的位置，以及每个部分如何能够访问其他部分以进行协作外，全局作用域还是以下内容的所在：
+
+JavaScript 提供的内置对象：
+
+- 原始值：undefined、null、Infinity、NaN
+- 原生对象：Date()、Object()、String() 等
+- 全局函数：eval()、parseInt() 等
+- 命名空间：Math、Atomics、JSON
+- JavaScript 的友好伙伴：Intl、WebAssembly
+
+承载 JavaScript 引擎的环境也暴露了它自己的内置对象：
+
+- console（及其方法）
+- DOM（window、document 等）
+- 定时器（setTimeout(..) 等）
+- Web 平台 API：navigator、history、geolocation、WebRTC 等
+- 这些只是你的程序将会与之交互的众多全局变量中的一部分。
+
+
+
+<Callout icon="⚠️" type="warning">
+Node 也在“全局”范围内暴露了若干元素，但这些技术上不在全局作用域内：require()、__dirname、module、URL 等等。
+</Callout>
+
+
+大多数开发人员一致认为，<mark>全局作用域不应该只是应用程序中每个变量的倾倒场所。这将导致一堆等待发生的错误。</mark>但不可否认的是，全局作用域对于几乎每个 JavaScript 应用程序来说都是重要的粘合剂。
+
+---
+
+### 全局作用域到底在哪里？
+
+全局作用域位于文件的最外层部分，这似乎是显而易见的；也就是说，不在任何函数或其他块内。但事情并没有那么简单。
+
+不同的 JavaScript 环境对程序的作用域，尤其是全局作用域，有不同的处理方式。JavaScript 开发者常常在不自觉的情况下抱有误解。
+
+浏览器的“窗口”
+在处理全局作用域的方面，JavaScript 可以运行的最“纯粹”的环境是作为一个独立的 .js 文件在浏览器的网页环境中加载。我所说的“纯粹”不是指没有任何自动添加的东西——很多东西可能会被添加！——而是指对代码的最小干扰或对其预期全局作用域行为的干扰。
+
+考虑以下 .js 文件：
+
+
+```js
+var studentName = "Kyle";
+
+function hello() {
+    console.log(`Hello, ${ studentName }!`);
+}
+
+hello();
+// Hello, Kyle!
+```
+这段代码可以通过内联` <script> `标签、在标记中的 ` <script src=..> `标签，甚至是动态创建的` <script>` DOM 元素在网页环境中加载。在这三种情况下，studentName 和 hello 标识符都是在全局作用域中声明的。
+
+这意味着，如果你访问全局对象（通常在浏览器中是 window），你会发现这些同名的属性：
+
+```js
+
+var studentName = "Kyle";
+
+function hello() {
+    console.log(`Hello, ${ window.studentName }!`);
+}
+
+window.hello();
+// Hello, Kyle!
+
+```
+这是从 JavaScript 规范阅读中可以预期的默认行为：外部作用域是全局作用域，而 studentName 被合法地创建为全局变量。
+
+这就是我所说的“纯粹”。但不幸的是，这并不总是适用于你遇到的所有 JavaScript 环境，这通常会让 JavaScript 开发者感到惊讶。
+
+**全局变量遮蔽全局变量**
+
+{/* todo */}
+回想第 3 章中关于遮蔽（和全局反遮蔽）的讨论，其中一个变量声明可以覆盖并防止访问外部作用域中同名的声明。
+
+全局变量和同名全局属性之间的差异带来的一个不寻常的结果是，在全局作用域内部，全局对象属性可能会被全局变量遮蔽：
+
+```js
+
+window.something = 42;
+
+let something = "Kyle";
+
+console.log(something);
+// Kyle
+
+console.log(window.something);
+// 42
+
+```
+
+let 声明添加了一个 something 全局变量，但没有添加全局对象属性（见第 3 章）。因此，something 的词法标识符遮蔽了 something 全局对象属性。
+
+在全局对象和全局作用域之间创建差异几乎肯定是一个坏主意。你的代码读者几乎肯定会因此而感到困惑。
+
+避免全局声明时出现这种陷阱的简单方法是：始终对全局变量使用 var。将 let 和 const 保留用于块作用域（见第 6 章中的“块作用域”）。
+
+**DOM 全局变量**
+
+我曾声称，浏览器托管的 JavaScript 环境具有我们所见的最纯粹的全局作用域行为。然而，这并不完全纯粹。
+
+在基于浏览器的 JavaScript 应用程序中，你可能会遇到的全局作用域中的一个令人惊讶的行为是：具有 id 属性的 DOM 元素会自动创建一个全局变量来引用它。
+
+考虑以下标记：
+```html
+<ul id="my-todo-list">
+   <li id="first">Write a book</li>
+   ..
+</ul>
+```
+
+该页面的 JavaScript 可能包括：
+```js
+first;
+// <li id="first">..</li>
+
+window["my-todo-list"];
+// <ul id="my-todo-list">..</ul>
+```
+如果 id 值是有效的词法名称（如 first），则会创建词法变量。如果不是，访问该全局变量的唯一方法是通过全局对象（window[..]）。
+
+所有具有 id 属性的 DOM 元素自动注册为全局变量是一个旧的遗留浏览器行为，但必须保留，因为许多旧网站仍然依赖于它。我的建议是永远不要使用这些全局变量，即使它们会始终被默默创建。
+
+**（窗口）名称中包含什么？**
+
+在基于浏览器的 JavaScript 中，另一个全局作用域的奇特之处：
+
+```js
+
+var name = 42;
+
+console.log(name, typeof name);
+// "42" string
+
+```
+
+window.name 是浏览器上下文中的一个预定义“全局”变量；它是全局对象上的一个属性，所以它看起来像一个普通的全局变量（但它绝对不是“普通”的）。
+
+&zwj;<mark>我们使用 var 进行声明，这不会遮蔽预定义的全局属性名。这意味着，实际上，var 声明会被忽略，因为已经存在一个同名的全局作用域对象属性。如我们之前讨论的，如果我们使用 let name，那么会用一个单独的全局 name 变量遮蔽 window.name。</mark>
+
+但真正令人惊讶的行为是，尽管我们将数字 42 赋值给 name（因此也赋值给 window.name），当我们检索它的值时，它却是字符串 "42"！在这种情况下，奇怪之处在于 name 实际上是 window 对象上的一个预定义的 getter/setter，它强制其值为字符串类型。真是让人惊讶！
+
+除了像 DOM 元素 ID 和 window.name 这样的少数特殊情况外，作为独立文件在浏览器页面中运行的 JavaScript 具有我们将遇到的一些最纯粹的全局作用域行为。
+
+**Web Workers**
+
+Web Workers 是浏览器 JavaScript 行为的一个扩展，允许 JavaScript 文件在与运行主 JavaScript 程序的线程完全分开的线程中运行（从操作系统的角度来看）。
+
+由于这些 Web Worker 程序在单独的线程中运行，它们与主应用程序线程的通信受到限制，以避免/限制竞争条件和其他复杂情况。例如，Web Worker 代码没有访问 DOM 的权限。然而，一些 Web API 仍然可以在 Worker 中使用，例如 navigator。
+
+由于 Web Worker 被视为一个完全独立的程序，它不与主 JavaScript 程序共享全局作用域。但是，浏览器的 JavaScript 引擎仍然在运行代码，因此我们可以期待其全局作用域行为的相似纯度。由于没有 DOM 访问，window 作为全局作用域的别名并不存在。
+
+在 Web Worker 中，通常使用 self 来引用全局对象。
+
+```js
+
+var studentName = "Kyle";
+let studentID = 42;
+
+function hello() {
+    console.log(`Hello, ${ self.studentName }!`);
+}
+
+self.hello();
+// Hello, Kyle!
+
+self.studentID;
+// undefined
+
+```
+
+就像主 JavaScript 程序一样，<mark>var 和函数声明在全局对象（即 self）上创建镜像属性，而其他声明（如 let 等）则不会。</mark>
+
+
+所以我们在这里看到的全局作用域行为可以说是运行 JavaScript 程序时最纯粹的；也许它甚至更纯粹，因为没有 DOM 来干扰！
+
+**开发者工具控制台/REPL**
+
+回想一下在第一章《入门》中提到的开发者工具，它们并没有创建一个完全遵循 JavaScript 环境的环境。它们确实处理 JavaScript 代码，但也更倾向于用户体验（即开发者体验，或 DX:DX 是 "Developer Experience" 的缩写，意指开发者体验。）。
+
+在某些情况下，当输入短小的 JavaScript 代码片段时，为了提高 DX 而优先考虑的用户体验，可能会导致代码行为在程序和工具之间产生可观察的差异。例如，某些适用于 JavaScript 程序的错误条件在代码输入到开发者工具时可能会被放宽，并且不会显示。
+
+关于我们在这里讨论的作用域，这种行为的可观察差异可能包括：
+
+- 全局作用域的行为
+
+- 提升（见第 5 章）
+
+- 在最外层作用域中使用的块作用域声明（let / const，见第 6 章）
+
+尽管在使用控制台/REPL 时，输入在最外层作用域的语句似乎是在真实的全局作用域中处理的，但这并不完全准确。这些工具通常在某种程度上模拟全局作用域的位置；它是一种模拟，而不是严格遵循。这些工具环境优先考虑开发者的便利，这意味着在某些情况下（例如关于作用域的讨论），观察到的行为可能会偏离 JavaScript 规范。
+
+需要注意的是，尽管开发者工具经过优化以方便和有用地支持各种开发活动，但它们并不适合用于确定或验证实际 JavaScript 程序上下文中的明确和细微行为。
+
+**ES 模块 (ESM)**
+{/* todo */}
+ES6 引入了对模块模式的一等公民支持（在第 8 章中讨论）。使用 ESM 最明显的影响之一是它改变了文件中可观察的顶层作用域的行为。
+
+回忆一下之前的代码片段（我们将通过使用 export 关键字将其调整为 ESM 格式）：
+
+
+```js
+var studentName = "Kyle";
+
+function hello() {
+    console.log(`Hello, ${ studentName }!`);
+}
+
+hello();
+// Hello, Kyle!
+
+export hello;
+```
+如果这段代码位于作为 ES 模块加载的文件中，它的运行效果仍然是完全相同的。然而，从整体应用程序的角度来看，观察到的效果将会不同。
+
+尽管在（模块）文件的顶层声明了 studentName 和 hello，它们并不是全局变量。相反，它们是模块范围内的，或者如果你愿意的话，可以称之为“模块全局”。
+
+然而，在模块中，这些顶层声明没有隐式的“模块范围对象”可以将其作为属性添加，就像非模块 JavaScript 文件的顶层声明那样。这并不是说在这样的程序中不能存在或访问全局变量。只是通过在模块的顶层作用域中声明变量不会创建全局变量。
+
+模块的顶层作用域是从全局作用域派生而来的，几乎就像模块的所有内容都被包装在一个函数中。因此，所有存在于全局作用域中的变量（无论它们是否在全局对象上！）都可以作为词法标识符在模块的作用域内访问。
+
+ESM 鼓励减少对全局作用域的依赖，你可以导入当前模块所需要的任何模块。因此，你较少会看到对全局作用域或其全局对象的使用。
+
+然而，如前所述，仍然有许多 JavaScript 和 Web 全局变量，你仍然会继续从全局作用域访问，无论你是否意识到这一点！
+
+**Node**
+
+{/* todo */}
+Node 的一个方面经常让 JavaScript 开发者感到意外的是，Node 将它加载的每一个 .js 文件（包括你启动 Node 进程时的主文件）都视为一个模块（ES 模块或 CommonJS 模块，参见第 8 章）。这带来的实际效果是，你的 Node 程序的顶层实际上从来不是全局作用域，就像在浏览器中加载非模块文件时那样。
+
+截至目前，Node 最近添加了对 ES 模块的支持。此外，Node 从一开始就支持一种称为 “CommonJS” 的模块格式，格式如下：
+
+```js
+var studentName = "Kyle";
+
+function hello() {
+    console.log(`Hello, ${ studentName }!`);
+}
+
+hello();
+// Hello, Kyle!
+
+module.exports.hello = hello;
+```
+
+在处理之前，Node 实际上会将这样的代码包裹在一个函数中，以便 var 和函数声明被包含在该包装函数的作用域内，而不是被视为全局变量。
+
+可以想象，Node 将前面的代码视为以下形式（说明性，不是实际代码）：
+
+```js
+function Module(module,require,__dirname,...) {
+    var studentName = "Kyle";
+
+    function hello() {
+        console.log(`Hello, ${ studentName }!`);
+    }
+
+    hello();
+    // Hello, Kyle!
+
+    module.exports.hello = hello;
+}
+```
+Node 然后基本上调用添加的 Module(..) 函数来运行你的模块。你可以清楚地看到这里为什么 studentName 和 hello 标识符不是全局的，而是声明在模块作用域中。
+
+如前所述，Node 定义了一些“全局”对象，比如 require()，但它们实际上并不是全局作用域中的标识符（也不是全局对象的属性）。它们被注入到每个模块的作用域中，基本上就像 Module(..) 函数声明中的参数。
+
+那么，如何在 Node 中定义实际的全局变量呢？唯一的方法是为 Node 自动提供的另一个“全局”对象添加属性，这个对象讽刺地被称为 global。global 是一个对真实全局作用域对象的引用，类似于在浏览器的 JS 环境中使用 window。
+
+考虑：
+
+```js
+global.studentName = "Kyle";
+
+function hello() {
+    console.log(`Hello, ${ studentName }!`);
+}
+
+hello();
+// Hello, Kyle!
+
+module.exports.hello = hello;
+```
+在这里，我们将 studentName 作为全局对象的一个属性添加，然后在 console.log(..) 语句中，我们能够像正常的全局变量一样访问 studentName。
+
+请记住，<mark>标识符 global 不是由 JS 定义的；它是 Node 特定定义的。</mark>
+
+---
+
+### 全局 this
+
+回顾我们到目前为止看到的 JavaScript 环境，一个程序可能会：
+
+- 使用 var 或函数声明（或者 let、const 和 class）在顶层作用域中声明一个全局变量。
+
+- 如果使用 var 或函数进行声明，还可以将全局变量声明作为全局作用域对象的属性添加。
+
+- 使用 window、self 或 global 引用全局作用域对象（用于添加或检索全局变量作为属性）。
+
+我认为可以公平地说，全局作用域的访问和行为比大多数开发者假设的要复杂，正如前面的部分所显示的那样。但这种复杂性在试图确定对全局作用域对象的普遍适用的引用时显得尤为明显。
+
+获取全局作用域对象引用的另一个“技巧”如下：
+
+```js
+const theGlobalScopeObject =
+    (new Function("return this"))();
+```
+
+{/* todo */}
+<Callout icon="💡" type="info">
+可以使用 Function() 构造函数从存储在字符串值中的代码动态构造一个函数，类似于 eval(..)（参见第 1 章中的“作弊：运行时作用域修改”）。这样的函数在被正常的 () 函数调用时会自动以非严格模式运行（出于兼容性原因）；它的 this 将指向全局对象。有关确定 this 绑定的更多信息，请参见系列中的第三本书《对象与类》。
+</Callout>
+
+所以，我们有 window、self、global 和这个丑陋的新 Function(..) 技巧。这是许多不同的方式来尝试访问这个全局对象。每种方法都有其优缺点。
+
+为什么不再引入一种新的方法呢！？
+
+从 ES2020 开始，JavaScript 最终定义了一个标准化的全局作用域对象引用，称为 globalThis。因此，依据你代码运行的 JavaScript 引擎的更新情况，你可以用 globalThis 替代其他任何方法。
+
+我们甚至可以尝试定义一个跨环境的填充函数，以便在不支持 globalThis 的旧 JavaScript 环境中更安全地使用，如下所示：
+
+```js
+
+const theGlobalScopeObject =
+    (typeof globalThis != "undefined") ? globalThis :
+    (typeof global != "undefined") ? global :
+    (typeof window != "undefined") ? window :
+    (typeof self != "undefined") ? self :
+    (new Function("return this"))();
+
+```
+
+呼！这当然不是理想的方案，但如果你需要一个可靠的全局作用域引用，它是有效的。
+
+（在这个特性被添加到 JavaScript 时，提议的名称 globalThis 引发了相当大的争议。具体来说，我和许多人认为它名称中的 “this” 引用具有误导性，因为你引用这个对象的原因是为了访问全局作用域，而不是为了访问某种全局/默认的 this 绑定。考虑过许多其他名称，但由于各种原因被排除。不幸的是，最终选择的名称成了最后的选择。如果你计划在程序中与全局作用域对象交互，为了减少混淆，我强烈建议选择一个更好的名称，比如这里使用的（虽然长得可笑但准确的）theGlobalScopeObject。）
+
+---
+
+### 全局意识
+
+全局作用域在每个 JavaScript 程序中都是存在且相关的，尽管现代将代码组织成模块的模式降低了对在该命名空间中存储标识符的依赖。
+
+然而，随着我们的代码在浏览器的界限之外越来越多地扩展，特别重要的是我们要清楚了解全局作用域（以及全局作用域对象！）在不同 JavaScript 环境中的行为差异。
+
+随着全局作用域的大局现在更加清晰，下一章将再次深入词法作用域的细节，探讨变量何时以及如何可以使用。
