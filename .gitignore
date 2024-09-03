@@ -24,3 +24,4 @@ pnpm-debug.log*
 .idea/
 .history
 test.html
+pnpm-lock.yaml
