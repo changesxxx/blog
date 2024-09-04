@@ -1,0 +1,865 @@
+---
+title: "使用闭包"
+description: "到目前为止，我们已经集中讨论了词法作用域的细节，以及这如何影响我们程序中变量的组织和使用。
+
+我们的注意力再次转向更广泛的抽象，主题是历史上有些令人畏惧的闭包（closure）。别担心！你并不需要高级计算机科学学位来理解它。我们本书的广泛目标不仅仅是理解作用域，而是更有效地在程序结构中使用它；闭包在这个努力中是核心内容。
+
+回想第六章的主要结论：最小暴露原则（POLE）鼓励我们使用块（和函数）作用域来限制变量的作用域暴露。这有助于保持代码的可理解性和可维护性，并避免许多作用域陷阱（例如，名称冲突等）。
+
+闭包建立在这个基础上：对于我们需要使用一段时间的变量，我们可以将它们封装（更加狭义地作用域）在内部，但仍然可以通过函数访问它们，以便更广泛地使用。函数通过闭包记住这些引用的作用域变量。
+
+我们在前一章中已经看到了这种闭包的一个例子（第六章中的阶乘函数），你几乎肯定在自己的程序中也使用过它。如果你曾经编写一个回调函数来访问其外部作用域的变量……猜猜看！？那就是闭包。
+
+闭包是编程中最重要的语言特性之一——它支撑着主要的编程范式，包括函数式编程（FP）、模块甚至一些面向类的设计。熟悉闭包是掌握 JavaScript 并有效利用许多重要设计模式的前提。
+
+讨论闭包的所有方面需要大量的讨论和代码示例。确保你花时间去理解每一个细节，然后再继续下一个部分。"
+
+name: "scope-closures-ch7"
+---
+
+### 什么是闭包
+
+闭包最初是一个数学概念，源于lambda演算（lambda calculus）。但我不会列出数学公式或使用一堆符号和术语来定义它。
+
+相反，我将从实践的角度来定义闭包。我们将开始通过观察程序的不同行为来定义闭包，而不是考虑如果 JS 中不存在闭包会发生什么。然而，在本章的后面，我们将从另一个角度来看待闭包。
+
+&zwj;<mark>闭包是函数的一种行为，仅限于函数。如果你不处理函数，闭包就不适用。对象不能拥有闭包，类也没有闭包（尽管它的函数/方法可能有）。只有函数才有闭包。</mark>
+
+为了观察到闭包，函数必须被调用，并且它必须在与其最初定义不同的作用域链分支中被调用。在其定义的同一作用域中执行的函数不会表现出任何可观察到的不同行为，无论闭包是否存在；从观察的角度和定义来看，那不是闭包。
+
+让我们看一些代码，并标注其相关的作用域范围（见第二章）：
+
+```js
+// 外部/全局作用域: RED(1)
+
+function lookupStudent(studentID) {
+    // 函数作用域: BLUE(2)
+
+    var students = [
+        { id: 14, name: "Kyle" },
+        { id: 73, name: "Suzy" },
+        { id: 112, name: "Frank" },
+        { id: 6, name: "Sarah" }
+    ];
+
+    return function greetStudent(greeting){
+        // 函数作用域: GREEN(3)
+
+        var student = students.find(
+            student => student.id == studentID
+        );
+
+        return `${ greeting }, ${ student.name }!`;
+    };
+}
+
+var chosenStudents = [
+    lookupStudent(6),
+    lookupStudent(112)
+];
+
+// 访问函数的名称：:
+chosenStudents[0].name;
+// greetStudent
+
+chosenStudents[0]("Hello");
+// Hello, Sarah!
+
+chosenStudents[1]("Howdy");
+// Howdy, Frank!
+```
+
+首先要注意的是，lookupStudent(..) 外部函数创建并返回一个名为 greetStudent(..) 的内部函数。lookupStudent(..) 被调用了两次，生成两个独立的 greetStudent(..) 函数实例，这两个实例都被保存到 chosenStudents 数组中。
+
+我们通过检查 chosenStudents[0] 中保存的函数的 .name 属性来验证这一点，结果确实是内部的 greetStudent(..) 实例。
+
+在每次调用 lookupStudent(..) 完成后，似乎所有内部变量都会被丢弃并进行垃圾回收（GC）。似乎返回并保留的唯一内容是内部函数。但这里的行为在某些方面有所不同，我们可以开始观察。
+
+虽然 greetStudent(..) 确实接收一个参数，名为 greeting，但它还引用了来自 lookupStudent(..) 的外部作用域的 students 和 studentID 这两个标识符。<mark>内部函数对外部作用域变量的每一个引用都称为闭包。</mark>在学术术语中，每个 greetStudent(..) 实例都闭合了外部变量 students 和 studentID。
+
+
+那么，这些闭包在这里起什么作用呢？在具体的、可观察的意义上？
+
+闭包允许 greetStudent(..) 在外部作用域结束后继续访问这些外部变量（当每次调用 lookupStudent(..) 完成时）。students 和 studentID 的实例不会被垃圾回收，而是仍然保留在内存中。当稍后调用 greetStudent(..) 函数的任一实例时，这些变量仍然存在，保持其当前值。
+
+如果 JS 函数没有闭包，每次调用 lookupStudent(..) 完成后，其作用域将立即被拆除，并且 students 和 studentID 变量将被垃圾回收。当我们稍后调用其中一个 greetStudent(..) 函数时，会发生什么？
+
+如果 greetStudent(..) 试图访问它认为是蓝色（BLUE(2)）的弹珠，但该弹珠实际上已经不存在了（再也没有），合理的假设是我们应该得到一个 ReferenceError，对吗？
+
+但我们并没有得到错误。事实是 chosenStudents[0]("Hello") 的执行成功并返回了消息 "Hello, Sarah!"，这意味着它仍然能够访问 students 和 studentID 变量。这是闭包的直接观察！
+
+**指向闭包**
+
+实际上，我们在之前的讨论中略过了一个细节，我猜许多读者可能错过了！
+
+{/* todo */}
+由于箭头函数（=>）的语法非常简洁，很容易忘记它们仍然创建一个作用域（如第三章中的“箭头函数”所述）。student => student.id == studentID 箭头函数在 greetStudent(..) 函数作用域内部创建了另一个作用域。
+
+基于第二章中关于颜色桶和泡泡的隐喻，如果我们为这段代码创建一个彩色图示，那么在这最内部的嵌套级别中，我们需要一个第四种颜色；也许我们选择橙色（ORANGE(4)）作为该作用域的颜色：
+
+```js
+
+var student = students.find(
+    student =>
+        // 函数作用域: ORANGE(4)
+        student.id == studentID
+);
+
+```
+
+蓝色（BLUE(2)）的 studentID 引用实际上位于橙色（ORANGE(4)）作用域中，而不是 greetStudent(..) 的绿色（GREEN(3)）作用域中；同时，箭头函数的 student 参数也在橙色（ORANGE(4)）作用域中，遮蔽了绿色（GREEN(3)）的 student。
+
+其结果是，作为回调传递给数组的 find(..) 方法的箭头函数必须持有对 studentID 的闭包，而不是 greetStudent(..) 持有该闭包。这并不是什么大问题，因为一切仍然按预期工作。只需注意，即使是微小的箭头函数也可以参与闭包的“派对”。
+
+**汇总闭包**
+
+让我们检查一个通常被引用的闭包经典示例：
+
+```js
+function adder(num1) {
+    return function addTo(num2){
+        return num1 + num2;
+    };
+}
+
+var add10To = adder(10);
+var add42To = adder(42);
+
+add10To(15);    // 25
+add42To(9);     // 51
+```
+
+每个内部 addTo(..) 函数的实例都闭合了其自己的 num1 变量（分别为 10 和 42），因此这些 num1 并不会因为 adder(..) 的完成而消失。当我们稍后调用其中一个 addTo(..) 实例，例如 add10To(15) 调用时，它闭合的 num1 变量仍然存在，并且仍然保持原始的 10 值。因此，该操作能够执行 10 + 15 并返回答案 25。
+
+一个重要的细节可能在之前的段落中太容易忽略，因此我们要强调一下：<mark>闭包与函数的实例相关，而不是与其单一的词法定义相关。</mark>在前面的代码片段中，adder(..) 中只定义了一个内部 addTo(..) 函数，因此这可能暗示只有一个闭包。
+
+但实际上，每次外部 adder(..) 函数运行时，都会创建一个新的内部 addTo(..) 函数实例，并为每个新实例创建一个新的闭包。因此，<mark>每个内部函数实例（在我们的程序中标记为 add10To(..) 和 add42To(..)）都有自己独立的闭包，闭合了来自那次 adder(..) 执行的作用域环境的实例。</mark>
+
+&zwj;<mark>尽管闭包是基于词法作用域的，这种作用域是在编译时处理的，但闭包是作为函数实例的运行时特征被观察到的。</mark>
+
+**实时链接，而不是快照**
+
+在前面部分的两个示例中，我们读取了在闭包中保持的变量的值。这让人感觉闭包可能是某个时刻值的快照。确实，这是一个常见的误解。
+
+&zwj;<mark>闭包实际上是一个实时链接，保持对完整变量本身的访问。我们不仅限于仅仅读取一个值；闭合的变量也可以被更新（重新赋值）！通过在函数中闭合一个变量，我们可以继续使用该变量（读和写），只要该函数引用在程序中存在，并且从我们希望调用该函数的任何地方都可以。</mark>这就是为什么闭包是一种在编程中被广泛使用的强大技术的原因！
+
+图 4 描述了函数实例和作用域链接：
+
+![Fig. 4: Visualizing Closures](/assets/images/books/know-js/scope-closures/fig4.png)
+
+如图 4 所示，每次调用 adder(..) 都会创建一个新的蓝色（BLUE(2)）作用域，其中包含一个 num1 变量，以及一个新的 addTo(..) 函数实例，作为绿色（GREEN(3)）作用域。请注意，函数实例（addTo10(..) 和 addTo42(..)）存在于红色（RED(1)）作用域中，并从中调用。
+
+现在让我们检查一个闭合变量被更新的示例：
+
+```js
+function makeCounter() {
+    var count = 0;
+
+    return function getCurrent() {
+        count = count + 1;
+        return count;
+    };
+}
+
+var hits = makeCounter();
+
+// later
+
+hits();     // 1
+
+// later
+
+hits();     // 2
+hits();     // 3
+```
+
+count 变量被内部的 getCurrent() 函数闭合，这使得它得以保留，而不是被垃圾回收（GC）。hits() 函数访问并更新这个变量，每次调用时返回递增的计数。
+
+尽管<mark>闭包的封闭作用域通常来自一个函数，但实际上并不是必需的；只需要在外部作用域内存在一个内部函数即可</mark>：
+
+```js
+var hits;
+{   // 外部作用域 (但不是函数作用域)
+    let count = 0;
+    hits = function getCurrent(){
+        count = count + 1;
+        return count;
+    };
+}
+hits();     // 1
+hits();     // 2
+hits();     // 3
+```
+
+{/* todo */}
+
+<Callout icon="⚠️" type="warning">
+我故意将 getCurrent() 定义为一个函数表达式，而不是函数声明。这与闭包无关，而是与 FiB 的危险怪癖有关（见第六章）。
+</Callout>
+
+
+由于将闭包误认为是面向值而不是面向变量的情况非常普遍，开发者有时会在尝试使用闭包来快照保留某个时刻的值时绊倒。考虑以下情况：
+
+```js
+var studentName = "Frank";
+
+var greeting = function hello() {
+    // 我们正在关闭“studentName”,
+    // not "Frank"
+    console.log(
+        `Hello, ${ studentName }!`
+    );
+}
+
+// later
+
+studentName = "Suzy";
+
+// later
+
+greeting();
+// Hello, Suzy!
+```
+
+通过定义 greeting()（也叫 hello()）时 studentName 的值为 "Frank"（在重新赋值为 "Suzy" 之前），常常会产生的错误假设是闭包会捕获 "Frank"。但实际上，greeting() 关闭的是变量 studentName，而不是它的值。每当调用 greeting() 时，变量的当前值（在这种情况下为 "Suzy"）会被反映出来。
+
+这种错误的经典示例是在循环内部定义函数：
+
+```js
+var keeps = [];
+
+for (var i = 0; i < 3; i++) {
+    keeps[i] = function keepI(){
+        // closure over `i`
+        return i;
+    };
+}
+
+keeps[0]();   // 3 -- WHY!?
+keeps[1]();   // 3
+keeps[2]();   // 3
+```
+
+<Callout icon="⚠️" type="warning">
+这种闭包示例通常在循环内部使用 setTimeout(..) 或其他回调，例如事件处理程序。我通过将函数引用存储在数组中简化了示例，因此我们不需要考虑异步时序对分析的影响。无论如何，闭包原理是相同的。
+</Callout>
+
+
+你可能会期望 keeps[0]() 的调用返回 0，因为该函数是在循环的第一次迭代中创建的，当时 i 为 0。但这种假设再次源于将闭包视为面向值而非面向变量。
+
+对于 for 循环的结构，有些地方可能会让我们认为每次迭代都有自己的新 i 变量；实际上，该程序只有一个 i，因为它是用 var 声明的。
+
+每个保存的函数返回 3，因为在循环结束时，程序中唯一的 i 变量已被赋值为 3。虽然 keeps 数组中的三个函数确实具有各自的闭包，但它们都是闭合在同一个共享的 i 变量上。
+
+当然，一个单一的变量在任何时刻只能保存一个值。因此，如果你想保留多个值，就需要为每个值使用不同的变量。
+
+那么我们该如何在循环片段中做到这一点呢？让我们为每次迭代创建一个新变量：
+
+```js
+var keeps = [];
+
+for (var i = 0; i < 3; i++) {
+   //每次迭代都会创建新的`j`，它得到
+//此时'i'值的副本
+    let j = i;
+
+    //这里的“我”没有被关闭，所以
+//立即使用它的数据是可以的
+//每次循环迭代中的值
+    keeps[i] = function keepEachJ(){
+        // close over `j`, not `i`!
+        return j;
+    };
+}
+keeps[0]();   // 0
+keeps[1]();   // 1
+keeps[2]();   // 2
+```
+
+每个函数现在都闭合在每次迭代中的一个独立（新）变量上，尽管它们都被命名为 j。每个 j 在循环迭代的那个时刻获得 i 的值的副本；这个 j 从未被重新赋值。因此，所有三个函数现在返回它们预期的值：0、1 和 2！
+
+再次记住，即使我们在这个程序中使用异步，例如将每个内部的 keepEachJ() 函数传递给 setTimeout(..) 或一些事件处理程序，仍然会观察到相同类型的闭包行为。
+
+{/* todo */}
+
+回想一下第五章的“循环”部分，它说明了在 for 循环中，let 声明实际上不仅为循环创建一个变量，而是为每次循环创建一个新变量。这个技巧/怪癖正是我们在循环闭包中需要的：
+
+```js
+var keeps = [];
+
+for (let i = 0; i < 3; i++) {
+   //让我给我们一个新的我
+  //每次迭代都是自动的！
+    keeps[i] = function keepEachI(){
+        return i;
+    };
+}
+keeps[0]();   // 0
+keeps[1]();   // 1
+keeps[2]();   // 2
+```
+
+由于我们使用了 let，所以为每次循环创建了三个 i，因此这三个闭包都能如预期工作。
+
+**常见闭包：Ajax 和事件**
+
+闭包最常见的用法是回调：
+
+```js
+function lookupStudentRecord(studentID) {
+    ajax(
+        `https://some.api/student/${ studentID }`,
+        function onRecord(record) {
+            console.log(
+                `${ record.name } (${ studentID })`
+            );
+        }
+    );
+}
+
+lookupStudentRecord(114);
+// Frank (114)
+```
+
+onRecord(..) 回调将在未来某个时刻被调用，当 Ajax 调用的响应返回后。这一调用将发生在 ajax(..) 工具的内部，无论它来自哪里。此外，当那发生时，lookupStudentRecord(..) 的调用早已完成。
+
+那么，为什么 studentID 仍然存在并可以被回调访问呢？闭包。
+
+事件处理程序是闭包的另一种常见用法：
+
+```js
+function listenForClicks(btn,label) {
+    btn.addEventListener("click",function onClick(){
+        console.log(
+            `The ${ label } button was clicked!`
+        );
+    });
+}
+
+var submitBtn = document.getElementById("submit-btn");
+
+listenForClicks(submitBtn,"Checkout");
+```
+
+标签参数被 onClick(..) 事件处理程序的回调闭合。当按钮被点击时，label 仍然存在，可以被使用。这就是闭包。
+
+**如果我看不见它呢？**
+
+你可能听过这个常见的谚语：
+
+“如果一棵树在森林中倒下，但没有人听到，它会发出声音吗？”
+
+这是一种愚蠢的哲学思考。从科学的角度来看，声波是会产生的。但真正的要点是：声音发生是否重要？
+
+记住，我们对闭包的定义强调的是可观察性。如果一个闭包存在（在技术、实现或学术的意义上），但在我们的程序中无法观察到，它重要吗？不重要。
+
+为了强调这一点，让我们看一些不基于可观察性闭包的示例。
+
+例如，调用一个使用词法作用域查找的函数：
+
+```js
+function say(myName) {
+    var greeting = "Hello";
+    output();
+
+    function output() {
+        console.log(
+            `${ greeting }, ${ myName }!`
+        );
+    }
+}
+
+say("Kyle");
+// Hello, Kyle!
+```
+
+&zwj;<mark>内部函数 output() 访问了来自其封闭作用域的变量 greeting 和 myName。但 output() 的调用发生在同一作用域中，当然 greeting 和 myName 仍然可用；这只是词法作用域，不是闭包。</mark>
+
+任何不支持闭包的词法作用域语言的函数，仍然会以相同的方式工作。
+
+实际上，全局作用域变量本质上不能被（可观察地）闭合，因为它们总是可以从任何地方访问。没有函数可以在不属于全局作用域的任何作用域链部分中被调用。
+
+考虑一下：
+```js
+var students = [
+    { id: 14, name: "Kyle" },
+    { id: 73, name: "Suzy" },
+    { id: 112, name: "Frank" },
+    { id: 6, name: "Sarah" }
+];
+
+function getFirstStudent() {
+    return function firstStudent(){
+        return students[0].name;
+    };
+}
+
+var student = getFirstStudent();
+
+student();
+// Kyle
+```
+
+内部的 firstStudent() 函数确实引用了 students，这是一个超出其自身作用域的变量。但由于 students 恰好来自全局作用域，无论该函数在程序中何处被调用，它访问 students 的能力无非是正常的词法作用域。
+
+所有函数调用都可以访问全局变量，无论语言是否支持闭包。全局变量不需要闭合。
+
+仅仅存在但从未被访问的变量不会导致闭包：
+
+```js
+function lookupStudent(studentID) {
+    return function nobody(){
+        var msg = "Nobody's here yet.";
+        console.log(msg);
+    };
+}
+
+var student = lookupStudent(112);
+
+student();
+// Nobody's here yet.
+
+```
+
+内部函数 nobody() 并不闭合任何外部变量——它只使用自己的变量 msg。尽管 studentID 存在于封闭作用域中，但 nobody() 并没有引用 studentID。因此，JS 引擎在 lookupStudent(..) 运行完成后并不需要保留 studentID，所以垃圾回收希望清理那部分内存！
+
+无论 JS 函数是否支持闭包，这段程序的行为是相同的。因此，这里没有观察到闭包。
+
+如果没有函数调用，就无法观察到闭包：
+
+```js
+function greetStudent(studentName) {
+    return function greeting(){
+        console.log(
+            `Hello, ${ studentName }!`
+        );
+    };
+}
+
+greetStudent("Kyle");
+
+// nothing else happens
+
+```
+
+这有点棘手，因为外部函数确实被调用了。但内部函数是可能拥有闭包的那个，然而它却从未被调用；返回的函数在这里只是被丢弃了。因此，即使从技术上讲，JS 引擎在短暂的时刻创建了闭包，但在这个程序中并没有以任何有意义的方式被观察到。
+
+一棵树可能倒下了……但我们没有听到，所以我们不在乎。
+
+**可观察的定义**
+
+我们现在准备定义闭包：
+
+&zwj;<mark>闭包是在函数使用来自外部作用域的变量时被观察到，即使在那些变量不可访问的作用域中运行。</mark>
+
+这个定义的关键部分是：
+
+- 参与其中必须是一个函数
+- 必须引用至少一个来自外部作用域的变量
+- 必须在与变量的作用域链不同的分支中被调用
+
+这种面向观察的定义意味着我们不应该将闭包视为一些间接的、学术的琐事。相反，我们应该关注并计划闭包对我们程序行为的直接、具体影响。
+
+---
+
+### 闭包的生命周期和垃圾回收（GC）
+
+由于闭包本质上与函数实例相关，它对变量的闭合持续存在，直到仍有对该函数的引用。
+
+如果十个函数都闭合在同一个变量上，随着时间的推移，其中九个函数引用被丢弃，剩下的唯一函数引用仍然保留着那个变量。一旦最后一个函数引用被丢弃，对该变量的最后一个闭包也随之消失，而该变量本身也会被垃圾回收（GC）。
+
+这对构建高效和性能良好的程序有重要影响。闭包可能会意外地阻止已经不再使用的变量被垃圾回收，这导致了长期的内存使用激增。因此，在不再需要函数引用（及其闭包）时，丢弃它们是很重要的。
+
+考虑以下内容：
+
+```js
+function manageBtnClickEvents(btn) {
+    var clickHandlers = [];
+
+    return function listener(cb){
+        if (cb) {
+            let clickHandler =
+                function onClick(evt){
+                    console.log("clicked!");
+                    cb(evt);
+                };
+            clickHandlers.push(clickHandler);
+            btn.addEventListener(
+                "click",
+                clickHandler
+            );
+        }
+        else {
+            //不传递回叫取消订阅
+            //所有点击处理程序
+            for (let handler of clickHandlers) {
+                btn.removeEventListener(
+                    "click",
+                    handler
+                );
+            }
+
+            clickHandlers = [];
+        }
+    };
+}
+
+// var mySubmitBtn = ..
+var onSubmit = manageBtnClickEvents(mySubmitBtn);
+
+onSubmit(function checkout(evt){
+    // handle checkout
+});
+
+onSubmit(function trackAction(evt){
+    // log action to analytics
+});
+
+// later, unsubscribe all handlers:
+onSubmit();
+
+```
+
+在这个程序中，内部的 onClick(..) 函数保持着对传入的 cb（提供的事件回调）的闭包。这意味着 checkout() 和 trackAction() 函数表达式引用通过闭包被保留（无法被垃圾回收），只要这些事件处理程序仍然被订阅。
+
+当我们在最后一行调用 onSubmit() 时，没有输入，所有事件处理程序都被取消订阅，clickHandlers 数组被清空。一旦所有点击处理程序函数引用被丢弃，cb 对 checkout() 和 trackAction() 的闭包也会被丢弃。
+
+在考虑程序的整体健康和效率时，当不再需要事件处理程序时，取消订阅比最初的订阅可能更为重要！
+
+**每个变量还是每个作用域？**
+
+我们还需要解决另一个问题：我们应该把闭包仅视为应用于被引用的外部变量，还是闭包保留整个作用域链及其所有变量？
+
+换句话说，在之前的事件订阅代码片段中，内部的 onClick(..) 函数是仅闭合在 cb 上，还是也闭合在 clickHandler、clickHandlers 和 btn 上？
+
+从概念上讲，闭包是针对变量，而不是针对作用域。Ajax 回调、事件处理程序和所有其他形式的函数闭包通常被认为仅闭合它们明确引用的内容。
+
+但现实比这要复杂得多。
+
+考虑另一个程序：
+
+```js
+function manageStudentGrades(studentRecords) {
+    var grades = studentRecords.map(getGrade);
+
+    return addGrade;
+
+    // ************************
+
+    function getGrade(record){
+        return record.grade;
+    }
+
+    function sortAndTrimGradesList() {
+        // sort by grades, descending
+        grades.sort(function desc(g1,g2){
+            return g2 - g1;
+        });
+
+        // only keep the top 10 grades
+        grades = grades.slice(0,10);
+    }
+
+    function addGrade(newGrade) {
+        grades.push(newGrade);
+        sortAndTrimGradesList();
+        return grades;
+    }
+}
+
+var addNextGrade = manageStudentGrades([
+    { id: 14, name: "Kyle", grade: 86 },
+    { id: 73, name: "Suzy", grade: 87 },
+    { id: 112, name: "Frank", grade: 75 },
+    // ..many more records..
+    { id: 6, name: "Sarah", grade: 91 }
+]);
+
+// later
+
+addNextGrade(81);
+addNextGrade(68);
+// [ .., .., ... ]
+```
+
+外部函数 manageStudentGrades(..) 接收一个学生记录列表，并返回一个 addGrade(..) 函数引用，我们将其外部标记为 addNextGrade(..)。每次调用 addNextGrade(..) 并传入一个新分数时，我们都会得到当前前 10 名分数的列表，按数字降序排列（见 sortAndTrimGradesList()）。
+
+从原始的 manageStudentGrades(..) 调用结束，到多次 addNextGrade(..) 调用之间，grades 变量通过闭包保留在 addGrade(..) 内部；这就是如何维护前分数的运行列表。请记住，它是对变量 grades 本身的闭包，而不是它所持有的数组。
+
+然而，这并不是唯一的闭包。你能发现其他被闭合的变量吗？
+
+你注意到 addGrade(..) 引用了 sortAndTrimGradesList 吗？这意味着它也闭合在那个标识符上，而该标识符恰好持有对 sortAndTrimGradesList() 函数的引用。那个第二个内部函数必须存在，以便 addGrade(..) 可以继续调用它，这也意味着它闭合的任何变量都将保留——虽然在这种情况下，没有额外的闭合变量。
+
+还有什么被闭合？
+
+考虑一下 getGrade 变量（及其函数）；它被闭合了吗？它在 manageStudentGrades(..) 的外部作用域中被引用于 .map(getGrade) 调用。但它并没有在 addGrade(..) 或 sortAndTrimGradesList() 中被引用。
+
+那么传入的（可能很大的）学生记录列表 studentRecords 呢？这个变量被闭合了吗？如果是这样，那么学生记录的数组就永远不会被垃圾回收，这导致这个程序持有的内存量比我们假设的要大。但如果我们仔细观察，内部函数并没有引用 studentRecords。
+
+根据每个变量的闭包定义，由于 getGrade 和 studentRecords 没有被内部函数引用，它们就不被闭合。它们应该在 manageStudentGrades(..) 调用完成后立即可供垃圾回收。
+
+实际上，尝试在最新的 JS 引擎（如 Chrome 的 v8）中调试这段代码，在 addGrade(..) 函数内部放置一个断点。你可能会注意到检查器没有列出 studentRecords 变量。这是一个证据，从调试的角度来看，表明引擎并没有通过闭包维持 studentRecords。好极了！
+
+但这种观察作为证据的可靠性如何？考虑这个（有些牵强的）程序：
+
+```js
+function storeStudentInfo(id,name,grade) {
+    return function getInfo(whichValue){
+        // warning:
+        //   using `eval(..)` is a bad idea!
+        var val = eval(whichValue);
+        return val;
+    };
+}
+
+var info = storeStudentInfo(73,"Suzy",87);
+
+info("name");
+// Suzy
+
+info("grade");
+// 87
+
+```
+
+{/* todo */}
+注意，内部函数 getInfo(..) 并没有明确闭合任何 id、name 或 grade 变量。然而，调用 info(..) 似乎仍然能够访问这些变量，尽管是通过使用 eval(..) 词法作用域作弊（见第一章）。
+
+因此，尽管内部函数没有明确引用，但所有变量通过闭包确实被保留了。那么这是否否定了每个变量的主张，而支持每个作用域的主张？这要看情况。
+
+许多现代 JS 引擎确实应用了一种优化，移除了闭包作用域中未被明确引用的任何变量。然而，正如我们在 eval(..) 中看到的，有些情况下无法应用这种优化，闭包作用域继续包含其所有原始变量。换句话说，从实现的角度来看，闭包必须是每个作用域的，然后可选的优化会修剪作用域，仅保留所闭合的部分（与每个变量闭包的结果类似）。
+
+即使在几年前，许多 JS 引擎并没有应用这种优化；你的网页可能仍在此类浏览器中运行，特别是在旧设备或低端设备上。这意味着，像事件处理程序这样的长生命周期闭包可能会比我们假设的更长时间持有内存。
+
+而且它是可选的优化，而不是规范的要求，这意味着我们不应该轻易假设它的适用性。
+
+在变量持有较大值（如对象或数组）的情况下，如果该变量存在于闭包作用域中，若你不再需要该值并且不希望占用该内存，手动丢弃该值通常是更安全的（内存使用）做法，而不是依赖于闭包优化/垃圾回收。
+
+让我们对早期的 manageStudentGrades(..) 示例进行修复，以确保传入的可能大型数组 studentRecords 不会不必要地被困在闭包作用域中：
+
+```js
+function manageStudentGrades(studentRecords) {
+    var grades = studentRecords.map(getGrade);
+
+  //取消设置“studentRecords”以防止不必要的
+  //闭包中的记忆保留
+    studentRecords = null;
+
+    return addGrade;
+    // ..
+}
+```
+
+我们并没有从闭包作用域中移除 studentRecords；这是我们无法控制的。我们确保即使 studentRecords 仍留在闭包作用域中，该变量也不再引用可能的大型数据数组；该数组可以被垃圾回收。
+
+同样，在许多情况下，JS 可能会自动优化程序，以达到相同的效果。但小心并明确确保我们不再占用任何显著的设备内存，始终是个好习惯。
+
+事实上，在 .map(getGrade) 调用完成后，我们技术上也不再需要 getGrade() 函数。如果对我们的应用程序进行分析显示这是一个关键的过度内存使用区域，我们可能会进一步释放出一点内存，使其值不再被占用。虽然在这个玩具示例中可能不必要，但这是在优化应用程序内存占用时需要记住的一般技巧。
+
+结论:了解闭包在我们程序中出现的位置，以及包含哪些变量是重要的。我们应该仔细管理这些闭包，以仅保留最低限度所需的内容，而不浪费内存。
+
+### 替代观点
+
+回顾我们对闭包的工作定义，断言函数是“第一类值”，可以像其他值一样在程序中传递。闭包是将该函数与其外部作用域/变量连接的关联，无论该函数去往何处。
+
+让我们回忆一下本章早些时候的代码示例，再次标注相关的作用域泡泡颜色：
+
+```js
+// outer/global scope: RED(1)
+
+function adder(num1) {
+    // function scope: BLUE(2)
+
+    return function addTo(num2){
+        // function scope: GREEN(3)
+
+        return num1 + num2;
+    };
+}
+
+var add10To = adder(10);
+var add42To = adder(42);
+
+add10To(15);    // 25
+add42To(9);     // 51
+```
+
+我们目前的观点表明，无论函数被传递和调用到哪里，闭包都会保留一个隐藏的链接，回到原始作用域，以便访问闭合的变量。图 4 在这里重复，为了方便起见，展示了这一概念：
+
+![Fig. 4: Visualizing Closures](/assets/images/books/know-js/scope-closures/fig4.png)
+
+但还有另一种看待闭包的方式，更精确地说，是关于函数被传递的本质，这可能有助于深化思维模型。
+
+{/* todo */}
+这种替代模型降低了“函数作为第一类值”的重要性，而是接受了函数（就像所有非原始值一样）在 JS 中是通过引用持有的，并通过引用复制进行分配/传递——有关更多信息，请参见《入门书》的附录 A。
+
+与其认为 addTo(..) 的内部函数实例通过返回和赋值移动到外部的红色(1)作用域，我们可以想象函数实例实际上只是保持在它们自己的作用域环境中，当然它们的作用域链保持不变。
+
+发送到红色(1)作用域的只是对原地函数实例的引用，而不是函数实例本身。图 5 描绘了内部函数实例保持在原地，分别由红色(1)的 addTo10 和 addTo42 引用指向：
+
+![Fig. 4: Visualizing Closures](/assets/images/books/know-js/scope-closures/fig5.png)
+
+
+如图 5 所示，每次调用 adder(..) 仍然会创建一个新的蓝色(2)作用域，其中包含一个 num1 变量，以及一个绿色(3)的 addTo(..) 作用域实例。但与图 4 不同的是，现在这些绿色(3)实例保持在原地，自然嵌套在它们的蓝色(2)作用域实例中。addTo10 和 addTo42 引用被移动到红色(1)外部作用域，而不是函数实例本身。
+
+当调用 addTo10(15) 时，addTo(..) 函数实例（仍然在其原始蓝色(2)作用域环境中）被调用。由于函数实例本身从未移动，因此它当然仍然自然访问其作用域链。addTo42(9) 的调用也是如此——在词法作用域之外没有特别之处。
+
+那么，如果闭包不是让函数在其他作用域中移动时保持与其原始作用域链的连接的魔法，那么闭包是什么呢？在这种替代模型中，函数保持在原地，并像以前一样访问其原始作用域链。
+
+闭包描述的是保持一个函数实例以及其整个作用域环境和链的魔法，只要在程序的任何其他部分仍然有至少一个对该函数实例的引用存在。
+
+这个闭包的定义在观察性上较少，并且与传统的学术观点相比听起来有些陌生。但它仍然是有用的，因为它简化了对闭包的解释，使其成为引用和原地函数实例的简单组合。
+
+前一种模型（图 4）在描述 JS 中的闭包时并不错误。它只是更具概念性的，是对闭包的学术视角。相比之下，替代模型（图 5）可以被描述为更加关注实现的角度，反映了 JS 实际的工作方式。
+
+这两种观点/模型在理解闭包时都是有用的，但读者可能会发现其中一种比另一种更容易理解。无论你选择哪一种，我们程序中的可观察结果都是相同的。
+
+
+
+<Callout icon="⚠️" type="warning">
+
+这种替代模型对闭包的看法影响了我们是否将同步回调归类为闭包的示例。有关这种细微差别的更多信息，请参见附录 A。
+
+</Callout>
+
+### 为什么闭包？
+
+现在我们对闭包有了全面的理解，接下来让我们探索一些可以改善示例程序的代码结构和组织方式。
+
+想象一下，你在页面上有一个按钮，点击它后应该通过 Ajax 请求获取并发送一些数据。没有使用闭包的情况下：
+
+```js
+var APIendpoints = {
+    studentIDs:
+        "https://some.api/register-students",
+    // ..
+};
+
+var data = {
+    studentIDs: [ 14, 73, 112, 6 ],
+    // ..
+};
+
+function makeRequest(evt) {
+    var btn = evt.target;
+    var recordKind = btn.dataset.kind;
+    ajax(
+        APIendpoints[recordKind],
+        data[recordKind]
+    );
+}
+
+// <button data-kind="studentIDs">
+//    Register Students
+// </button>
+btn.addEventListener("click",makeRequest);
+```
+
+makeRequest(..) 工具只接收来自点击事件的 evt 对象。然后，它必须从目标按钮元素中检索 data-kind 属性，并使用该值查找 API 端点的 URL 以及应包含在 Ajax 请求中的数据。
+
+这可以正常工作，但不幸的是（效率低下，更加混乱），事件处理程序每次触发时都必须读取 DOM 属性。为什么事件处理程序不能记住这个值呢？让我们尝试使用闭包来改善代码：
+
+```js
+var APIendpoints = {
+    studentIDs:
+        "https://some.api/register-students",
+    // ..
+};
+
+var data = {
+    studentIDs: [ 14, 73, 112, 6 ],
+    // ..
+};
+
+function setupButtonHandler(btn) {
+    var recordKind = btn.dataset.kind;
+
+    btn.addEventListener(
+        "click",
+        function makeRequest(evt){
+            ajax(
+                APIendpoints[recordKind],
+                data[recordKind]
+            );
+        }
+    );
+}
+
+// <button data-kind="studentIDs">
+//    Register Students
+// </button>
+
+setupButtonHandler(btn);
+```
+
+使用 setupButtonHandler(..) 方法，data-kind 属性在初始设置时被检索并分配给 recordKind 变量。然后，recordKind 被内部的 makeRequest(..) 点击处理程序闭合，其值在每次事件触发时用于查找应发送的 URL 和数据。
+
+<Callout icon="⚠️" type="warning">
+ evt 仍然传递给 makeRequest(..)，尽管在这种情况下我们不再使用它。它仍然被列出，以保持与前一个代码片段的一致性。
+</Callout>
+
+
+
+通过将 recordKind 放在 setupButtonHandler(..) 内部，我们将该变量的作用域暴露限制在程序的更合适的子集；将其存储为全局变量会更糟，影响代码的组织性和可读性。闭包让内部的 makeRequest() 函数实例记住这个变量，并在需要时访问它。
+
+在这个模式的基础上，我们可以在设置时查找 URL 和数据：
+
+```js
+function setupButtonHandler(btn) {
+    var recordKind = btn.dataset.kind;
+    var requestURL = APIendpoints[recordKind];
+    var requestData = data[recordKind];
+
+    btn.addEventListener(
+        "click",
+        function makeRequest(evt){
+            ajax(requestURL,requestData);
+        }
+    );
+}
+```
+
+现在 makeRequest(..) 被闭合在 requestURL 和 requestData 中，这样理解起来更加清晰，同时也略微提高了性能。
+
+来自函数式编程（FP）范式的两种类似技术，部分应用和柯里化，依赖于闭包。简而言之，通过这些技术，我们改变需要多个输入的函数形状，以便某些输入提前提供，而其他输入稍后提供；初始输入通过闭包被记住。一旦所有输入都提供了，底层操作就会执行。
+
+通过创建一个封装了一些信息的函数实例（通过闭包），该存储信息的函数可以在之后直接使用，而不需要重新提供该输入。这使得代码的这一部分更加简洁，并且提供了将部分应用函数标记为更具语义名称的机会。
+
+通过适应部分应用，我们可以进一步改善之前的代码：
+
+```js
+function defineHandler(requestURL,requestData) {
+    return function makeRequest(evt){
+        ajax(requestURL,requestData);
+    };
+}
+
+function setupButtonHandler(btn) {
+    var recordKind = btn.dataset.kind;
+    var handler = defineHandler(
+        APIendpoints[recordKind],
+        data[recordKind]
+    );
+    btn.addEventListener("click",handler);
+}
+```
+
+requestURL 和 requestData 输入提前提供，结果是 makeRequest(..) 被部分应用，且我们将其本地标记为 handler。当事件最终触发时，最后一个输入（evt，尽管被忽略）被传递给 handler()，完成其输入并触发底层的 Ajax 请求。
+
+在行为上，这个程序与之前的程序相似，具有相同类型的闭包。但通过将 makeRequest(..) 的创建隔离在一个单独的工具（defineHandler(..)）中，我们使该定义在整个程序中更具可重用性。我们还明确限制了闭包作用域，仅限于两个所需的变量。
+
+### 进一步理解闭包
+
+当我们结束这一密集的章节时，深呼吸一下，让一切都沉淀下来。说真的，这对任何人来说都是很多信息！
+
+我们探索了两种心理处理闭包的模型：
+
+- 观察性：闭包是函数实例记住其外部变量，即使该函数被传递到其他作用域并被调用。
+- 实现性：闭包是函数实例及其作用域环境在原地被保留，而对它的任何引用则被传递和调用。
+
+总结我们程序的好处：
+
+- 闭包可以通过允许函数实例记住先前确定的信息，而不是每次都计算它，从而提高效率。
+- 闭包可以提高代码可读性，通过将变量封装在函数实例中，限制作用域暴露，同时确保这些变量中的信息可供将来使用。结果是，保存的信息不需要在每次调用时传递，更加专门化的函数实例更易于交互。
+
+在继续之前，花一些时间用自己的话重述这个总结，解释什么是闭包以及它在程序中为什么有用。书中的主要文本以一章建立在闭包之上的模块模式作为结尾。

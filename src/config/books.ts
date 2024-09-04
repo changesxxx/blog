@@ -116,6 +116,11 @@ export const books = [
             href: "/read-together/details/dont-know-js/scope-closures-ch6", //真实的地址
             name: "scope-closures-ch6", //用于寻找对应的doc 和拼接动态路径所需
           },
+          {
+            title: "使用闭包",
+            href: "/read-together/details/dont-know-js/scope-closures-ch7", //真实的地址
+            name: "scope-closures-ch7", //用于寻找对应的doc 和拼接动态路径所需
+          },
         ],
       },
       {
