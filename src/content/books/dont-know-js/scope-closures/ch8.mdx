@@ -1,0 +1,404 @@
+---
+title: "模块模式"
+description: "在本章中，我们通过探索所有编程中最重要的代码组织模式之一——模块，来结束本书的主要内容。正如我们将看到的，模块本质上是基于我们已经覆盖的内容：学习词法作用域和闭包所带来的回报。
+
+我们已经从广泛的全局作用域到嵌套块作用域，深入研究了变量生命周期的复杂性，全面审视了词法作用域。然后，我们利用词法作用域理解闭包的全部力量。
+
+花一点时间反思一下你在这段旅程中走了多远；你在更深入了解 JavaScript 方面迈出了重要的一步！
+
+本书的核心主题是，理解和掌握作用域和闭包是正确构建和组织代码的关键，尤其是在决定将信息存储在哪些变量时。
+
+我们在最后一章的目标是欣赏模块如何体现这些主题的重要性，将它们从抽象概念提升为构建程序的具体、实用的改进。"
+name: "scope-closures-ch8"
+---
+
+### 封装和最小暴露（POLE）
+
+封装通常被视为面向对象（OO）编程的原则，但它比这更基础且适用广泛。封装的目标是将信息（数据）和行为（函数）打包或共同定位，这些信息和行为共同服务于一个共同的目的。
+
+无论任何语法或代码机制，封装的精神都可以通过使用单独的文件来实现，以保存整体程序中具有共同目的的部分。如果我们将驱动搜索结果列表的所有内容打包到一个名为 "search-list.js" 的文件中，我们就是在封装程序的这一部分。
+
+现代前端编程中围绕组件架构组织应用程序的趋势进一步推动了封装。对于许多人来说，将构成搜索结果列表的所有内容（甚至超出代码，包括呈现的标记和样式）整合到一个单元的程序逻辑中，形成一个我们可以交互的有形集合，感觉是自然而然的。然后我们将这个集合标记为 "SearchList" 组件。
+
+{/* todo */}
+另一个关键目标是控制某些封装数据和功能方面的可见性。回想一下第六章的最小暴露原则（POLE），它旨在防御性地防止作用域过度暴露的各种危险；这些影响到变量和函数。在 JavaScript 中，我们最常通过词法作用域的机制实现可见性控制。
+
+这个想法是将相似的程序部分归类在一起，并有选择性地限制程序对我们认为是私有细节的访问。未被视为私有的部分则被标记为公共，对整个程序可访问。
+
+这种努力的自然效果是更好的代码组织。当我们知道事物在哪里，有清晰而明显的边界和连接点时，构建和维护软件变得更容易。如果我们避免数据和功能的过度暴露陷阱，也更容易维护质量。
+
+这些是将 JavaScript 程序组织成模块的一些主要好处。
+
+---
+
+### 什么是模块？
+
+&zwj;<mark>模块是一组相关的数据和函数（在此上下文中通常称为方法），其特征是隐藏的私有细节和公共可访问细节之间的划分，通常称为“公共 API”。</mark>
+
+模块也是有状态的：它在一段时间内维护一些信息，并具备访问和更新该信息的功能。
+
+<Callout icon="💡" type="info">
+模块模式的更广泛关注是通过松耦合和其他程序架构技术充分拥抱系统级模块化。这是一个复杂的话题，远远超出我们讨论的范围，但值得在本书之外进一步研究。
+</Callout>
+
+
+
+为了更好地理解模块是什么，让我们将一些模块特征与不完全是模块的有用代码模式进行比较。
+
+**命名空间（无状态分组）**
+
+如果你将一组相关的函数组合在一起，而没有数据，那么你就没有真正意味着封装的模块。更好的术语是命名空间：
+
+```js
+// namespace, not module
+var Utils = {
+    cancelEvt(evt) {
+        evt.preventDefault();
+        evt.stopPropagation();
+        evt.stopImmediatePropagation();
+    },
+    wait(ms) {
+        return new Promise(function c(res){
+            setTimeout(res,ms);
+        });
+    },
+    isValidEmail(email) {
+        return /[^@]+@[^@.]+\.[^@.]+/.test(email);
+    }
+};
+```
+这里的 Utils 是一个有用的工具集合，但它们都是无状态函数。将功能聚集在一起通常是良好的实践，但这并不意味着它是一个模块。相反，我们定义了一个 Utils 命名空间，并在其中组织了这些函数。
+
+**数据结构（有状态分组）**
+
+即使你将数据和有状态的函数打包在一起，如果你不限制它们的可见性，那么你就没有达到封装的最小暴露（POLE）方面；将其标记为模块并没有特别的帮助。
+
+考虑一下：
+```js
+// data structure, not module
+var Student = {
+    records: [
+        { id: 14, name: "Kyle", grade: 86 },
+        { id: 73, name: "Suzy", grade: 87 },
+        { id: 112, name: "Frank", grade: 75 },
+        { id: 6, name: "Sarah", grade: 91 }
+    ],
+    getName(studentID) {
+        var student = this.records.find(
+            student => student.id == studentID
+        );
+        return student.name;
+    }
+};
+
+Student.getName(73);
+// Suzy
+```
+
+由于 records 是公开可访问的数据，而不是隐藏在公共 API 后面，因此这里的 Student 实际上并不是一个模块。
+
+Student 确实具有数据和功能的封装特性，但<mark>没有可见性控制的特性。最好将其标记为数据结构的一个实例。</mark>
+
+**模块（有状态访问控制）**
+
+要体现模块模式的全部精神，我们不仅需要分组和状态，还需要通过可见性进行访问控制（私有与公共）。
+
+让我们将上一个部分中的 Student 变成一个模块。我们将从我称之为“经典模块”的形式开始，该形式在 2000 年代初首次出现时被称为“揭示模块”。考虑以下内容：
+
+```js
+var Student = (function defineStudent(){
+    var records = [
+        { id: 14, name: "Kyle", grade: 86 },
+        { id: 73, name: "Suzy", grade: 87 },
+        { id: 112, name: "Frank", grade: 75 },
+        { id: 6, name: "Sarah", grade: 91 }
+    ];
+
+    var publicAPI = {
+        getName
+    };
+
+    return publicAPI;
+
+    // ************************
+
+    function getName(studentID) {
+        var student = records.find(
+            student => student.id == studentID
+        );
+        return student.name;
+    }
+})();
+
+Student.getName(73);   // Suzy
+```
+
+Student 现在是一个模块的实例。它具有一个公共 API，包含一个方法：getName(..)。这个方法能够访问私有隐藏的 records 数据。
+
+
+<Callout icon="⚠️" type="warning">
+我需要指出，显式的学生数据硬编码在这个模块定义中仅用于说明目的。你程序中的典型模块通常会从外部源接收这些数据，通常是从数据库、JSON 数据文件、Ajax 调用等加载。数据通常通过模块公共 API 上的方法注入到模块实例中。
+</Callout>
+
+
+经典模块格式如何工作？
+
+注意，模块的实例是通过执行 defineStudent() 立即调用函数表达式（IIFE）创建的。这个 IIFE 返回一个对象（命名为 publicAPI），该对象上有一个属性引用内部的 getName(..) 函数。
+
+{/* todo */}
+将对象命名为 publicAPI 是我个人的风格选择。这个对象可以随意命名（JavaScript 不在乎），或者你可以直接返回一个对象，而不分配给任何内部命名变量。关于这个选择的更多内容请参见附录 A。
+
+从外部调用 Student.getName(..) 会调用这个暴露的内部函数，该函数通过闭包维护对内部 records 变量的访问。
+
+你不必返回一个对象，其中一个属性是函数。你可以直接返回一个函数，替代对象。这仍然满足经典模块的所有核心特性。
+
+&zwj;<mark>由于词法作用域的工作原理，在外部模块定义函数内部定义的变量和函数默认都是私有的。只有被添加到从函数返回的公共 API 对象上的属性才会导出供外部公共使用。</mark>
+
+使用 IIFE 意味着我们的程序只需要一个模块的单一中心实例，通常称为“单例”。实际上，这个特定的例子足够简单，没有明显的理由需要超过一个 Student 模块的实例。
+
+**模块工厂（多个实例）**
+
+但是，如果我们想定义一个支持程序中多个实例的模块，我们可以稍微调整代码：
+```js
+// factory function, not singleton IIFE
+function defineStudent() {
+    var records = [
+        { id: 14, name: "Kyle", grade: 86 },
+        { id: 73, name: "Suzy", grade: 87 },
+        { id: 112, name: "Frank", grade: 75 },
+        { id: 6, name: "Sarah", grade: 91 }
+    ];
+
+    var publicAPI = {
+        getName
+    };
+
+    return publicAPI;
+
+    // ************************
+
+    function getName(studentID) {
+        var student = records.find(
+            student => student.id == studentID
+        );
+        return student.name;
+    }
+}
+
+var fullTime = defineStudent();
+fullTime.getName(73);            // Suzy
+```
+
+我们不再将 defineStudent() 指定为立即调用函数表达式（IIFE），而是将其定义为一个普通的独立函数，在这个上下文中通常称为“模块工厂”函数。
+
+然后我们调用这个模块工厂，生成一个我们标记为 fullTime 的模块实例。这个模块实例隐含着一个新的内部作用域，因此 getName(..) 持有对 records 的新闭包。现在，fullTime.getName(..) 调用该特定实例上的方法。
+
+**经典模块定义**
+
+为了明确什么构成经典模块，必须满足以下条件：
+
+- <mark>必须有一个外部作用域，通常是从至少运行一次的模块工厂函数中产生的。</mark>
+- <mark>模块的内部作用域必须至少包含一条隐藏的信息，表示模块的状态。</mark>
+- <mark>模块必须在其公共 API 中返回对至少一个具有闭包的函数的引用，该函数可以访问隐藏的模块状态（以确保该状态实际上被保留）。</mark>
+{/* todo */}
+你可能会遇到其他变体的经典模块方法，我们将在附录 A 中更详细地讨论。
+
+---
+
+### Node CommonJS 模块
+
+在第四章中，我们介绍了 Node 使用的 CommonJS 模块格式。与之前描述的经典模块格式不同，在经典模块格式中，你可以将模块工厂或 IIFE 与其他代码（包括其他模块）捆绑在一起，而 CommonJS 模块是基于文件的；每个模块对应一个文件。
+
+让我们调整我们的模块示例，以符合该格式：
+
+```js
+module.exports.getName = getName;
+
+// ************************
+
+var records = [
+    { id: 14, name: "Kyle", grade: 86 },
+    { id: 73, name: "Suzy", grade: 87 },
+    { id: 112, name: "Frank", grade: 75 },
+    { id: 6, name: "Sarah", grade: 91 }
+];
+
+function getName(studentID) {
+    var student = records.find(
+        student => student.id == studentID
+    );
+    return student.name;
+}
+```
+records 和 getName 标识符位于这个模块的顶层作用域，但这并不是全局作用域（如第四章所解释的）。因此，这里的所有内容默认都是模块私有的。
+
+要在 CommonJS 模块的公共 API 上暴露某个内容，你需要向提供的空对象 module.exports 添加一个属性。在一些旧的遗留代码中，你可能会看到仅引用 exports，但为了代码的清晰性，你应该始终使用 module. 前缀来完全限定该引用。
+
+出于风格原因，我喜欢将我的“导出”放在顶部，而将模块实现放在底部。但这些导出可以放在任何地方。我强烈建议将它们全部集中在一起，放在文件的顶部或底部。
+
+一些开发者习惯于替换默认的导出对象，像这样：
+```js
+// defining a new object for the API
+module.exports = {
+    // ..exports..
+};
+```
+
+这种做法有一些特殊情况，包括当多个这样的模块相互循环依赖时可能会出现意外行为。因此，我不推荐替换该对象。如果你想一次性分配多个导出，可以使用对象字面量的方式定义，如下所示：
+```js
+Object.assign(module.exports,{
+   // .. exports ..
+});
+```
+
+这里发生的事情是定义了一个 `{ .. }` 对象字面量，指定了模块的公共 API，然后 Object.assign(..) 正在对现有的 module.exports 对象进行浅拷贝，而不是替换它。这是一种便利性与更安全的模块行为之间的良好平衡。
+
+要将另一个模块实例包含到你的模块/程序中，可以使用 Node 的 require(..) 方法。假设这个模块位于 /path/to/student.js，我们可以这样访问它：
+
+```js
+var Student = require("/path/to/student.js");
+
+Student.getName(73);
+// Suzy
+```
+
+Student 现在引用了我们示例模块的公共 API。
+
+CommonJS 模块的行为类似于之前呈现的 IIFE 模块定义风格，作为单例实例。无论你调用多少次 require(..) 同一个模块，你都只会获得对单一共享模块实例的额外引用。
+
+require(..) 是一种全有或全无的机制；它包含了模块整个暴露的公共 API 的引用。要有效访问 API 的某一部分，通常的做法是这样的：
+
+```js
+var getName = require("/path/to/student.js").getName;
+
+// or alternately:
+
+var { getName } = require("/path/to/student.js");
+```
+
+类似于经典模块格式，CommonJS 模块 API 的公共导出方法持有对内部模块细节的闭包。这就是模块单例状态在程序生命周期内得以维护的方式。
+
+<Callout icon="💡" type="info">
+在 Node 中的 require("student") 语句中，非绝对路径（"student"）假定有一个 ".js" 文件扩展名，并在 "node_modules" 中搜索。
+</Callout>
+
+---
+
+### 现代 ES 模块（ESM）
+
+ESM 格式与 CommonJS 格式有几个相似之处。ESM 是基于文件的，模块实例是单例，默认情况下所有内容都是私有的。一个显著的不同之处在于，ESM 文件被假定为严格模式，无需在顶部添加 "use strict" 的声明。<mark>没有办法将 ESM 定义为非严格模式。</mark>
+
+&zwj;<mark>在 CommonJS 中使用 module.exports，而 ESM 使用 export 关键字在模块的公共 API 上暴露某个内容。import 关键字替代了 require(..) 语句。</mark>让我们调整一下 "students.js" 以使用 ESM 格式：
+
+```js
+export { getName };
+
+// ************************
+
+var records = [
+    { id: 14, name: "Kyle", grade: 86 },
+    { id: 73, name: "Suzy", grade: 87 },
+    { id: 112, name: "Frank", grade: 75 },
+    { id: 6, name: "Sarah", grade: 91 }
+];
+
+function getName(studentID) {
+    var student = records.find(
+        student => student.id == studentID
+    );
+    return student.name;
+}
+```
+
+这里唯一的变化是 `export { getName }` 语句。与之前一样，<mark>export 语句可以出现在文件的任何地方，但必须在顶层作用域中；它不能在任何其他块或函数内部。</mark>
+
+ESM 提供了多种导出语句的变体。例如：
+
+```js
+export function getName(studentID) {
+    // ..
+}
+```
+
+{/* todo */}
+
+尽管 export 出现在 function 关键字之前，但这种形式仍然是一个函数声明，同时也被导出。也就是说，getName 标识符是函数提升的（见第五章），因此它在整个模块的作用域内都是可用的。
+
+另一个允许的变体：
+
+```js
+export default function getName(studentID) {
+    // ..
+}
+```
+
+&zwj;<mark>这被称为“默认导出”，其语义与其他导出不同。实质上，“默认导出”是模块消费者在导入时的一种简写方式，给他们提供了更简洁的语法，当他们只需要这个单一的默认 API 成员时。</mark>
+
+&zwj;<mark>非默认导出被称为“命名导出”。</mark>
+
+`import` 关键字——与 `export` 一样，只能在 ESM 的顶层使用，不能在任何块或函数内——也有多种语法变体。第一种被称为“命名导入”：
+
+```js
+import { getName } from "/path/to/students.js";
+
+getName(73);   // Suzy
+
+```
+
+如你所见，这种形式仅导入模块中特定命名的公共 API 成员（跳过任何未明确命名的内容），并将这些标识符添加到当前模块的顶层作用域中。这种类型的导入对习惯于像 Java 这样的语言中的包导入的人来说非常熟悉。
+
+多个 API 成员可以在 ` { .. }` 集合中列出，用逗号分隔。命名导入也可以通过 as 关键字进行重命名：
+
+```js
+import { getName as getStudentName }
+   from "/path/to/students.js";
+
+getStudentName(73);
+// Suzy
+```
+
+如果 getName 是模块的“默认导出”，我们可以这样导入它：
+
+```js
+import getName from "/path/to/students.js";
+
+getName(73);   // Suzy
+```
+
+这里唯一的区别是省略了导入绑定周围的` { }`。如果你想将默认导入与其他命名导入混合使用：
+
+```js
+import { default as getName, /* .. others .. */ }
+   from "/path/to/students.js";
+
+getName(73);   // Suzy
+```
+
+相比之下，导入的另一个主要变体被称为“命名空间导入”：
+
+```js
+import * as Student from "/path/to/students.js";
+
+Student.getName(73);   // Suzy
+
+```
+
+显而易见，* 导入了所有导出的 API，包括默认导出和命名导出，并将它们都存储在指定的单一命名空间标识符下。这种方法与大多数 JavaScript 历史中的经典模块形式最为接近。
+
+<Callout icon="💡" type="info">
+在撰写本文时，现代浏览器已经支持 ESM 几年了，但 Node 对 ESM 的相对稳定支持则比较近期，并且一直在不断演进。这种演变可能会继续一年或更长时间；在 ES6 中引入 ESM 为 Node 与 CommonJS 模块的互操作性带来了许多挑战性的兼容性问题。请参考 Node 的 ESM 文档以获取所有最新细节：[Node ESM 文档](https://nodejs.org/api/esm.html)。
+</Callout>
+
+---
+
+### 退出范围
+
+无论你使用经典模块格式（浏览器或 Node）、CommonJS 格式（在 Node 中）还是 ESM 格式（浏览器或 Node），模块都是组织和结构化程序功能和数据的最有效方式之一。
+
+模块模式是我们在本书中学习如何利用词法作用域的规则，将变量和函数放置在适当位置的最终结论。POLE 是我们始终采用的防御性私有默认姿态，确保我们避免过度暴露，并仅与必要的最小公共 API 表面面积进行交互。
+
+&zwj;<mark>在模块的背后，所有模块状态的维护魔力在于利用词法作用域系统的闭包。</mark>
+
+这就是主要内容。祝贺你走过了这段旅程！正如我在整个过程中多次提到的，暂停、反思并实践我们刚讨论的内容是个好主意。
+
+当你感到舒适并准备好后，请查看附录，这些附录深入探讨了这些主题的一些角落，并通过一些练习题挑战你，以巩固你所学到的知识。

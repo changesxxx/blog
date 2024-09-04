@@ -121,6 +121,21 @@ export const books = [
             href: "/read-together/details/dont-know-js/scope-closures-ch7", //真实的地址
             name: "scope-closures-ch7", //用于寻找对应的doc 和拼接动态路径所需
           },
+          {
+            title: "模块模式",
+            href: "/read-together/details/dont-know-js/scope-closures-ch8", //真实的地址
+            name: "scope-closures-ch8", //用于寻找对应的doc 和拼接动态路径所需
+          },
+          {
+            title: "附录A:深入探索",
+            href: "/read-together/details/dont-know-js/scope-closures-apA", //真实的地址
+            name: "scope-closures-apA", //用于寻找对应的doc 和拼接动态路径所需
+          },
+          {
+            title: "附录B:练习",
+            href: "/read-together/details/dont-know-js/scope-closures-apB", //真实的地址
+            name: "scope-closures-apB", //用于寻找对应的doc 和拼接动态路径所需
+          },
         ],
       },
       {
