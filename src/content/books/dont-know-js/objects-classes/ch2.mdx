@@ -1,0 +1,538 @@
+---
+title: "对象的工作原理"
+description: "对象不仅仅是多个值的容器，尽管在大多数与对象的交互中，这确实是主要的上下文。
+
+要全面理解 JavaScript 中对象的机制，并充分利用对象在程序中的使用，我们需要更仔细地观察一些特性。这些特性影响对象在交互时的行为。
+
+这些定义对象底层行为的特性统称为“元对象协议”（Metaobject Protocol, MOP）。MOP 不仅有助于理解对象的行为，还可以覆盖对象的默认行为，以更好地适应我们程序的需求。"
+
+name: "objects-classes-ch2"
+---
+
+
+
+### 属性描述符
+
+对象上的每个属性在内部都由一个称为“属性描述符”的对象描述。这个描述符本身也是一个对象（即“元对象”），包含几个属性（即“属性”），决定了目标属性的行为。
+
+我们可以使用 Object.getOwnPropertyDescriptor(..)（ES5）来检索任何现有属性的属性描述符：
+
+```js
+myObj = {
+    favoriteNumber: 42,
+    isDeveloper: true,
+    firstName: "Kyle"
+};
+
+Object.getOwnPropertyDescriptor(myObj,"favoriteNumber");
+// {
+//     value: 42,
+//     enumerable: true,
+//     writable: true,
+//     configurable: true
+// }
+```
+
+我们甚至可以使用这样的描述符，通过 Object.defineProperty(..)（ES5）在对象上定义新属性：
+
+```js
+anotherObj = {};
+
+Object.defineProperty(anotherObj,"fave",{
+    value: 42,
+    enumerable: true,     // 默认省略
+    writable: true,       //默认省略
+    configurable: true    //默认省略
+});
+
+anotherObj.fave;          // 42
+```
+
+如果现有属性尚未标记为不可配置（在其描述符中设置 configurable: false），则可以始终使用 Object.defineProperty(..) 重新定义/覆盖它。
+
+
+<Callout icon="⚠️" type="warning">
+本章的许多早期部分提到“复制”或“重复”属性。可能会假设这种复制/重复会在属性描述符级别进行。然而，实际上没有这些操作以这种方式工作；它们都只是简单的 = 样式访问和赋值，这会忽略属性底层描述符的定义中的任何细微差别。
+</Callout>
+
+
+
+尽管在实际使用中不常见，但我们甚至可以一次定义多个属性，每个属性都有自己的描述符：
+
+```js
+anotherObj = {};
+
+Object.defineProperties(anotherObj,{
+    "fave": {
+        // 属性描述符
+    },
+    "superFave": {
+        // 属性描述符
+    }
+});
+```
+
+这种用法并不常见，因为很少需要特别控制多个属性的定义。但在某些情况下，它可能会很有用。
+
+**访问器属性**
+
+属性描述符通常定义一个值属性，正如上面所示。然而，可以定义一种特殊类型的属性，称为“访问器属性”（即 getter/setter）。对于这些属性，其描述符并不定义固定的值属性，而是看起来像这样：
+
+```js
+{
+    get() { .. },    // 检索值时要调用的函数
+    set(v) { .. },   // 赋值时要调用的函数
+    // ..可枚举等
+}
+```
+
+getter 看起来像是属性访问（obj.prop），但在内部调用定义的 get() 方法；这有点像调用 obj.prop()。setter 看起来像是属性赋值（obj.prop = value），但它调用定义的 set(..) 方法；这有点像调用 obj.prop(value)。
+
+让我们来说明一个 getter/setter 访问器属性：
+
+```js
+anotherObj = {};
+
+Object.defineProperty(anotherObj,"fave",{
+    get() { console.log("Getting 'fave' value!"); return 123; },
+    set(v) { console.log(`Ignoring ${v} assignment.`); }
+});
+
+anotherObj.fave;
+// Getting 'fave' value!
+// 123
+
+anotherObj.fave = 42;
+// Ignoring 42 assignment.
+
+anotherObj.fave;
+// Getting 'fave' value!
+// 123
+```
+
+**可枚举、可写、可配置**
+
+除了值或 get() / set(..)，属性描述符的其他三个属性是（如上所示）：
+
+- 可枚举（enumerable）：控制属性是否会出现在对象属性的各种枚举中，例如 Object.keys(..)、Object.entries(..)、for..in 循环，以及通过 ... 对象扩展和 Object.assign(..) 进行的复制。大多数属性应该保持可枚举，但可以将某些特殊属性标记为不可枚举，以便它们不会被迭代/复制。
+
+- 可写（writable）：控制是否允许值赋值（通过 =）。要使属性“只读”，可以将其定义为 writable: false。但是，只要属性仍然是可配置的，Object.defineProperty(..) 仍然可以通过设置不同的值来更改该属性的值。
+
+- 可配置（configurable）：控制属性的描述符是否可以被重新定义/覆盖。一个可配置为 false 的属性将锁定其定义，任何进一步的尝试使用 Object.defineProperty(..) 更改它都将失败。一个不可配置的属性仍然可以分配新值（通过 =），只要在属性描述符上仍然设置了 writable: true。
+
+---
+
+### 对象子类型
+JavaScript 中有多种专用的对象子类型。但是，您最常遇到的两个是数组和函数。
+
+
+<Callout icon="💡" type="info">
+通过“子类型”，我们指的是一种派生类型的概念，它继承了父类型的行为，但随后专门化或扩展了这些行为。换句话说，这些子类型的值完全是对象，但也超过了单纯的对象。
+</Callout>
+
+**数组**
+
+数组是专门用于数值索引的对象，而不是使用字符串命名属性的位置。它们仍然是对象，因此像 favoriteNumber 这样的命名属性是合法的。但在数值索引数组中混合命名属性是大大不被提倡的。
+
+数组最好使用字面量语法定义（类似于对象），但使用 `[ .. ]` 方括号而不是 `{ .. }` 花括号：
+
+```js
+myList = [ 23, 42, 109 ];
+```
+
+
+JavaScript 允许数组中混合使用任何类型的值，包括对象、其他数组、函数等。正如您可能已经知道的那样，数组是“零索引的”，这意味着数组中的第一个元素的索引为 0，而不是 1：
+
+```js
+myList = [ 23, 42, 109 ];
+
+myList[0];      // 23
+myList[1];      // 42
+```
+
+请注意，任何在对象上的字符串属性名称如果“看起来像”一个整数——能够被有效地强制转换为数值整数——实际上将被视为整数属性（即，整数索引）。数组也是如此。您应该始终使用 42 作为整数索引（即属性名称），但是如果您使用字符串“42”，JavaScript 将假定您是指整数并为您处理。
+
+```js
+// “2”在这里用作整数索引，但不建议使用
+myList["2"];    // 109
+
+```
+
+数组的一个例外是所有数组自动公开一个 length 属性，该属性会随着数组的“长度”的变化而自动更新。
+
+```js
+myList = [ 23, 42, 109 ];
+
+myList.length;   // 3
+
+// 将另一个值“推”到列表末尾
+myList.push("Hello");
+
+myList.length;   // 4
+```
+
+<Callout icon="⚠️" type="warning">
+许多 JavaScript 开发人员错误地认为数组长度基本上是一个 getter（见本章前面的“访问器属性”）。但是它并不是。其后果是，这些开发人员会感到访问此属性是“昂贵的”——就好像 JavaScript 需要动态地重新计算长度——因此会在对其进行非变更循环之前捕获/存储数组的长度。出于性能的考虑，这曾经是“最佳实践”。但在过去的十年里，这实际上是一种反模式，因为 JavaScript 引擎在管理长度属性方面比我们的 JavaScript 代码更高效。让 JavaScript 引擎完成其工作，随时随地访问该属性，效率更高。
+</Callout>
+
+<Callout icon="📝" type="notes">
+举例说明:
+在较早的 JavaScript 开发中，一些开发人员误以为访问数组的 length 属性会导致性能开销，因此在循环中会在开始时捕获数组长度：
+
+```js
+let arr = [1, 2, 3, 4, 5];
+let len = arr.length; // 捕获数组长度
+
+for (let i = 0; i < len; i++) {
+    console.log(arr[i]);
+}
+```
+这种做法在过去被认为是性能优化的“最佳实践”。
+
+随着 JavaScript 引擎的优化，这种做法已经变成了一种反模式。现代的 JavaScript 引擎（如 V8、SpiderMonkey 等）在处理数组的 length 属性时非常高效，因此频繁访问 length 属性不会显著影响性能。
+
+现在，开发者可以直接在循环中访问 length 属性，而不必担心性能问题：
+
+```js
+let arr = [1, 2, 3, 4, 5];
+
+for (let i = 0; i < arr.length; i++) {
+    console.log(arr[i]);
+}
+```
+
+</Callout>
+
+
+空槽
+
+JavaScript 数组还有一个非常不幸的“缺陷”，称为“空槽”。如果您为数组分配一个索引，超出了当前数组的末尾，JavaScript 将留空的插槽，而不是像您可能期望的那样自动将它们分配为 undefined：
+
+```js
+myList = [ 23, 42, 109 ];
+myList.length;              // 3
+
+myList[14] = "Hello";
+myList.length;              // 15
+
+myList;                     // [ 23, 42, 109, empty x 11, "Hello" ]
+
+//看起来像一个真正的老虎机
+//其中存在真正的“未定义”值，
+//但要小心，这是个骗局！
+myList[9];                  // undefined
+```
+
+您可能会想知道为什么空槽是如此糟糕？其中一个原因是：JavaScript 中的某些 API，例如数组的 map(..)，会意外地跳过空槽！永远不要故意在数组中创建空槽。这无疑是 JavaScript 的一个“坏部分”。
+
+**函数**
+
+关于函数，我没有太多具体要说的，除了指出它们也是子对象类型。这意味着除了可以执行外，它们还可以具有命名属性，添加到它们或从中访问。
+
+函数有两个预定义属性，您可能会在元编程的过程中与之交互。
+
+```js
+function help(opt1,opt2,...remainingOpts) {
+    // ..
+}
+
+help.name;          // "help"
+help.length;        // 2
+```
+
+一个函数的长度是指其显式定义的参数的数量，不包括那些定义了默认值的参数（例如，param = 42）或“剩余参数”（例如，...remainingOpts）。
+
+
+**避免设置函数对象属性**
+
+你应该避免在函数对象上赋值属性。如果你想存储与函数相关的额外信息，使用一个独立的 Map(..) （或 WeakMap(..)），将函数对象作为键，额外信息作为值。
+
+
+```js
+extraInfo = new Map();
+
+extraInfo.set(help,"this is some important information");
+
+// later:
+extraInfo.get(help);   // “这是一些重要信息”
+```
+
+---
+
+### 对象特性
+
+除了为特定属性定义行为外，某些行为在整个对象中是可配置的：
+
+- 可扩展性（extensible）
+- 密封（sealed）
+- 冻结（frozen）
+
+**可扩展性**
+
+可扩展性指的是一个对象是否可以定义/添加新属性。默认情况下，所有对象都是可扩展的，但你可以关闭对象的可扩展性：
+
+```js
+myObj = {
+    favoriteNumber: 42
+};
+
+myObj.firstName = "Kyle";                  // works fine
+
+Object.preventExtensions(myObj);
+
+myObj.nicknames = [ "getify", "ydkjs" ];   // fails
+myObj.favoriteNumber = 123;                // works fine
+```
+
+在非严格模式下，创建新属性的赋值将会静默失败，而在严格模式下则会抛出异常。
+
+**密封**
+
+等待作者更新...🏗️🏗️🏗️🏗️
+
+**冻结**
+
+等待作者更新...🏗️🏗️🏗️🏗️
+
+---
+
+### 扩展 MOP
+
+正如本章开头提到的，JavaScript 中的对象行为遵循一组称为元对象协议 [（Metaobject Protocol, MOP）](https://en.wikipedia.org/wiki/Metaobject)的规则。现在，我们更全面地理解了对象的默认工作方式，我们想将注意力转向如何钩入一些默认行为并覆盖/自定义它们。
+
+等待作者更新...🏗️🏗️🏗️🏗️
+
+---
+
+### [[Prototype]] 链
+
+对象的一个重要但不太明显的特性（MOP 的一部分）被称为它的“原型链”；官方的 JavaScript 规范符号是 [[Prototype]]。请确保不要将这个 [[Prototype]] 与名为 prototype 的公共属性混淆。尽管命名相似，但这两个概念是不同的。
+
+&zwj;<mark>[[Prototype]] 是一个内部链接，当对象创建时默认获得，指向另一个对象。</mark>这个链接是对象的一个隐蔽且常常微妙的特性，但对与对象的交互方式有深远的影响。它被称为“链”，因为一个对象链接到另一个对象，而后者又链接到另一个对象，依此类推。这个链有一个结束或顶部，其中链接停止，没有进一步的对象可链接。稍后我们会详细讨论这一点。
+
+我们在第一章中已经看到了 [[Prototype]] 链接的一些影响。例如，默认情况下，所有对象都与名为 Object.prototype 的内置对象 [[Prototype]] 链接。
+
+<Callout icon="⚠️" type="warning">
+Object.prototype 这个名称本身可能会令人困惑，因为它使用了一个名为 prototype 的属性。[[Prototype]] 和 prototype 之间是如何关联的！？将这样的疑问和困惑暂时放在一边，因为我们将在本章后面解释 [[Prototype]] 和 prototype 之间的区别。此刻，只需假设这个重要但命名奇怪的内置对象 Object.prototype 的存在即可。
+</Callout>
+
+让我们看看一些代码：
+
+```js
+myObj = {
+    favoriteNumber: 42
+};
+```
+
+这段内容应该让你想起第一章。然而在这段代码中，<mark>你看不到的是，该对象通过其内部的 [[Prototype]] 自动链接到了一个自动内置的、但命名奇怪的 Object.prototype 对象。</mark>
+
+当我们做以下操作时：
+
+```js
+myObj.toString();                             // "[object Object]"
+
+myObj.hasOwnProperty("favoriteNumber");   // true
+```
+
+我们实际上是在利用这个内部的 [[Prototype]] 链接，而并没有意识到。由于 myObj 上并没有定义 toString 或 hasOwnProperty 属性，因此这些属性的访问实际上会委托查找继续沿着 [[Prototype]] 链进行。
+
+因为 myObj 是与名为 Object.prototype 的对象 [[Prototype]] 链接的，所以对 toString 和 hasOwnProperty 属性的查找会继续在该对象上进行；确实，这些方法在那里被找到！
+
+myObj.toString 能够访问 toString 属性，<mark>尽管它实际上并没有这个属性，这种能力通常被称为“继承”，或更具体地说是“原型继承”。toString 和 hasOwnProperty 属性以及许多其他属性被称为 myObj 的“继承属性”。</mark>
+
+
+<Callout icon="💡" type="info">
+
+我对这里使用“继承”一词感到很沮丧——应该称之为“委托”！——但大多数人称之为“继承”，因此我们将勉强遵循并使用这个术语（虽然我心里不满，加上“引号”）。我会在本书的附录中保留我的异议。
+
+</Callout>
+
+
+
+Object.prototype 具有多个内置属性和方法，所有这些属性和方法都被任何与 Object.prototype 直接或间接通过其他对象链接的对象“继承”。
+
+从 Object.prototype 继承的一些常见属性包括：
+
+- constructor
+- \_\_proto\_\_
+- toString()
+- valueOf()
+- hasOwnProperty(..)
+- isPrototypeOf(..)
+
+回想一下 hasOwnProperty(..)，我们之前看到它可以布尔检查某个属性（通过字符串名称）是否属于一个对象：
+
+
+```js
+myObj = {
+    favoriteNumber: 42
+};
+
+myObj.hasOwnProperty("favoriteNumber");   // true
+```
+
+将这样一个重要的工具 hasOwnProperty(..) 作为实例方法包含在 Object [[Prototype]] 链中，语义组织和命名冲突等方面一直被认为是有些不幸的。
+
+截至 ES2022，JavaScript 最终添加了这个工具的静态版本：Object.hasOwn(..)。
+
+```js
+myObj = {
+    favoriteNumber: 42
+};
+
+Object.hasOwn(myObj,"favoriteNumber");   // true
+```
+
+这种形式现在被认为是更可取和稳健的选择，而实例方法（hasOwnProperty(..)）的形式现在通常应被避免。
+
+不幸的是，目前（截至写作时）还没有相应的静态工具，例如 Object.isPrototype(..)（而不是实例方法 isPrototypeOf(..)）。但至少 Object.hasOwn(..) 存在，因此这是进步。
+
+**创建一个具有不同 [[Prototype]] 的对象**
+
+默认情况下，您在程序中创建的任何对象都将与 Object.prototype 链接。然而，您可以通过以下方式创建一个具有不同链接的对象：
+
+```js
+myObj = Object.create(differentObj);
+```
+
+Object.create(..) 方法将其第一个参数设置为新创建对象的[[Prototype]]的值。
+
+这种方法的一个缺点是，您没有使用 `{ .. }` 字面量语法，因此不会最初为 myObj 定义任何内容。通常，您需要逐个使用 = 定义属性。
+
+
+<Callout icon="💡" type="info">
+Object.create(..) 的第二个可选参数是——就像之前讨论的 Object.defineProperties(..) 的第二个参数一样——一个包含持有描述符的属性的对象，以最初定义新对象。在实际使用中，这种形式很少被使用，可能是因为指定完整描述符而不是简单的名称/值对更麻烦。但在某些有限情况下，它可能会派上用场。
+</Callout>
+
+
+另外，虽然不太推荐，您还可以使用 `{ .. }` 字面量语法以及一个特殊（看起来奇怪的）属性：
+
+```js
+myObj = {
+    __proto__: differentObj,
+
+    // .. the rest of the object definition
+};
+```
+
+
+
+<Callout icon="⚠️" type="warning">
+这个看起来奇怪的 \_\_proto\_\_ 属性在某些 JavaScript 引擎中已经存在超过 20 年，但在 ES6（2015）时才被标准化。即便如此，它是在规范的附录 B 中添加的，该附录列出了 TC39 勉强包括的特性，因为它们在各种基于浏览器的 JavaScript 引擎中流行存在，因此即使它们并不是由 TC39 原创，也是一种事实。这一特性因此“保证”在所有符合规范的基于浏览器的 JavaScript 引擎中存在，但不一定保证在其他独立的 JavaScript 引擎中工作。Node.js 使用来自 Chrome 浏览器的 JS 引擎（v8），因此 Node.js 默认/意外地获得 \_\_proto\_\_。使用 \_\_proto\_\_ 时请小心，注意代码将运行的所有 JavaScript 引擎环境。
+</Callout>
+
+无论您使用 Object.create(..) 还是 \_\_proto\_\_，所创建的对象通常将与默认的 Object.prototype 链接到不同的对象。
+
+**空的 [[Prototype]] 链接**
+
+我们之前提到，[[Prototype]]链必须在某处停止，以免查找无限进行。Object.prototype 通常是每个 [[Prototype]] 链的顶部/结束，因为它自己的 [[Prototype]] 是 null，因此没有其他地方可以继续查找。
+
+然而，您也可以定义具有自己的 null 值的 [[Prototype]] 的对象，例如：
+
+```js
+emptyObj = Object.create(null);
+// or: emptyObj = { \_\_proto\_\_: null }
+
+emptyObj.toString;   // undefined
+```
+
+创建一个没有与 Object.prototype 的 [[Prototype]] 链接的对象是非常有用的。<mark>例如，如第一章所述，in 和 for..in 结构将会查阅 [[Prototype]] 链以获取继承属性。</mark>但这可能是不希望的，因为您可能不希望像 myObj 中的 toString 成功解析。
+
+此外，具有空 [[Prototype]] 的对象可以避免其自身属性名称和来自其他地方“继承”的属性之间的任何意外“继承”冲突。这些类型的（有用的！）对象在流行的术语中有时被称为“字典对象”。
+
+<Callout icon="📝" type="notes">
+举例说明:
+
+具有空 [[Prototype]] 的对象不会从任何其他对象继承属性，因此可以避免命名冲突。这种对象被称为“字典对象”，通常用于存储键值对。因为它们不包含任何继承的属性，所以可以安全地使用任何字符串作为键。
+
+```js 
+const normalObject = {
+    name: "Alice",
+    age: 30
+};
+// true (toString 是继承自 Object 的属性)
+console.log(normalObject.hasOwnProperty("toString")); 
+```
+
+在这个例子中，normalObject 继承了 Object 的属性，因此可以访问 toString 方法。
+
+```js
+const dictionaryObject = Object.create(null); // 创建一个没有原型的对象
+
+dictionaryObject["name"] = "Bob";
+dictionaryObject["age"] = 25;
+
+console.log(dictionaryObject.name); // Bob
+console.log(dictionaryObject.hasOwnProperty("toString")); // false (没有继承任何属性)
+```
+
+在这个例子中，通过 Object.create(null) 创建的 dictionaryObject 是一个没有原型的对象。它只包含我们自己定义的属性，不会有来自 Object 或其他原型链上的属性。
+
+使用具有空 [[Prototype]] 的对象可以避免属性名称冲突，特别是在需要使用动态键（如用户输入的字符串）作为属性时。这使得它们在实现字典、映射或简单的键值存储时非常有用。
+
+</Callout>
+
+
+**[[Prototype]] vs prototype**
+
+注意到公共属性名称 prototype 在这个特殊对象 Object.prototype 的名称/位置中？那是怎么回事？
+
+Object 是 Object(..) 函数；<mark>默认情况下，所有函数（它们本身也是对象！）都有这样的 prototype 属性，指向一个对象。</mark>
+
+这就是 [[Prototype]] 和 prototype 之间名称冲突的真正问题。函数上的 prototype 属性并不定义函数本身所经历的任何链接。确实，函数（作为对象）在其他地方有自己的内部 [[Prototype]] 链接——稍后再解释。
+
+相反，函数上的 prototype 属性指的是一个对象，在调用该函数时使用 new 关键字创建的任何其他对象都应该链接到该对象：
+
+```js 
+myObj = {};
+
+//基本上与以下内容相同：
+myObj = new Object();
+```
+
+由于 `{ .. }` 对象字面量语法基本上与 new Object() 调用相同，因此名为/位于 Object.prototype 的内置对象被用作我们创建并命名为 myObj 的新对象的内部 [[Prototype]] 值。
+
+哇！这可是一个因为 [[Prototype]] 和 prototype 之间名称重叠而变得显著更加混淆的话题！
+
+那么函数本身（作为对象！）的 [[Prototype]] 链接到哪里呢？它们链接到 Function.prototype，这是另一个内置对象，位于 Function(..) 函数的 prototype 属性上。
+
+换句话说，您可以认为函数本身是通过 new Function(..) 调用“创建”的，然后与 Function.prototype 对象链接。这个对象包含所有函数“默认继承”的属性/方法，例如 toString()（将函数的源代码序列化为字符串）和 call(..) / apply(..) / bind(..)（我们将在本书后面解释）。
+
+<Callout icon="📝" type="notes">
+翻译一下:
+构造函数自身拥有prototype属性.该属性是一个对象,包含实例对象的共享属性和方法。每个构造函数对象(函数也是对象)生成的实例对象都会有一个\_\_proto\_\_属性(\_\_proto\_\_为浏览器自己定义的属性,并不是语言本身特性),\_\_proto\_\_指向的就是构造函数的prototype属性(共享对象)。
+
+```js 
+
+// 构造函数
+function Person(){
+
+  say(){
+    console.log('hello')
+  }
+}
+
+Person.prototype.say = function(){
+    console.log('hello')
+}
+
+const p = new Person
+
+p.__proto__ === Person.prototype //true
+
+//通过[[Prototype]]链调用 
+p.say()//hello
+
+```
+
+
+</Callout>
+
+
+**对象的行为**
+
+&zwj;<mark>对象上的属性是通过“描述符”元对象内部定义和控制的，描述符包括属性如 value（属性的当前值）和 enumerable（一个布尔值，控制属性是否包含在仅可枚举的属性/属性名称列表中）。</mark>
+
+JavaScript 中对象及其属性的工作方式被称为“元对象协议”（Metaobject Protocol, MOP）。我们可以通过 Object.defineProperty(..) 控制属性的精确行为，以及通过 Object.freeze(..) 控制对象范围的行为。但更强大的是，我们可以通过特殊的预定义符号钩入并覆盖对象的某些默认行为。
+
+原型是对象之间的内部链接，允许在一个对象上对属性或方法的访问——如果请求的属性/方法缺失——通过将该访问查找“委托”给另一个对象来处理。当委托涉及方法时，方法运行的上下文通过 this 关键字从初始对象共享到目标对象。

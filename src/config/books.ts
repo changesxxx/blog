@@ -150,6 +150,11 @@ export const books = [
             href: "/read-together/details/dont-know-js/objects-classes-ch1", //真实的地址
             name: "objects-classes-ch1", //用于寻找对应的doc 和拼接动态路径所需
           },
+            {
+            title: "对象的工作原理",
+            href: "/read-together/details/dont-know-js/objects-classes-ch2", //真实的地址
+            name: "objects-classes-ch2", //用于寻找对应的doc 和拼接动态路径所需
+          },
         
         ],
       },
