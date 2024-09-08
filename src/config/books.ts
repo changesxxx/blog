@@ -155,9 +155,37 @@ export const books = [
             href: "/read-together/details/dont-know-js/objects-classes-ch2", //真实的地址
             name: "objects-classes-ch2", //用于寻找对应的doc 和拼接动态路径所需
           },
+          {
+            title: "类对象",
+            href: "/read-together/details/dont-know-js/objects-classes-ch3", //真实的地址
+            name: "objects-classes-ch3", //用于寻找对应的doc 和拼接动态路径所需
+          },
+          {
+            title: "this工作原理",
+            href: "/read-together/details/dont-know-js/objects-classes-ch4", //真实的地址
+            name: "objects-classes-ch4", //用于寻找对应的doc 和拼接动态路径所需
+          },
+          {
+            title: "委托",
+            href: "/read-together/details/dont-know-js/objects-classes-ch5", //真实的地址
+            name: "objects-classes-ch5", //用于寻找对应的doc 和拼接动态路径所需
+          },
         
         ],
       },
+      {
+        id: "sync-async",
+        title: "同步和异步",
+        syllabus:
+          "尚未开始",
+          items:[]
+      }, {
+        id: "types-grammar ",
+        title: "类型和语法",
+        syllabus:
+          "尚未开始",
+          items:[]
+      }
  
     ],
   },

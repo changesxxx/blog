@@ -1,0 +1,604 @@
+---
+title: "委托"
+description: "我们已经深入探讨了对象、原型、类以及 this 关键字。现在，我们将从一个不同的角度回顾一下迄今为止学到的内容。如果你可以利用对象、原型和动态 this 机制的所有强大功能，而完全不使用类或其任何子类，会是什么样子？实际上，我认为 JavaScript 本质上比类关键字看起来更少依赖于类。因为 JavaScript 是一种动态的原型语言，它的强项实际上是……委托。"
+
+name: "objects-classes-ch5"
+
+---
+
+### 前言
+
+在我们开始讨论委托之前，我想提醒一下。在 JavaScript 的对象 [[Prototype]] 和 this 函数上下文机制的这个视角并不是主流。这不是框架作者和库在使用 JavaScript 的方式。根据我所知，你不会在任何大型应用中发现使用这种模式的情况。
+
+那么，为什么我会花一章的篇幅讨论这样一个不流行的模式呢？
+
+好问题。调皮的回答是：因为这是我的书，我想怎么写就怎么写！
+
+但更深层的答案是，我认为理解语言核心支柱之一的这种方式可以帮助你，即使你只是在使用类风格的 JavaScript 模式。
+
+需要明确的是，委托并不是我发明的。这种设计模式已经存在了几十年。长期以来，开发者们争论原型委托只是继承的动态形式。但我认为，将两者混为一谈是个错误。
+
+在本章中，我将通过 JavaScript 机制实现的委托，作为一种替代设计模式，定位于面向类与对象闭包/模块模式之间。
+
+---
+
+### 构造函数到底是什么？
+
+在第三章中，我们看到 constructor(..) 是构造类实例的主要入口点。<mark>但实际上，constructor(..) 并不执行任何创建工作，它只进行初始化工作。换句话说，在 constructor(..) 运行和初始化实例时，实例已经被创建——即 this.whatever 类型的赋值。</mark>
+
+{/* todo */}
+那么，创建工作究竟在哪里进行呢？在 new 操作符中。正如第四章的“新上下文调用”部分所解释的，new 关键字执行四个步骤，其中第一步是创建一个新的空对象（实例）。直到 new 的第三步，constructor(..) 才会被调用。
+
+但 new 并不是创建对象“实例”的唯一方式——甚至可能不是最佳方式。考虑一下：
+
+```js 
+// a non-class "constructor"
+function Point2d(x,y) {
+    // create an object (1)
+    var instance = {};
+
+    // initialize the instance (3)
+    instance.x = x;
+    instance.y = y;
+
+    // return the instance (4)
+    return instance;
+}
+
+var point = Point2d(3,4);
+
+point.x;                    // 3
+point.y;                    // 4
+```
+
+这里没有类，只有一个普通的函数定义（Point2d(..)）。没有 new 调用，只有一个普通的函数调用（Point2d(3,4)）。而且没有 this 引用，只有普通的对象属性赋值（instance.x = ..）。
+
+通常用于描述这种代码模式的术语是，这里 Point2d(..) 是一个工厂函数。调用它会导致对象的构建（创建和初始化），并将其返回给我们。这是一种非常常见的模式，至少与面向类代码一样常见。
+
+我在那段代码中注释了 (1)、(3) 和 (4)，大致对应于 new 操作的步骤 1、3 和 4。但是步骤 2 到哪里去了呢？
+
+{/* todo */}
+如果你还记得，new 的第二步是将对象（在第一步中创建的）通过其 [[Prototype]] 槽链接到另一个对象（见第二章）。那么，我们可能希望将我们的实例对象链接到哪个对象呢？我们可以将其链接到一个包含我们希望与实例关联/使用的函数的对象上。
+
+让我们修改上面的代码片段：
+
+```js 
+var prototypeObj = {
+    toString() {
+        return `(${this.x},${this.y})`;
+    },
+}
+
+// a non-class "constructor"
+function Point2d(x,y) {
+    // create an object (1)
+    var instance = {
+        // link the instance's [[Prototype]] (2)
+        __proto__: prototypeObj,
+    };
+
+    // initialize the instance (3)
+    instance.x = x;
+    instance.y = y;
+
+    // return the instance (4)
+    return instance;
+}
+
+var point = Point2d(3,4);
+
+point.toString();           // (3,4)
+```
+
+现在你可以看到 \_\_proto\_\_ 的赋值，它设置了内部的 [[Prototype]] 链接，这就是缺失的步骤 2。我在这里使用 \_\_proto\_\_ 仅仅是为了说明；使用 setPrototypeOf(..)（如第四章所示）也可以完成相同的任务。
+
+**新工厂实例**
+
+你认为如果我们用 new 来调用 Point2d(..) 函数，会发生什么？
+
+```js 
+var anotherPoint = new Point2d(5,6);
+
+anotherPoint.toString(5,6);         // (5,6)
+```
+
+等一下！这是怎么回事？一个常规的非类工厂函数被用 new 关键字调用，就像它是一个类。这会改变代码的结果吗？
+
+不……也对。这里的 anotherPoint 和如果我没有使用 new 时完全是同一个对象。但是！new 创建、链接和分配的作为 this 上下文的对象？那个对象被完全忽略并抛弃，最终被 JavaScript 垃圾回收。遗憾的是，JavaScript 引擎无法预测你不会使用你要求 new 创建的对象，因此即使它未被使用，它仍然会被创建。
+
+没错！在工厂函数上使用 new 关键字可能感觉更符合直觉或更熟悉，但这非常浪费，因为它创建了两个对象，并且浪费性地丢弃了其中一个。
+
+**工厂初始化**
+
+在当前的代码示例中，Point2d(..) 函数看起来仍然像是一个类定义的正常构造函数。但如果我们将初始化代码移动到一个单独的函数，比如命名为 init(..)，会怎么样呢？
+
+```js 
+var prototypeObj = {
+    init(x,y) {
+        // initialize the instance (3)
+        this.x = x;
+        this.y = y;
+    },
+    toString() {
+        return `(${this.x},${this.y})`;
+    },
+}
+
+// a non-class "constructor"
+function Point2d(x,y) {
+    // create an object (1)
+    var instance = {
+        // link the instance's [[Prototype]] (2)
+        __proto__: prototypeObj,
+    };
+
+    // initialize the instance (3)
+    instance.init(x,y);
+
+    // return the instance (4)
+    return instance;
+}
+
+var point = Point2d(3,4);
+
+point.toString();           // (3,4)
+```
+
+该 instance.init(..) 调用利用了通过 \_\_proto\_\_ 赋值建立的 [[Prototype]] 链接。因此，它沿着原型链向 prototypeObj.init(..) 委托，并通过隐式上下文赋值（参见第四章）调用它，使用的 this 上下文是 instance。
+
+让我们继续进行解构。准备好进行一次切换！
+
+```js 
+var Point2d = {
+    init(x,y) {
+        // initialize the instance (3)
+        this.x = x;
+        this.y = y;
+    },
+    toString() {
+        return `(${this.x},${this.y})`;
+    },
+};
+```
+
+等等，这是什么！？我丢弃了 Point2d(..) 函数，并将 prototypeObj 重命名为 Point2d。这听起来有点奇怪。
+
+但现在让我们看看其余的代码：
+
+```js 
+
+// steps 1, 2, and 4
+var point = { __proto__: Point2d, };
+
+// step 3
+point.init(3,4);
+
+point.toString();           // (3,4)
+
+```
+
+还有最后一个改进：让我们使用 JavaScript 提供的一个内置工具，叫做 Object.create(..)：
+
+```js 
+
+// steps 1, 2, and 4
+var point = Object.create(Point2d);
+
+// step 3
+point.init(3,4);
+
+point.toString();           // (3,4)
+
+```
+
+Object.create(..) 执行了什么操作？
+
+1. 创建一个全新的空对象，凭空而出。
+2. 将该新空对象的 [[Prototype]] 链接到函数的 .prototype 对象。
+
+如果这些看起来熟悉，那是因为它们正是 new 关键字的前两步（见第四章）。
+
+现在让我们把这些组合在一起：
+
+```js 
+
+var Point2d = {
+    init(x,y) {
+        this.x = x;
+        this.y = y;
+    },
+    toString() {
+        return `(${this.x},${this.y})`;
+    },
+};
+
+var point = Object.create(Point2d);
+
+point.init(3,4);
+
+point.toString();           // (3,4)
+
+```
+
+嗯，花点时间思考一下这里得出的内容。它与类方法相比如何？
+
+这种模式抛弃了类和 new 关键字，但实现了完全相同的结果。成本？单个的 new 操作被分解为两个语句：Object.create(Point2d) 和 point.init(3,4)。
+
+**帮我重建！**
+
+如果将这两个操作分开让你不安——是否太过解构了！？——它们可以在一个小工厂助手中重新组合：
+
+```js 
+
+function make(objType,...args) {
+    var instance = Object.create(objType);
+    instance.init(...args);
+    return instance;
+}
+
+var point = make(Point2d,3,4);
+
+point.toString();           // (3,4)
+
+```
+
+
+<Callout icon="💡" type="info">
+这样的 make(..) 工厂函数助手通常适用于任何对象类型，只要你遵循隐含的约定，即每个你链接的 objType 都有一个名为 init(..) 的函数。
+</Callout>
+
+
+当然，你仍然可以创建任意多的实例：
+
+```js 
+var point = make(Point2d,3,4);
+
+var anotherPoint = make(Point2d,5,6);
+```
+
+---
+
+### 摒弃类思维
+
+坦率地说，我们刚刚经历的解构最终产生的代码与类风格相比，可能只是略有不同，或许稍好一些或稍差一些。如果这就是委托的全部意义，它可能连作为脚注都不够，更不用说整整一章了。
+
+但这里我们将真正开始推动面向类思维本身，而不仅仅是语法，抛开它。
+
+面向类设计固有地创建了分类的层级，意味着我们如何划分和分组特征，并在继承链中垂直堆叠。此外，定义子类是对通用基类的特殊化。实例化是对通用类的特殊化。
+
+在传统的类层次结构中，行为是通过继承链的层级进行的垂直组合。几十年来，人们尝试过并且有时相当流行地扁平化深层的继承层级，倾向于通过混入和相关思想进行更水平的组合。
+
+我并不是在说这些处理代码的方式有什么错误。但我想说的是，这些方式并不是 JavaScript 自然的工作方式，因此在 JavaScript 中采用它们是一条漫长、曲折、复杂的道路，并且在此过程中积累了许多精细的语法，以适应 JavaScript 的核心 [[Prototype]] 和 this 支柱。
+
+在本章的其余部分，我计划抛弃类的语法和类的思维。
+
+---
+
+### 委托的示例
+
+那么，委托究竟是什么？从本质上讲，它是两个或更多的事物共享完成任务的努力。
+
+与其定义一个代表一组一个或多个子点/另一个点的共享行为的 Point2d 通用父类，委托则使我们能够构建具有离散的对等事物的程序，这些事物相互协作。
+
+我将用一些代码来勾画出这一点：
+
+```js 
+var Coordinates = {
+    setX(x) {
+        this.x = x;
+    },
+    setY(y) {
+        this.y = y;
+    },
+    setXY(x,y) {
+        this.setX(x);
+        this.setY(y);
+    },
+};
+
+var Inspect = {
+    toString() {
+        return `(${this.x},${this.y})`;
+    },
+};
+
+var point = {};
+
+Coordinates.setXY.call(point,3,4);
+Inspect.toString.call(point);         // (3,4)
+
+var anotherPoint = Object.create(Coordinates);
+
+anotherPoint.setXY(5,6);
+Inspect.toString.call(anotherPoint);  // (5,6)
+
+```
+
+让我们分解一下这里发生的事情。
+
+我定义了 Coordinates 作为一个具体对象，包含一些与设置点坐标（x 和 y）相关的行为。我还定义了 Inspect 作为一个具体对象，包含一些调试检查逻辑，例如 toString()。
+
+然后我创建了两个具体对象，point 和 anotherPoint。
+
+{/* todo */}
+point 没有特定的 [[Prototype]]（默认是 Object.prototype）。通过显式上下文赋值（见第四章），我在 point 的上下文中调用了 Coordinates.setXY(..) 和 Inspect.toString() 工具。这就是我所说的显式委托。
+
+anotherPoint 与 Coordinates 链接，以便于使用。这让我可以使用隐式上下文赋值来调用 anotherPoint.setXY(..)。但我仍然可以将 anotherPoint 显式地作为上下文来调用 Inspect.toString()。这就是我所说的隐式委托。
+
+请注意：我们依然实现了组合：我们在运行时函数调用中组合了 Coordinates 和 Inspect 的行为，通过共享 this 上下文。我们不必将这些行为组合成一个单一的类（或基类-子类继承层次）供 point/anotherPoint 继承。我喜欢称之为运行时组合，虚拟组合。
+
+重点是：这四个对象都不是父类或子类。它们都是彼此的同级，且各自有不同的目的。我们可以在逻辑块中组织我们的行为（在每个相应对象上），并通过 this（以及可选的 [[Prototype]] 链接）共享上下文，这最终与我们迄今为止在书中考察的其他模式产生了相同的组合结果。
+
+这就是委托模式的核心，正如 JavaScript 所体现的那样。
+
+<Callout icon="💡" type="info">
+在本书系列的第一版中，这本书（《this 和对象原型》）创造了一个术语，“OLOO”，即“对象链接到其他对象”，以与“OO”（“面向对象”）形成对比。在这个前面的例子中，你可以看到 OLOO 的精髓：我们只有对象，链接并与其他对象合作。我发现这在简单性上是美丽的。
+</Callout>
+
+---
+
+### 组合同级对象
+
+在之前的代码片段中，point 和 anotherPoint 仅仅保存数据，而它们委托的行为则在其他对象（Coordinates 和 Inspect）上。但我们可以直接在委托链中的任何对象上添加行为，这些行为甚至可以相互交互，所有这一切都通过虚拟组合的魔力（this 上下文共享）。
+
+为了说明这一点，我们将大幅改进当前的点示例。此外，作为额外奖励，我们实际上将在 DOM 的 `<canvas> `元素上绘制我们的点。让我们来看一下：
+
+```js 
+var Canvas = {
+    setOrigin(x,y) {
+        this.ctx.translate(x,y);
+
+        // flip the canvas context vertically,
+        // so coordinates work like on a normal
+        // 2d (x,y) graph
+        this.ctx.scale(1,-1);
+    },
+    pixel(x,y) {
+        this.ctx.fillRect(x,y,1,1);
+    },
+    renderScene() {
+        // clear the canvas
+        var matrix = this.ctx.getTransform();
+        this.ctx.resetTransform();
+        this.ctx.clearRect(
+            0, 0,
+            this.ctx.canvas.width,
+            this.ctx.canvas.height
+        );
+        this.ctx.setTransform(matrix);
+
+        this.draw();  // <-- where is draw()?
+    },
+};
+
+var Coordinates = {
+    setX(x) {
+        this.x = Math.round(x);
+    },
+    setY(y) {
+        this.y = Math.round(y);
+    },
+    setXY(x,y) {
+        this.setX(x);
+        this.setY(y);
+        this.render();   // <-- where is render()?
+    },
+};
+
+var ControlPoint = {
+    // delegate to Coordinates
+    __proto__: Coordinates,
+
+    // NOTE: must have a <canvas id="my-canvas">
+    // element in the DOM
+    ctx: document.getElementById("my-canvas")
+        .getContext("2d"),
+
+    rotate(angleRadians) {
+        var rotatedX = this.x * Math.cos(angleRadians) -
+            this.y * Math.sin(angleRadians);
+        var rotatedY = this.x * Math.sin(angleRadians) +
+            this.y * Math.cos(angleRadians);
+        this.setXY(rotatedX,rotatedY);
+    },
+    draw() {
+        // plot the point
+        Canvas.pixel.call(this,this.x,this.y);
+    },
+    render() {
+        // clear the canvas, and re-render
+        // our control-point
+        Canvas.renderScene.call(this);
+    },
+};
+
+// set the logical (0,0) origin at this
+// physical location on the canvas
+Canvas.setOrigin.call(ControlPoint,100,100);
+
+ControlPoint.setXY(30,40);
+// [renders point (30,40) on the canvas]
+
+// ..
+// later:
+
+// rotate the point about the (0,0) origin
+// 90 degrees counter-clockwise
+ControlPoint.rotate(Math.PI / 2);
+// [renders point (-40,30) on the canvas]
+```
+
+好的，这段代码量有点大，请花时间仔细阅读几次。我添加了几个新的具体对象（Canvas 和 ControlPoint），以及之前的 Coordinates 对象。
+
+确保你理解这三个具体对象之间的交互。
+
+ControlPoint 通过 __proto__ 链接隐式地委托给 Coordinates（[[Prototype]] 链）。
+
+这里有一个显式的委托：Canvas.setOrigin.call(ControlPoint, 100, 100); 我在 ControlPoint 的上下文中调用了 Canvas.setOrigin(..)。这样会通过 this 将 ctx 与 setOrigin(..) 共享。
+
+ControlPoint.setXY(..) 隐式地委托给 Coordinates.setXY(..)，但仍然在 ControlPoint 的上下文中。一个容易忽视的关键细节是：你看到 Coordinates.setXY(..) 内部的 this.render() 吗？那是从哪里来的？由于 this 上下文是 ControlPoint（而不是 Coordinates），所以它调用的是 ControlPoint.render()。
+
+ControlPoint.render() 明确地委托给 Canvas.renderScene()，同样仍然在 ControlPoint 的上下文中。renderScene() 调用 this.draw()，但那是从哪里来的？是的，仍然来自 ControlPoint（通过 this 上下文）。
+
+而 ControlPoint.draw()？它明确地委托给 Canvas.pixel(..)，再次仍然在 ControlPoint 的上下文中。
+
+这三个对象都有方法，最终相互调用。但这些调用并不是特别固定的。Canvas.renderScene() 并不直接调用 ControlPoint.draw()，而是调用 this.draw()。这很重要，因为这意味着 Canvas.renderScene() 在不同的 this 上下文中使用时更加灵活——例如，可以用于除了 ControlPoint 之外的其他类型的点对象。
+
+正是通过 this 上下文和 [[Prototype]] 链，这三个对象基本上在每一步都虚拟地混合（组合）在一起，以便它们像一个对象而不是三个独立的对象那样协同工作。
+
+这就是在 JavaScript 中通过委托模式实现虚拟组合的美妙之处。
+
+**灵活的上下文**
+
+我在上面提到，我们可以很容易地将其他具体对象添加到组合中。这里有一个例子：
+
+```js 
+var Coordinates = { /* .. */ };
+
+var Canvas = {
+    /* .. */
+    line(start,end) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(start.x,start.y);
+        this.ctx.lineTo(end.x,end.y);
+        this.ctx.stroke();
+    },
+};
+
+function lineAnchor(x,y) {
+    var anchor = {
+        __proto__: Coordinates,
+        render() {},
+    };
+    anchor.setXY(x,y);
+    return anchor;
+}
+
+var GuideLine = {
+    // NOTE: must have a <canvas id="my-canvas">
+    // element in the DOM
+    ctx: document.getElementById("my-canvas")
+        .getContext("2d"),
+
+    setAnchors(sx,sy,ex,ey) {
+        this.start = lineAnchor(sx,sy);
+        this.end = lineAnchor(ex,ey);
+        this.render();
+    },
+    draw() {
+        // plot the point
+        Canvas.line.call(this,this.start,this.end);
+    },
+    render() {
+        // clear the canvas, and re-render
+        // our line
+        Canvas.renderScene.call(this);
+    },
+};
+
+// set the logical (0,0) origin at this
+// physical location on the canvas
+Canvas.setOrigin.call(GuideLine,100,100);
+
+GuideLine.setAnchors(-30,65,45,-17);
+// [renders line from (-30,65) to (45,-17)
+//   on the canvas]
+```
+
+我认为这很不错！
+
+但我认为另一个不太明显的好处是，通过 this 上下文动态链接的对象往往使得独立测试程序的不同部分变得相对容易。
+
+例如，Object.setPrototypeOf(..) 可以用来动态更改对象的 [[Prototype]] 链接，将其委托给一个不同的对象，比如一个模拟对象。或者你可以动态地重新定义 GuideLine.draw() 和 GuideLine.render()，以明确委托给 MockCanvas 而不是 Canvas。
+
+理解并充分利用 this 关键字和 [[Prototype]] 链接是一种极其灵活的机制。
+
+---
+
+### 为什么选择这种方式？
+
+好的，希望现在很清楚委托模式在很大程度上依赖于隐式输入，通过 this 共享上下文，而不是通过显式参数。
+
+你可能会问，为什么不总是显式传递该上下文？我们当然可以这样做，但……为了手动传递必要的上下文，我们几乎必须更改每个函数签名和任何相应的调用位置。
+
+让我们重温之前的 ControlPoint 委托示例，并实现一个不使用委托导向的 this 上下文共享的版本。请仔细关注差异：
+
+```js 
+var Canvas = {
+    setOrigin(ctx,x,y) {
+        ctx.translate(x,y);
+        ctx.scale(1,-1);
+    },
+    pixel(ctx,x,y) {
+        ctx.fillRect(x,y,1,1);
+    },
+    renderScene(ctx,entity) {
+        // clear the canvas
+        var matrix = ctx.getTransform();
+        ctx.resetTransform();
+        ctx.clearRect(
+            0, 0,
+            ctx.canvas.width,
+            ctx.canvas.height
+        );
+        ctx.setTransform(matrix);
+
+        entity.draw();
+    },
+};
+
+var Coordinates = {
+    setX(entity,x) {
+        entity.x = Math.round(x);
+    },
+    setY(entity,y) {
+        entity.y = Math.round(y);
+    },
+    setXY(entity,x,y) {
+        this.setX(entity,x);
+        this.setY(entity,y);
+        entity.render();
+    },
+};
+
+var ControlPoint = {
+    // NOTE: must have a <canvas id="my-canvas">
+    // element in the DOM
+    ctx: document.getElementById("my-canvas")
+        .getContext("2d"),
+
+    setXY(x,y) {
+        Coordinates.setXY(this,x,y);
+    },
+    rotate(angleRadians) {
+        var rotatedX = this.x * Math.cos(angleRadians) -
+            this.y * Math.sin(angleRadians);
+        var rotatedY = this.x * Math.sin(angleRadians) +
+            this.y * Math.cos(angleRadians);
+        this.setXY(rotatedX,rotatedY);
+    },
+    draw() {
+        // plot the point
+        Canvas.pixel(this.ctx,this.x,this.y);
+    },
+    render() {
+        // clear the canvas, and re-render
+        // our control-point
+        Canvas.renderScene(this.ctx,this);
+    },
+};
+
+// set the logical (0,0) origin at this
+// physical location on the canvas
+Canvas.setOrigin(ControlPoint.ctx,100,100);
+
+// ..
+```
+
+老实说，有些人可能更喜欢这种代码风格。如果你属于这一派，那也没关系。这个代码片段完全避免了 [[Prototype]]，仅依赖于更少的基本 this. 风格的属性和方法引用。
+
+相比之下，我在本章中提倡的委托风格可能对你来说比较陌生，并且使用 [[Prototype]] 和 this 共享的方式可能你并不熟悉。要有效使用这种风格，你需要投入时间和实践，以建立更深的熟悉感。
+
+但在我看来，避免通过委托实现虚拟组合的“成本”在所有函数签名和调用位置上都能感受到；我觉得它们要混乱得多。显式传递上下文是一笔不小的负担。
+
+事实上，我绝不会提倡那种代码风格。如果你想避免委托，最好坚持使用第三章中看到的类风格代码。作为留给读者的练习，尝试将之前的 ControlPoint / GuideLine 代码片段转换为使用类的形式。

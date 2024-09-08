@@ -1,0 +1,1279 @@
+---
+title: "this工作原理"
+description: "到目前为止，我们已经看到 this 关键字的多次使用，但还没有深入理解它在 JavaScript 中是如何工作的。是时候深入探讨了。要正确理解 JavaScript 中的 this，您需要抛开任何先入为主的观念，特别是来自您可能有经验的其他编程语言中的假设。this 的关键点最重要的是要理解：this 指向的值（通常是对象）并不是在代码编写时确定的，而是在运行时确定的。这意味着您不能简单地查看一个包含 this 的函数（即使是类定义中的方法），就能确切知道在该函数运行时 this 会持有什么。相反，您需要找到函数被调用的每个地方，并查看它是如何被调用的（甚至调用的位置都不重要）。这才是完全回答 this 在某次调用中指向什么的唯一方法。实际上，一个 this 相关的函数可以至少以四种不同的方式被调用，而这些调用方式将为该特定函数调用分配不同的 this。因此，通常我们在阅读代码时可能会问的“函数中的 this 指向什么？”实际上并不是一个有效的问题。您真正需要问的是：“当函数以某种方式被调用时，这次调用的 this 会被分配什么？”如果您在阅读这一章节的介绍时脑袋有些混乱……很好！准备好重新调整您对 JavaScript 中 this 的思考方式吧。"
+
+name: "objects-classes-ch4"
+
+---
+
+### this 相关
+
+我刚才使用了“this 相关”这个短语。那么，这到底是什么意思呢？
+
+任何函数中包含 this 关键字的函数。
+
+如果一个函数中没有 this，那么 this 的行为规则就不会影响该函数。但如果函数中有即使是一个 this，那么您绝对不能确定该函数的行为，除非您弄清楚该函数每次调用时 this 指向的内容。
+
+&zwj;<mark>这就像 this 关键字在一个模板中的占位符。该占位符的值替换并不是在编写代码时确定的，而是在代码运行时确定的。</mark>
+
+您可能会认为我在玩文字游戏。当然，当您编写程序时，您会写出对每个函数的调用，因此您已经确定了编写代码时 this 会是什么，对吧？对吗!?
+
+不要太快下结论！
+
+首先，您并不总是编写所有调用您函数的代码。您的 this 相关函数可能会作为回调传递给其他代码，无论是在您的代码库中、在第三方框架/工具中，甚至在托管您程序的语言或环境的本机内置机制中。
+
+但即使不考虑将函数作为回调传递，JavaScript 中的多个机制允许根据条件的运行时行为来确定某个函数调用的 this 值。因此，即使您可能已经编写了所有这些代码，您也至少需要在脑海中执行不同的条件/路径，这些条件/路径会影响函数调用。
+
+这为什么重要？
+
+因为不仅仅是您，作为代码的作者，需要弄清楚这些问题。每一个阅读您代码的人，永远都需要这样做。如果有人（甚至是您未来的自己）想阅读定义了 this 相关函数的代码，那么要完全理解和预测其行为，那个读者就必须找到、阅读并理解该函数的每一个调用。
+
+**我很困惑**
+
+公平地说，这在某种程度上已经部分适用于函数的参数。要理解一个函数将如何工作，我们需要知道传递给它的是什么。因此，任何至少有一个参数的函数在某种意义上都是“参数相关”的——即传入的参数是什么，并被赋值给函数的参数。
+
+但是对于参数，我们通常会从函数本身获得更多线索，了解这些参数将如何作用和持有。
+
+我们通常可以在函数头中看到参数的名称，这很大程度上解释了它们的性质/目的。如果参数有默认值，我们通常会在 = 的声明中看到它们。此外，根据作者的代码风格，我们可能会在函数的前几行看到适用于这些参数的一系列逻辑；这可能是对值的断言（不允许的值等），甚至是更改（类型转换、格式化等）。
+
+实际上，这与函数的一个参数非常相似，但这是一个隐式参数，而不是显式的。您在函数头中看不到任何指示将要使用 this 的信号。您必须阅读整个函数体以查看 this 是否出现在任何地方。
+
+“参数”名称始终是 this，因此我们从这样一个通用名称中无法获得太多关于其性质/目的的提示。实际上，历史上人们对“this”的含义有很多困惑。我们很少看到对 this 值进行任何验证/转换等的操作。实际上，我所见几乎所有与 this 相关的代码都整齐地假设 this “参数”持有确切期望的值。谈到意外错误的陷阱真是令人震惊！
+
+** 那么，this是什么？**
+
+如果 this 是一个隐式参数，它的目的是什么？传递进来的是什么？
+
+{/* todo */}
+希望您已经阅读了本系列的《作用域与闭包》一书。如果没有，我强烈建议您在完成本书后回头阅读那本书。在那本书中，我详细解释了作用域（和闭包！）的工作原理，这是函数的一个特别重要的特性。
+
+词法作用域（包括所有闭合的变量）代表了一个静态上下文，以便与函数的词法标识符引用进行评估。它是固定的/静态的，因为在编写时，当您将函数和变量声明放置在各种（嵌套）作用域中时，这些决策是固定的，并且不受任何运行时条件的影响。
+
+相较之下，另一种编程语言可能提供动态作用域，其中函数的变量引用的上下文不是由编写时的决策决定，而是由运行时条件决定。这样一个系统无疑比静态上下文更灵活——尽管灵活性通常伴随着复杂性。
+
+明确一点：<mark>JavaScript 的作用域始终且仅仅是词法的和静态的（如果我们忽略非严格模式的作弊方法，如 eval(..) 和 with）。</mark>然而，JavaScript 的一个真正强大的地方在于，它提供了另一种机制，具备类似动态作用域的灵活性和能力。
+
+this 机制有效地提供了动态上下文（而不是作用域）；它使得一个 this 相关函数能够根据不同的上下文动态调用——这是用闭包和词法作用域标识符无法实现的！
+
+** 为什么 this是如此隐式？**
+
+您可能会想，为什么像动态上下文这样重要的东西会作为函数的隐式输入处理，而不是作为显式参数传递？
+
+这是一个非常重要的问题，但我们还不能完全回答。请记住这个问题。
+
+**我们能继续讨论 this 吗？**
+
+为什么我在这里花了几页的篇幅来讨论这个主题？你明白我的意思了，对吧？准备好继续了。
+
+我的观点是，您作为代码的作者，以及未来几年甚至几十年内所有其他阅读代码的人，都需要对 this 有所了解。这是您在阅读此类代码时所承担的选择和负担。是的，这也适用于使用类的选择（见第三章），因为大多数类方法出于必要性都会涉及 this。
+
+
+请意识到您在编写代码时的 this 选择。要有意识地选择，并以能够产生更多收益而不是负担的方式来做到这一点。确保您在代码中对 this 的使用是有意义的。
+
+换句话说：除非您真的能证明使用 this 是合理的，并且仔细衡量了成本，否则不要使用 this 相关的代码。仅仅因为您在其他人的代码中看到很多使用 this 的示例，并不意味着它适合您正在编写的代码。
+
+JavaScript 中的 this 机制，加上 [[Prototype]] 委托，是语言中一个极其强大的支柱。但是，正如老话所说：“能力越大，责任越大”。根据经验，尽管我非常喜欢并欣赏 JavaScript 的这个支柱，但我编写的 JavaScript 代码中使用它的比例可能不足 5%。而且当我使用时，都是谨慎使用。它不是我默认的、首选的 JavaScript 功能。
+
+---
+
+### 代码实例
+
+好了，不再啰嗦了。您准备好深入代码中去了吗？
+
+让我们重新审视（并扩展）第三章中的 Point2d，但这次以一个具有数据属性和函数的对象形式，而不是使用类：
+
+```js 
+var point = {
+    x: null,
+    y: null,
+
+    init(x,y) {
+        this.x = x;
+        this.y = y;
+    },
+    rotate(angleRadians) {
+        var rotatedX = this.x * Math.cos(angleRadians) -
+            this.y * Math.sin(angleRadians);
+        var rotatedY = this.x * Math.sin(angleRadians) +
+            this.y * Math.cos(angleRadians);
+        this.x = rotatedX;
+        this.y = rotatedY;
+    },
+    toString() {
+        return `(${this.x},${this.y})`;
+    },
+};
+
+```
+
+您可能习惯于假设 this 引用将始终指向 Point2d 对象。但这并不是保证的。
+
+请不断提醒自己，在本章的其余部分中：<mark>函数的 this 值由函数的调用方式决定。</mark>这意味着您不能仅查看函数的定义，或函数的定义位置（甚至不包括封闭类！）。实际上，函数的调用来源甚至都不重要。
+
+我们只需要查看函数是如何被调用的；这才是唯一重要的因素。
+
+**隐式上下文调用**
+
+考虑这个调用：
+
+```js
+point.init(3,4);
+```
+
+我们在调用 init(..) 函数，但注意前面的 point. 吗？这是一个隐式上下文绑定。它告诉 JavaScript：以 point 作为 this 来调用 init(..) 函数。
+
+这是我们期望 this 正常工作的方式，也是我们调用函数的最常见方式。因此，典型的调用给我们带来了直观的结果。这是好事！
+
+**默认上下文调用**
+
+但如果我们这样做呢？
+
+```js 
+const init = point.init;
+init(3,4);
+```
+
+您可能会假设我们会获得与前一个代码片段相同的结果。但这不是 JavaScript 中 this 分配的工作方式。
+
+该函数的调用点是 init(3, 4)，这与 point.init(3, 4) 是不同的。当没有隐式上下文（point.）或其他类型的 this 分配机制时，默认上下文分配会发生。
+
+在这种情况下，init(3, 4) 的 this 将指向什么？
+
+这取决于。
+
+呃哦，取决？这听起来令人困惑。
+
+不用担心，这并没有那么糟糕。默认上下文分配取决于代码是否在严格模式下运行。但值得庆幸的是，现代 JavaScript 代码几乎总是运行在严格模式下；例如，ESM（ES 模块）总是在严格模式下运行，类块内的代码也是如此。几乎所有通过 Babel、TypeScript 等转译的 JavaScript 代码都被编写为声明严格模式。
+
+所以，几乎所有现代 JavaScript 代码都将运行在严格模式下，因此默认赋值上下文不会“取决于”任何东西；它是相当直接的：undefined。就是这样！
+
+<Callout icon="💡" type="info">
+请记住：undefined 并不意味着“未定义”；它意味着“用特殊的空 undefined 值定义”。我知道，名称和含义不匹配。这是语言遗留的负担。（耸耸肩）
+</Callout>
+
+
+这意味着在严格模式下运行的 init(3, 4) 将抛出异常。为什么？因为 init(..) 中的 this.x 引用是在 undefined 上访问 .x 属性（即 undefined.x），这是不允许的：
+
+```js
+"use strict";
+
+var point = { /* .. */ };
+
+const init = point.init;
+init(3,4);
+// TypeError: Cannot set properties of
+// undefined (setting 'x')
+```
+
+停下来想一想：为什么 JavaScript 会选择将上下文默认设置为 undefined，以使任何默认上下文调用一个 this 相关函数时都会抛出这样的异常？
+
+因为 this 相关函数始终需要一个 this。init(3, 4) 没有提供 this，所以这是一个错误，应该引发异常，以便可以纠正这个错误。教训是：在没有提供 this 的情况下，绝不要调用 this 相关函数！
+
+为了完整起见：在不太常用的非严格模式下，默认上下文是全局对象——JavaScript 将其定义为 globalThis，在浏览器中的 JavaScript 本质上是 window 的别名，而在 Node.js 中是 global。因此，当 init(3, 4) 在非严格模式下运行时，this.x 表达式为 globalThis.x——在浏览器中也称为 window.x，或在 Node.js 中称为 global.x。因此，globalThis.x 被设置为 3，globalThis.y 被设置为 4。
+
+```js 
+// no strict-mode here, beware!
+
+var point = { /* .. */ };
+
+const init = point.init;
+init(3,4);
+
+globalThis.x;   // 3
+globalThis.y;   // 4
+point.x;        // null
+point.y;        // null
+```
+
+这真是不幸，因为这几乎肯定不是预期的结果。如果它变成了全局变量，那就更糟糕了，而且它也没有改变我们点对象上的属性，因此程序错误是必然的。
+
+
+<Callout icon="⚠️" type="warning">
+哎呀！没有人想要意外创建来自代码各处的全局变量。建议是：始终确保您的代码在严格模式下运行！
+</Callout>
+
+
+**显式上下文调用**
+
+函数也可以使用内置的 call(..) 或 apply(..) 工具以显式上下文进行调用：
+```js 
+var point = { /* .. */ };
+
+const init = point.init;
+
+init.call( point, 3, 4 );
+// or: init.apply( point, [ 3, 4 ] )
+
+point.x;        // 3
+point.y;        // 4
+```
+init.call(point, 3, 4) 实际上与 point.init(3, 4) 相同，因为它们都将 point 作为 init(..) 调用的 this 上下文。
+
+<Callout icon="💡" type="info">
+call(..) 和 apply(..) 工具的第一个参数是 this 上下文值；这几乎总是一个对象，但技术上可以是任何值（数字、字符串等）。call(..) 工具接受后续参数并将它们传递给被调用的函数，而 apply(..) 则期望其第二个参数为要作为参数传递的值数组。
+</Callout>
+
+在程序中考虑以显式上下文分配（call(..) / apply(..)）的方式调用函数可能看起来有些笨拙。但它实际上比乍看之下更有用。
+
+让我们回顾一下原始代码片段：
+
+```js 
+var point = {
+    x: null,
+    y: null,
+
+    init(x,y) {
+        this.x = x;
+        this.y = y;
+    },
+    rotate(angleRadians) { /* .. */ },
+    toString() {
+        return `(${this.x},${this.y})`;
+    },
+};
+
+point.init(3,4);
+
+var anotherPoint = {};
+point.init.call( anotherPoint, 5, 6 );
+
+point.x;                // 3
+point.y;                // 4
+anotherPoint.x;         // 5
+anotherPoint.y;         // 6
+```
+
+您看到我做了什么吗？
+
+我想定义 anotherPoint，但我不想重复 point 的 init(..)、rotate(..) 和 toString() 函数的定义。因此，我“借用了”一个函数引用 point.init，并通过 call(..) 显式设置空对象 anotherPoint 作为 this 上下文。
+
+当 init(..) 在那一刻运行时，this 将引用 anotherPoint，这就是为什么 x 和 y 属性（值分别为 5 和 6）会在那里被设置。
+
+任何 this 相关的函数都可以这样借用：point.rotate.call(anotherPoint, ..)，point.toString.call(anotherPoint)。
+
+**重新审视隐式上下文调用**
+
+另一种在 point 和 anotherPoint 之间共享行为的方法是：
+```js 
+var point = { /* .. */ };
+
+var anotherPoint = {
+    init: point.init,
+    rotate: point.rotate,
+    toString: point.toString,
+};
+
+anotherPoint.init(5,6);
+
+anotherPoint.x;         // 5
+anotherPoint.y;         // 6
+```
+
+这是一种通过将函数的共享引用添加到任何目标对象（例如 anotherPoint）上来“借用”函数的方式。调用 anotherPoint.init(5, 6) 是一种更自然/符合人机工程学的风格，它依赖于隐式上下文分配。
+
+相比 point.init.call(anotherPoint, 5, 6)，这种方法看起来可能更简洁。
+
+但主要的缺点是需要修改任何目标对象以添加这样的共享函数引用，这可能比较冗长、手动且容易出错。有时这种方法是可以接受的，但许多其他情况下，使用 call(..) / apply(..) 进行显式上下文分配更为可取。
+
+**new上下文调用**
+
+到目前为止，我们看到三种不同的上下文分配方式：默认、隐式和显式。
+
+第四种调用函数并为该调用分配 this 的方式是使用 new 关键字：
+```js 
+var point = {
+    // ..
+
+    init: function() { /* .. */ }
+
+    // ..
+};
+
+var anotherPoint = new point.init(3,4);
+
+anotherPoint.x;     // 3
+anotherPoint.y;     // 4
+```
+
+<Callout icon="💡" type="info">
+这个例子有一点细微之处需要解释。这里展示的 init: function() `{ .. }` 形式——特别是赋值给属性的函数表达式——是合法使用 new 关键字调用该函数所必需的。从之前的代码片段来看，简洁的方法形式 init() `{ .. }` 定义了一个不能用 new 调用的函数。
+</Callout>
+
+
+您通常看到 new 与类一起使用来创建实例。但作为 JavaScript 语言的基本机制，new 并不固有地是一种类操作。
+
+从某种意义上说，new 关键字劫持一个函数，并强制其行为处于与正常调用不同的模式。以下是 JavaScript 在使用 new 调用函数时执行的四个特殊步骤：
+
+1. <mark>创建一个全新的空对象，凭空而来。</mark>
+2. <mark>将该新空对象的 [[Prototype]] 链接到函数的 .prototype 对象（见第二章）。</mark>
+3. <mark>使用 this 上下文设置为该新空对象调用该函数。</mark>
+4. <mark>如果函数没有显式返回自己的对象值（带有 return .. 语句），则假设函数调用应该返回新对象（来自步骤 1-3）。</mark>
+
+
+
+<Callout icon="⚠️" type="warning">
+第四步意味着，如果您使用 new 调用一个返回其自身对象的函数——例如 return` { .. }` 等——那么步骤 1-3 中的新对象将不会被返回。这是一个需要注意的棘手问题，因为它有效地丢弃了那个新对象，程序没有机会接收并存储对它的引用。实际上，new 不应该用于调用具有显式 return .. 语句的函数。
+</Callout>
+
+为了更具体地理解这四个新步骤，我将以代码示例来说明，作为使用 new 关键字的替代方案：
+
+```js 
+//替代：
+//   var anotherPoint = new point.init(3,4)
+
+var anotherPoint;
+
+
+// 这是一个隐藏本地的裸块
+// 'let' 声明
+{
+    // (Step 1)
+    let tmpObj = {};
+
+    // (Step 2)
+    Object.setPrototypeOf(
+        tmpObj, point.init.prototype
+    );
+    // or: tmpObj.__proto__ = point.init.prototype
+
+    // (Step 3)
+    let res = point.init.call(tmpObj,3,4);
+
+    // (Step 4)
+    anotherPoint = (
+        typeof res !== "object" ? tmpObj : res
+    );
+}
+```
+
+显然，使用 new 调用简化了那一系列手动步骤！
+
+<Callout icon="💡" type="info">
+步骤 2 中的 Object.setPrototypeOf(..) 也可以通过 \_\_proto\_\_ 属性完成，例如 tmpObj.\_\_proto\_\_ = point.init.prototype，或甚至作为对象字面量的一部分（步骤 1），例如 tmpObj = \{ \_\_proto\_\_: point.init.prototype \}。
+</Callout>
+
+
+跳过一些形式上的步骤，让我们回顾一下早期的代码片段，看看 new 如何近似于类似的结果：
+
+```js 
+var point = { /* .. */ };
+
+// 这种方法:
+var anotherPoint = {};
+point.init.call(anotherPoint,5,6);
+
+// 可以近似为:
+var yetAnotherPoint = new point.init(5,6);
+```
+
+这更好看了！但这里有一个警告。
+
+使用 point 对 anotherPoint / yetAnotherPoint 进行的其他函数时，我们不希望使用 new。为什么？因为 new 正在创建一个新对象，但如果我们打算在现有对象上调用函数，那并不是我们想要的。
+
+相反，我们可能会使用显式上下文分配：
+
+```js 
+point.rotate.call( anotherPoint, /*angleRadians=*/Math.PI );
+
+point.toString.call( yetAnotherPoint );
+// (5,6)
+```
+
+**复习this**
+
+我们已经看到四条有关函数调用中 this 上下文分配的规则。让我们按优先顺序将它们排列：
+
+1. 函数是否通过 new 调用，创建并设置一个新的 this？
+2. 函数是否通过 call(..) 或 apply(..) 调用，显式设置 this？
+3. 函数是否通过调用点的对象引用调用（例如 point.init(..)），隐式设置 this？
+4. 如果以上都不是……我们是否在非严格模式下？如果是，则默认将 this 设置为 globalThis。但如果在严格模式下，则默认将 this 设置为 undefined。
+
+这些规则，按此顺序，是 JavaScript 如何确定函数调用的 this。<mark>如果多个规则匹配一个调用点（例如 new point.init.call(..)），则第一个匹配的规则优先。</mark>
+
+就是这样，您现在掌握了 this 关键字。好吧，不完全是。还有很多细微之处需要涵盖。但您已经在路上了！
+
+---
+
+### 箭头函数指向某处
+
+到目前为止，我所说的关于函数中的 this 以及如何根据调用点确定 this 的内容，做出了一个巨大的假设：您正在处理一个普通函数（或方法）。
+
+那么什么是非正规函数呢？它看起来是这样的：
+
+```js 
+const x = x => x <= x;
+```
+
+<Callout icon="💡" type="info">
+是的，我有点讽刺地称箭头函数为“非正规”，并使用如此牵强的例子。这是个玩笑，好吗？
+</Callout>
+
+
+这里有一个真正的箭头函数示例：
+
+```js 
+const clickHandler = evt =>
+    evt.target.matches("button") ?
+        this.theFormElem.submit() :
+        evt.stopPropagation();
+```
+
+为了比较，我也展示一下非箭头的等价函数：
+
+```js 
+const clickHandler = function(evt) {
+    evt.target.matches("button") ?
+        this.theFormElem.submit() :
+        evt.stopPropagation();
+};
+```
+
+或者如果我们回到旧风格——这可是我的最爱！——我们可以尝试独立的函数声明形式：
+
+```js 
+function clickHandler(evt) {
+    evt.target.matches("button") ?
+        this.theFormElem.submit() :
+        evt.stopPropagation();
+}
+```
+
+或者如果函数出现在类定义中，或作为对象字面量中的简洁方法，它将看起来像这样：
+
+```js 
+// ..
+clickHandler(evt) {
+    evt.target.matches("button") ?
+        this.theFormElem.submit() :
+        evt.stopPropagation();
+}
+```
+
+我真正想要关注的是这些函数的每种形式在 this 引用方面的行为，以及第一种箭头形式是否与其他形式不同（提示：确实不同！）。但让我们先进行一个小测验，看看您是否在关注。
+
+对于刚才展示的每种函数形式，我们如何知道每个 this 将引用什么？
+
+**调用点在哪里？**
+
+希望您回答的是：“首先，我们需要查看函数是如何被调用的。”
+
+说得很好。
+
+假设我们的程序看起来是这样的：
+
+
+```js 
+
+var infoForm = {
+    theFormElem: null,
+    theSubmitBtn: null,
+
+    init() {
+        this.theFormElem =
+            document.getElementById("the-info-form");
+        this.theSubmitBtn =
+            theFormElem.querySelector("button[type=submit]");
+
+        // is *this* the call-site?
+        this.theSubmitBtn.addEventListener(
+            "click",
+            this.clickHandler,
+            false
+        );
+    },
+
+    // ..
+}
+
+```
+
+啊，有趣。你们中的一半读者从未见过实际的 DOM API 代码，比如 getElementById(..)、querySelector(..) 和 addEventListener(..)。我听见困惑的铃声响起了！
+
+<Callout icon="💡" type="info">
+抱歉，我在这里显得有些老土。我从事这项工作已经很久了，我记得在我们拥有像 jQuery 这样到处都是 $ 的工具之前，就已经编写那种代码。经过多年的前端演变，我们似乎落脚在了一个更“现代”的地方——至少这是普遍的假设。
+</Callout>
+
+
+我猜现在很多人习惯于看到组件框架代码（如 React 等）像这样：
+
+```js 
+// ..
+
+infoForm(props) {
+    return (
+        <form ref={this.theFormElem}>
+            <button type=submit onClick=this.clickHandler>
+                Click Me
+            </button>
+        </form>
+    );
+}
+
+// ..
+
+```
+
+当然，根据您使用的框架不同，代码可能有许多其他形态。
+
+或者您甚至可能不再使用类/this 风格的组件，因为您将所有内容都转移到了钩子和闭包中。无论如何，出于讨论目的，本章的主题都是 this，因此我们需要保持上述编码风格，以便与讨论相关。
+
+而之前的两个代码片段都没有显示 clickHandler 函数的定义。但我到目前为止一再强调，这并不重要；所有重要的是……什么？和我一起说……所有重要的是函数是如何被调用的。
+
+那么 clickHandler 是如何被调用的呢？调用点是什么，且它符合哪个上下文分配规则？
+
+**隐藏在视线之外**
+
+如果您感到困惑，不用担心。我故意让这变得困难，以指出一个非常重要的事情。
+
+当“click”或 onClick= 事件处理程序绑定发生时，在这两种情况下，我们指定了 this.clickHandler，这意味着有一个 this 上下文对象，其上有一个名为 clickHandler 的属性，保存着我们的函数定义。
+
+那么，this.clickHandler 是调用点吗？如果是的话，适用哪个分配规则？隐式上下文规则（#3）？
+
+不幸的是，不是。
+
+问题在于，我们实际上无法在这个程序中看到调用点。呃哦。
+
+如果我们看不到调用点，我们怎么知道函数实际上将如何被调用？
+
+这正是我想表达的重点。
+
+并不重要我们传入了 this.clickHandler。那只是对一个函数对象值的引用。它不是调用点。
+
+在某个框架、库甚至 JavaScript 环境内部，当用户点击按钮时，将调用 clickHandler(..) 函数的引用。正如我们所暗示的，那个调用点甚至将传递 DOM 事件对象作为 evt 参数。
+
+由于我们无法看到调用点，我们必须想象它。它可能看起来像……？
+
+```js 
+// ..
+eventCallback( domEventObj );
+// ..
+
+```
+
+如果是这样的话，适用哪个 this 规则？默认上下文规则（#4）？
+
+或者，如果调用点看起来像这样……？
+
+现在适用哪个 this 规则？显式上下文规则（#2）？
+
+除非您打开并查看框架/库的源代码，或者阅读文档/规范，否则您将无法知道该调用点的预期。也就是说，预测您编写的 clickHandler 函数中 this 指向什么，将会……说得轻点……有点复杂。
+
+这是错的
+
+为了免去您更多的痛苦，我直接说吧。
+
+几乎所有的点击处理机制实现都将做类似 .call(..) 的事情，并将 DOM 元素（例如按钮）作为调用的显式上下文。
+
+嗯……这样可以吗，还是会有问题？
+
+回想一下我们的 clickHandler(..) 函数是 this 相关的，而它的 this.theFormElem 引用暗示引用一个具有 theFormElem 属性的对象，而该属性又指向父` <form>` 元素。DOM 按钮默认情况下并没有 theFormElem 属性。
+
+换句话说，我们的事件处理程序将设置的 this 引用几乎可以肯定是错误的。哎呀。
+
+除非我们想重写 clickHandler 函数，否则我们需要修复这个问题。
+
+**修复this问题**
+
+让我们考虑一些选项来解决错误的分配。为了保持焦点，我将坚持这种事件绑定风格进行讨论：
+
+```js 
+this.submitBtnaddEventListener(
+    "click",
+    this.clickHandler,
+    false
+);
+```
+
+有一种方法可以解决这个问题:
+
+```js 
+// 存储对当前
+// `this` 上下文
+var context = this;
+
+this.submitBtn.addEventListener(
+    "click",
+    function handler(evt){
+        return context.clickHandler(evt);
+    },
+    false
+);
+```
+
+<Callout icon="💡" type="info">
+大多数旧的 JavaScript 代码使用这种方法时，会说类似于 var self = this，而不是我在这里给出的上下文名称。“Self” 是一个更短的词，听起来更酷。但它的语义完全错误。this 关键字并不是对函数的“自我”引用，而是当前函数调用的上下文。乍看之下，这似乎是同一件事，但实际上它们是完全不同的概念，就像苹果和披头士的歌一样。因此……换句话说，“嘿，开发者，不要搞砸。把一个悲伤的自我变成更好的上下文。”
+</Callout>
+
+发生了什么？我意识到调用 addEventListener 的封闭代码有一个正确的当前 this 上下文，我们需要确保在调用 clickHandler(..) 时应用相同的 this 上下文。
+
+我定义了一个外部函数（handler(..)），然后强制调用点看起来像：
+
+```js 
+context.clickHandler(evt);
+```
+
+<Callout icon="💡" type="info">
+这里适用哪个 this 上下文分配规则？没错，是隐式上下文规则（#3）。
+</Callout>
+
+
+现在，无论库/框架/环境的内部调用点是什么样子，都不重要了。为什么？
+
+因为我们现在实际上控制了调用点。不管 handler(..) 是如何被调用的，或者它的 this 被分配成什么，重要的是在调用 clickHandler(..) 时，this 上下文设置为我们想要的。
+
+我不仅通过定义一个外部函数（handler(..)）来控制调用点，还……而且这一点很重要，请不要错过……我将 handler(..) 定义为一个非 this 相关的函数！在 handler(..) 中没有 this 关键字，因此无论库/框架/环境如何设置 this，都完全无关紧要。
+
+var context = this 这一行对于这个技巧至关重要。它定义了一个词法变量 context，这个变量不是某个特殊的关键字，而是保存了外部 this 的快照。然后在 clickHandler 内部，我们只是引用一个词法变量（context），而不是相对的/魔法的 this 关键字。
+
+**词法 this**
+
+顺便说一下，这种模式的名称是“词法 this”，意味着 this 像词法作用域变量一样行为，而不是像动态上下文绑定。
+
+但事实证明，JavaScript 有更简单的方法来执行“词法 this”的魔法。准备好揭示这个技巧了吗？
+
+...
+
+箭头函数！
+
+没错，=> 函数与所有其他函数形式不同，特别之处在于它根本没有定义任何特别的 this 行为。
+
+在 => 函数中，this 关键字……并不是一个关键字。它与任何其他变量（如 context 或 happyFace 或 foobarbaz）没有任何区别。
+
+让我更直接地说明这一点：
+
+```js 
+
+function outer() {
+    console.log(this.value);
+
+    // 定义一个 return 一个 “inner”
+    // function
+    var inner = () => {
+        console.log(this.value);
+    };
+
+    return inner;
+}
+
+var one = {
+    value: 42,
+};
+var two = {
+    value: "sad face",
+};
+
+var innerFn = outer.call(one);
+// 42
+
+innerFn.call(two);
+// 42   <-- not "sad face"
+
+```
+
+调用 innerFn.call(two) 对于任何常规函数定义来说，在这里将导致“悲伤的脸”。但由于我们定义并返回的内部函数（并分配给 innerFn）是一个不规则的 => 箭头函数，它没有特殊的 this 行为，而是具有“词法 this”行为。
+
+当 innerFn(..)（也称为 inner(..)）函数被调用时，即使通过 .call(..) 显式分配上下文，那个分配也会被忽略。
+
+
+<Callout icon="💡" type="info">
+我不确定为什么 => 箭头函数甚至有 call(..) / apply(..)，因为它们是无声的无操作函数。我想这是为了与常规函数保持一致。但正如我们稍后将看到的，常规函数和不规则的 => 箭头函数之间还有其他不一致之处。
+</Callout>
+
+
+&zwj;<mark>在 => 箭头函数内部遇到 this（this.value）时，this 被视为一个普通的词法变量，而不是特殊的关键字。</mark>由于在该函数本身中没有 this 变量，JavaScript 会像处理词法变量一样，向上查找一个词法作用域——在这种情况下，是外部的 outer(..) 函数，并检查在该作用域中是否有任何注册的 this。
+
+幸运的是，outer(..) 是一个常规函数，这意味着它有一个正常的 this 关键字。而 outer.call(one) 调用将 one 分配给它的 this。
+
+因此，innerFn.call(two) 正在调用 inner()，但当 inner() 查找 this 的值时，得到的是……one，而不是 two。
+
+**回到……按钮**
+
+你以为我会在这里开个玩笑说“未来”，对吗！？
+
+解决我们之前问题的一个更直接和适当的方法是，在事件绑定中使用 var context = this 来获取一种伪造的“词法 this”行为，而是使用 => 箭头函数，因为它的主要设计特性是……“词法 this”。
+
+砰！问题解决了！麦克风放下！
+
+请听我说：=> 箭头函数不是——我再说一遍，不是——为了减少输入字符。添加 => 函数到 JavaScript 的主要目的是为了让我们获得“词法 this”行为，而无需 resort 到 var context = this（或更糟的 var self = this）样式的技巧。
+
+
+<Callout icon="💡" type="info">
+如果您需要“词法 this”，请始终优先使用 => 箭头函数。如果您不需要“词法 this”，那么……=> 箭头函数可能不是最适合的工具。
+</Callout>
+
+**自白时间**
+
+我在本章中一直说，您如何编写函数以及在何处编写函数与其 this 将如何被分配无关。
+
+对于常规函数来说，这是真的。但当我们考虑不规则的 => 箭头函数时，这并不完全准确。
+
+回想一下早些时候的 clickHandler 的原始 => 形式？
+
+```js
+const clickHandler = evt =>
+    evt.target.matches("button") ?
+        this.theFormElem.submit() :
+        evt.stopPropagation();
+
+```
+
+如果我们在与事件绑定相同的上下文中使用该形式，它可能看起来像这样：
+
+许多开发者甚至更喜欢将其进一步简化为内联的 => 箭头函数：
+
+```js 
+
+const clickHandler = evt =>
+    evt.target.matches("button") ?
+        this.theFormElem.submit() :
+        evt.stopPropagation();
+
+this.submitBtn.addEventListener("click",clickHandler,false);
+
+```
+
+当我们编写一个 => 箭头函数时，我们可以确定它的 this 绑定将完全是运行的任何外部函数的当前 this 绑定，无论 => 箭头函数的调用点是什么样子。因此，换句话说，我们如何编写 => 箭头函数以及在哪里编写它，确实很重要。
+
+```js 
+this.submitBtn.addEventListener(
+    "click",
+    evt => evt.target.matches("button") ?
+        this.theFormElem.submit() :
+        evt.stopPropagation(),
+    false
+)
+```
+
+但这并没有完全回答 this 的问题。它只是将问题转移到外部函数是如何被调用的。实际上，关注调用点仍然是唯一重要的事情。
+
+但我自白的细微之处是：我们要关注的调用点很重要，而不仅仅是当前调用栈中的任何调用点。重要的调用点是当前调用栈中最近的一个实际分配了 this 上下文的函数调用。
+
+由于 => 箭头函数永远不会有分配 this 的调用点（无论如何），因此该调用点与这个问题无关。我们必须继续向上查找调用栈，直到找到一个分配 this 的函数调用——即使被调用的函数本身并不是 this 相关的。
+
+这才是唯一重要的调用点。
+
+**找到正确的调用点**
+
+让我通过一个复杂的嵌套函数/调用的混乱示例来说明：
+
+```js 
+globalThis.value = { result: "Sad face" };
+
+function one() {
+    function two() {
+        var three = {
+            value: { result: "Hmmm" },
+
+            fn: () => {
+                const four = () => this.value;
+                return four.call({
+                    value: { result: "OK", },
+                });
+            },
+        };
+        return three.fn();
+    };
+    return two();
+}
+
+new one();          // ???
+```
+您能在脑海中理清这段（噩梦般的）代码，并确定从 new one() 调用会返回什么吗？
+
+它可能是以下任意一种：
+
+```js
+// from `four.call(..)`:
+{ result: "OK" }
+
+// or, from `three` object:
+{ result: "Hmmm" }
+
+// or, from the `globalThis.value`:
+{ result: "Sad face" }
+
+// or, empty object from the `new` call:
+{}
+```
+
+new one() 调用的调用栈是：
+
+```js 
+
+four         |
+three.fn     |
+two          | (this = globalThis)
+one          | (this = {})
+[ global ]   | (this = globalThis)
+
+```
+
+由于 four() 和 fn() 都是 => 箭头函数，three.fn() 和 four.call(..) 的调用点并不是分配 this 的，因此对于我们的查询来说，它们是无关的。接下来要考虑的调用是 two()。这是一个常规函数（它可以接受 this 分配），并且调用点符合默认上下文分配规则（#4）。由于我们没有在严格模式下，因此 this 被分配为 globalThis。
+
+当 four() 运行时，this 只是一个普通变量。然后它查看其包含的函数（three.fn()），但再次发现这是一个没有 this 的函数。因此，它又向上查找，找到了一个定义了 this 的常规函数 two()。而这个 this 是 globalThis。所以 this.value 表达式解析为 globalThis.value，这返回了…… `{ result: "Sad face" }`。
+
+...
+
+深呼吸。我知道这需要处理很多信息。而且公平地说，这是一个非常牵强的例子。在一个调用栈中，您几乎不会看到所有这些复杂性混合在一起。
+
+但您绝对会在实际程序中发现混合的调用栈。您需要熟悉我刚刚展示的分析，以便能够解开调用栈，直到找到最近的分配 this 的调用点。
+
+记住我之前引用的格言：“权力越大，责任越大”。选择以 this 为导向的代码（甚至类）意味着选择它所提供的灵活性，同时也需要能够导航调用栈以理解它将如何行为。
+
+这才是有效编写（和后来阅读！）以 this 为导向的代码的唯一方法。
+
+**这必然会出现**
+
+稍微退后一点，如果您不想使用 => 箭头函数的“词法 this”行为来处理按钮事件处理功能，还有另一个选项。
+
+除了 call(..) / apply(..)——这些都是调用函数，记住！——JavaScript 函数还有一个内置的第三个工具，称为 bind(..)——这并不调用函数，明确地说。
+
+bind(..) 工具定义了一个新的包装/绑定版本的函数，其中其 this 被预设并固定，且不能通过 call(..)、apply(..) 或在调用点使用隐式上下文对象来覆盖：
+
+```js
+this.submitBtn.addEventListener(
+    "click",
+    this.clickHandler.bind(this),
+    false
+);
+
+```
+
+由于我将一个绑定 this 的函数作为事件处理程序传递，因此无论该工具如何尝试设置 this，都无关紧要，因为我已经强制将 this 设置为我想要的：来自外部函数调用上下文的 this 值。
+
+**稍显古老**
+
+这种模式通常被称为“硬绑定”，因为我们创建了一个强烈绑定到特定 this 的函数引用。许多 JavaScript 文献声称 => 箭头函数基本上只是 bind(this) 硬绑定的语法。其实并非如此。让我们深入探讨。
+
+如果您要创建一个 bind(..) 工具，它可能看起来像这样：
+
+```js 
+function bind(fn,context) {
+    return function bound(...args){
+        return fn.apply(context,args);
+    };
+}
+```
+
+
+<Callout icon="💡" type="info">
+这实际上并不是 bind(..) 的实现方式。它的行为更复杂且更细致。我仅在这个代码片段中说明了它行为的一部分。
+</Callout>
+
+
+这看起来熟悉吗？它使用了老掉牙的伪“词法 this”技巧。在底层，它是通过 apply(..) 显式上下文分配。
+
+那么，等一下……这是否意味着我们可以仅仅使用一个 => 箭头函数来做到这一点？
+
+```js 
+function bind(fn,context) {
+    return (...args) => fn.apply(context,args);
+}
+```
+
+呃……不完全是。与 JavaScript 中的大多数事物一样，这里有一些细微之处。让我来说明：
+
+```js 
+// candidate 实现， 用于比较
+function fakeBind(fn,context) {
+    return (...args) => fn.apply(context,args);
+}
+
+// test subject
+function thisAwareFn() {
+    console.log(`Value: ${this.value}`);
+}
+
+// control data
+var obj = {
+    value: 42,
+};
+
+// experiment
+var f = thisAwareFn.bind(obj);
+var g = fakeBind(thisAwareFn,obj);
+
+f();            // Value: 42
+g();            // Value: 42
+
+new f();        // Value: undefined
+new g();        // <--- ???
+```
+
+首先，看一下new f() 调用。对此调用硬绑定函数的用法确实有些奇怪。您很少会这样做。但它显示了一些有趣的东西。<mark>尽管 f() 被硬绑定到一个 this 上下文的 obj，new 操作符仍然能够劫持该硬绑定函数的 this 并重新绑定到新创建的空对象。</mark>那个对象没有 value 属性，这就是为什么我们看到打印出“Value: undefined”。
+
+
+如果这听起来奇怪，我同意。这是一个奇怪的细微之处。您可能不会利用它。但我指出它不仅仅是为了趣味。请回顾一下本章之前提出的四条规则。记得我曾声称它们的优先顺序，new 在最上面（#1），高于显式的 call(..) / apply(..) 分配规则（#2）吗？
+
+由于我们可以在某种程度上将 bind(..) 看作该规则的变体，因此我们现在看到优先顺序得到了证明。<mark>new 的优先级高于甚至可以覆盖硬绑定函数。</mark>这让人觉得硬绑定的函数可能并不是那么“硬”绑定，对吧？
+
+但是……对于调用新的 g()，即对返回的 => 箭头函数进行 new 调用，会发生什么呢？您预测的结果与 new f() 相同吗？
+
+抱歉让您失望。
+
+那一行实际上会抛出异常，因为 => 函数不能与 new 关键字一起使用。
+
+但为什么？我最好的答案是，尽管我并不是 TC39 的权威，但从概念和实际来看，=> 箭头函数并不是一个有硬绑定 this 的函数，而是一个根本没有 this 的函数。因此，new 对这样的函数毫无意义，所以 JavaScript 就禁止了它。
+
+
+<Callout icon="💡" type="info">
+回想一下，我之前指出 => 箭头函数有 call(..)、apply(..)，甚至还有 bind(..)。但我们看到这些函数基本上会忽略这些工具，成为无操作（no-op）。在我看来，=> 箭头函数有这些作为无操作的工具有点奇怪，但对于 new 关键字来说，这不仅仅是一个无操作的传递，而是被禁止的例外。
+</Callout>
+
+
+但主要问题是：=> 箭头函数并不是 bind(this) 的一种语法形式。
+
+**输掉这场战斗**
+
+再次回到我们的按钮事件处理程序示例：
+
+```js 
+this.submitBtnaddEventListener(
+    "click",
+    this.clickHandler,
+    false
+);
+```
+
+我们还有一个更深层次的问题尚未解决。
+
+我们已经看到几种不同的方法来构造一个不同的回调函数引用，以替代 this.clickHandler。
+
+但无论我们选择哪种方式，它们实际上都是生成了一个不同的函数，而不仅仅是对现有的 clickHandler 函数进行原地修改。
+
+这有什么重要性？
+
+首先，创建（和重新创建）更多的函数意味着消耗更多的处理时间（非常少）和内存（通常也很少）。当我们重新创建一个函数引用并扔掉旧的函数时，这也会留下未被回收的内存，这增加了垃圾收集器（GC）的压力，使其更频繁地暂停程序的宇宙，同时清理和回收那部分内存。
+
+如果连接这个事件监听是一次性操作，那没什么大不了的。但如果它发生得很频繁，系统级性能的影响可能会开始累积。您是否经历过其他流畅动画的抖动？那很可能是 GC 启动，清理一堆可以回收的内存。
+
+但另一个关注点是，对于事件处理程序等情况，如果我们计划稍后移除事件监听器，我们需要保留对最初附加的确切相同函数的引用。如果我们使用一个库/框架，通常（但并非总是！）它们会为您处理这个小细节。否则，我们需要确保我们计划附加的任何函数都保留有引用，以防我们需要它。
+
+所以我想说的是：预设 this 的分配，无论您如何做到，以便它是可预测的，都会带来成本。这是一个系统级的成本和一个程序维护/复杂度的成本。它从来不会是免费的。
+
+一种应对这种事实的方法是，决定好，我们将一次性制造所有那些已分配 this 的函数引用。这样，我们可以确保将系统压力和代码压力降到最低。
+
+听起来合理，对吧？但不要太快下结论。
+
+**预绑定函数上下文**
+
+如果您有一个需要 this 绑定的一次性函数引用，并且您使用 => 箭头函数或 bind(this) 调用，我认为这没有问题。
+
+但是，如果您代码段中的大多数或所有 this 相关函数以不可预测的上下文被调用，因此您决定需要将它们全部硬绑定……我认为这是一个很大的警示信号，表明您可能走错了路。
+
+请回忆一下在第三章“避免这样做”部分的讨论，它以以下代码片段开始：
+
+```js 
+class Point2d {
+    x = null
+    getDoubleX = () => this.x * 2
+
+    constructor(x,y) {
+        this.x = x;
+        this.y = y;
+    }
+    toString() { /* .. */ }
+}
+
+var point = new Point2d(3,4);
+```
+
+现在想象一下我们用那段代码做了这个：
+
+
+```js 
+const getX = point.getDoubleX;
+
+//后来，在其他地方
+
+getX();         // 6
+```
+
+如您所见，我们试图解决的问题与我们在本章中处理的内容相同。我们希望能够像调用 getX() 一样调用一个函数引用，并让它的意思和行为像 point.getDoubleX()。但常规函数的规则并不这样工作。
+
+因此，我们使用了 => 箭头函数。没什么大不了的，对吧！？
+
+错了。
+
+真正的根本问题是，我们想从代码中获得两种相互矛盾的东西，而我们试图用同一个工具来解决这两个问题。
+
+我们希望在类原型上存储一个 this 相关的方法，以便对函数只有一个定义，所有子类和实例都能很好地共享这个函数。而它们共享的方式是通过动态 this 绑定的强大力量。
+
+但与此同时，我们也希望在传递这些函数引用时，这些函数引用能够神奇地保持 this 绑定到我们的实例，而其他代码负责调用点。
+
+换句话说，有时我们希望像 point.getDoubleX 这样的表达式意味着“给我一个与 point 绑定的引用”，而其他时候我们希望相同的表达式 point.getDoubleX 意味着“给我一个能够正常获取我需要的上下文的动态 this 可分配函数引用”。
+
+也许 JavaScript 可以提供一个不同的运算符，例如 :: 或 ->，让您区分您想要的函数引用类型。实际上，长期以来有一个关于 this 绑定运算符（::）的提案，时不时会引起关注，但似乎又停滞不前。谁知道呢，也许有一天这样的运算符会最终实现，我们会有更好的选择。
+
+但我强烈怀疑，即使它有一天实现了，它也会生成一个全新的函数引用，正如我们之前讨论的 => 或 bind(this) 方法一样。它不会是一个免费的完美解决方案。总会存在希望同一函数有时能够灵活 this，有时又能预测 this 的张力。
+
+在使用面向类代码的 JavaScript 作者中，早晚会遇到这种张力。您知道他们是怎么做的吗？
+
+他们并没有考虑到简单地将所有类的 this 相关方法预绑定为成员属性中的 => 箭头函数的成本。他们没有意识到这完全抵消了 [[Prototype]] 链的整个目的。他们也没有意识到，如果他们真的需要固定上下文，JavaScript 中有一种完全不同的机制更适合这个目的。
+
+**更深入的思考**
+
+因此，当您做这种事情时：
+
+```js 
+class Point2d {
+    x = null
+    y = null
+    getDoubleX = () => this.x * 2
+    toString = () => `(${this.x},${this.y})`
+
+    constructor(x,y) {
+        this.x = x;
+        this.y = y;
+    }
+}
+
+var point = new Point2d(3,4);
+var anotherPoint = new Point2d(5,6);
+
+var f = point.getDoubleX;
+var g = anotherPoint.toString;
+
+f();            // 6
+g();            // (5,6)
+```
+
+我对那里的硬绑定 this 感知方法 getDoubleX（） 和 toString（） 说，“恶心！对我来说，这是一种代码味道。但这里有一种更糟糕的方法，过去许多开发人员都喜欢它：
+
+```js 
+class Point2d {
+    x = null
+    y = null
+
+    constructor(x,y) {
+        this.x = x;
+        this.y = y;
+        this.getDoubleX = this.getDoubleX.bind(this);
+        this.toString = this.toString.bind(this);
+    }
+    getDoubleX() { return this.x * 2; }
+    toString() { return `(${this.x},${this.y})`; }
+}
+
+var point = new Point2d(3,4);
+var anotherPoint = new Point2d(5,6);
+
+var f = point.getDoubleX;
+var g = anotherPoint.toString;
+
+f();            // 6
+g();            // (5,6)
+
+```
+
+更加恶心。
+
+在这两种情况下，您都在使用 this 机制，但完全背叛/削弱了它，剥夺了 this 的所有强大动态性。
+
+&zwj;<mark>您真的应该至少考虑这种替代方法</mark>，它完全跳过了 this 机制：
+
+```js 
+function Point2d(px,py) {
+    var x = px;
+    var y = py;
+
+    return {
+        getDoubleX() { return x * 2; },
+        toString() { return `(${x},${y})`; }
+    };
+}
+
+var point = Point2d(3,4);
+var anotherPoint = Point2d(5,6);
+
+var f = point.getDoubleX;
+var g = anotherPoint.toString;
+
+f();            // 6
+g();            // (5,6)
+```
+
+您看到了吗？没有丑陋或复杂的 this 来使代码变得混乱或担忧边缘情况。
+
+当我们希望大多数/所有函数行为具有固定和可预测的上下文时，最合适的解决方案，最直接甚至最有效的解决方案，就是词法变量和作用域闭包。
+
+当您在一段代码中到处撒上 this 引用，并且然后用 => “词法 this”或 bind(this) 将整个机制削弱时，您选择使代码更冗长、更复杂且更繁琐。您没有得到任何更有益的东西，只是跟随了 this（和类）的大潮流。
+
+...
+
+深呼吸。冷静下来。
+
+我是在和自己说话，而不是你。但如果我刚才说的话让你不舒服，那我也是在跟你说话！
+
+好吧，听着。这只是我的看法。如果您不同意，那没关系。但是当您决定想要得出什么结论时，请像我一样严格思考这些机制是如何运作的。
+
+---
+
+### 变体
+
+在我们结束这一长段讨论之前，还有一些关于函数调用的非正规变体需要讨论。
+
+**间接函数调用**
+
+回忆一下本章早些时候的这个例子？
+
+```js 
+var point = {
+    x: null,
+    y: null,
+
+    init(x,y) {
+        this.x = x;
+        this.y = y;
+    },
+    rotate(angleRadians) { /* .. */ },
+    toString() { /* .. */ },
+};
+
+var init = point.init;
+init(3,4);                  // 破碎!
+
+```
+
+这个例子是有问题的，因为 init(3,4) 的调用位置没有提供必要的 this 分配信号。但还有其他方式可以观察到类似的错误。例如：
+
+```js 
+(1,point.init)(3,4);        // broken!
+```
+
+这奇怪的语法首先计算一个表达式 (1, point.init)，这是一个逗号系列表达式。这样的表达式的结果是最终评估的值，在这种情况下是函数引用（由 point.init 持有）。
+
+因此，结果将该函数引用放入表达式栈中，然后用 (3,4) 调用该值。这是对函数的间接调用。结果是什么？实际上，它符合我们在本章早些时候看到的默认上下文分配规则（#4）。
+
+因此，在非严格模式下，point.init(..) 调用的 this 将是 globalThis。如果我们在严格模式下，它将是 undefined，而 this.x = x 操作将抛出异常，因为无效地访问了 undefined 值上的 x 属性。
+
+有几种不同的方法可以实现间接函数调用。例如：
+
+```js 
+(()=>point.init)()(3,4);    // broken!
+```
+
+另一个间接函数调用的例子是立即调用函数表达式（IIFE）模式：
+
+```js 
+(function(){
+    // `this` assigned via "default" rule
+})();
+```
+
+如你所见，函数表达式值被放入表达式栈中，然后通过结尾的 () 调用。
+
+但是这段代码呢：
+```js 
+(point.init)(3,4);
+```
+
+那段代码的结果是什么？
+
+根据我们在之前示例中看到的相同推理，我们可以认为 point.init 表达式将函数值放入表达式栈中，然后间接调用 (3,4)。
+
+然而并非如此！JS 语法有一个特殊规则处理调用形式 (someIdentifier)(..)，就像它是 someIdentifier(..)（没有 ( ..) 在标识符名称周围）一样。
+
+想知道你为什么可能想通过间接函数调用强制默认上下文的 this 分配吗？
+
+**访问 globalThis**
+
+在我们回答这个问题之前，让我们介绍另一种执行间接函数 this 分配的方法。到目前为止，展示的间接函数调用模式对严格模式是敏感的。但如果我们想要一个不受严格模式影响的间接函数 this 分配呢？
+
+Function(..) 构造函数接受一段代码字符串并动态定义等效函数。然而，它总是以该函数在全局作用域中声明的方式进行。此外，它确保该函数无论程序的严格模式状态如何都不会在严格模式下运行。这与间接调用的结果相同。
+
+这种对严格模式无敏感的间接函数 this 分配的一个小众用法是在 JS 规范实际定义 globalThis 标识符之前，获取对真实全局对象的可靠引用（例如，在其的 polyfill 中）：
+
+```js 
+"use strict";
+
+var gt = new Function("return this")();
+gt === globalThis;     // true
+```
+
+实际上，使用逗号运算符技巧（参见前一节）和 eval(..) 的类似结果：
+
+```js
+"use strict";
+
+function getGlobalThis() {
+    return (1,eval)("this");
+}
+
+getGlobalThis() === globalThis;      // true
+```
+
+<Callout icon="💡" type="info">
+eval("this") 将对严格模式敏感，但 (1,eval)("this") 是不敏感的，因此在任何程序中可靠地给我们 globalThis。
+</Callout>
+
+
+
+不幸的是，new Function(..) 和 (1,eval)(..) 方法都有一个重要的限制：如果应用程序在某些内容安全策略（CSP）限制下提供服务，动态代码评估将被阻止（出于安全原因）。
+
+我们能解决这个问题吗？是的，[大部分情况下可以](https://mathiasbynens.be/notes/globalthis#robust-polyfill)。
+
+JS 规范规定，定义在全局对象上的 getter 函数，或者在任何继承自它的对象上（如 Object.prototype），都将以 this 上下文分配给 globalThis 运行，无论程序的严格模式如何。
+
+```js
+// Adapted from: https://mathiasbynens.be/notes/globalthis#robust-polyfill
+function getGlobalThis() {
+    Object.defineProperty(Object.prototype,"__get_globalthis__",{
+        get() { return this; },
+        configurable: true
+    });
+    var gt = __get_globalthis__;
+    delete Object.prototype.__get_globalthis__;
+    return gt;
+}
+
+getGlobalThis() === globalThis;      // true
+```
+
+这确实很复杂。但这就是 JS 中 this 的特性！
+
+**模板标签函数**
+
+还有一种我们应该讨论的函数调用的不寻常变体：标签模板函数。
+
+模板字符串——我更喜欢称之为插值文本——可以用一个前缀函数“标签”，该函数会被调用并解析模板文本的内容：
+
+```js
+function tagFn(/* .. */) {
+    // ..
+}
+
+tagFn`actually a function invocation!`;
+```
+
+如你所见，没有 (..) 调用语法，只有标签函数 tagFn 出现在模板文本前面；它们之间可以有空格，但这很不常见。
+
+尽管外观奇怪，函数 tagFn(..) 将被调用。它会被传入从模板文本解析的一个或多个字符串文字，以及遇到的任何插值表达式值。
+
+我们不会讨论标签模板函数的所有细节——它们确实是 JS 中添加的最强大和有趣的特性之一——但因为我们在讨论函数调用中的 this 分配，所以为了完整，我们需要讨论如何分配 this。
+
+你可能会遇到标签函数的另一种形式是：
+
+```js 
+var someObj = {
+    tagFn() { /* .. */ }
+};
+
+someObj.tagFn`also a function invocation!`;
+```
+
+简单解释一下：tagFn.. 和 someObj.tagFn.. 的 this 分配行为分别对应于 tagFn(..) 和 someObj.tagFn(..)。换句话说，tagFn.. 的行为遵循默认上下文分配规则（#4），而 someObj.tagFn.. 则遵循隐式上下文分配规则（#3）。
+
+幸运的是，我们不需要担心新的 call(..) / apply(..) 分配规则，因为这些形式在标签函数中是不可能的。
+
+需要指出的是，很少有标签模板字面量函数被定义为 this 相关，因此你不太可能需要应用这些规则。但以防万一，现在你知道了。
+
+---
+
+### 保持警觉
+
+所以，这就是 this。我敢打赌，对于许多人来说，这比你预期的要复杂……可以说，有点复杂。
+
+好消息或许是，在实践中你并不经常遇到这些不同的复杂性。但你越多地使用 this，就越需要你和你的代码读者理解它是如何工作的。
+
+这里的教训是，你应当在代码中随意使用 this 之前，有意识地了解它的所有方面。确保你在有效地使用它，并充分利用这个 JS 的重要支柱。
