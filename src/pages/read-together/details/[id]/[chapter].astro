@@ -13,6 +13,7 @@ import { getCollection } from 'astro:content'
 import { FaChevronRight } from 'react-icons/fa'
 import { books } from '@/config/books'
 
+
 export function getStaticPaths() {
   const paths = books.flatMap((book) =>
     book.chapter.flatMap((c) =>
@@ -34,6 +35,7 @@ export function getStaticPaths() {
 const { id, chapter } = Astro.params
 
 const { title, items } = Astro.props
+
 
 const draftBlogPosts = await getCollection('books', ({ data }) => {
   return data.name === chapter

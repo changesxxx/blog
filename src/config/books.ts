@@ -169,9 +169,8 @@ export const books = [
             title: "委托",
             href: "/read-together/details/dont-know-js/objects-classes-ch5", //真实的地址
             name: "objects-classes-ch5", //用于寻找对应的doc 和拼接动态路径所需
-          },
-        
-        ],
+          }
+        ]
       },
       {
         id: "sync-async",
@@ -179,13 +178,22 @@ export const books = [
         syllabus:
           "尚未开始",
           items:[]
-      }, {
-        id: "types-grammar ",
+      },
+       {
+        id: "types-grammar",
         title: "类型和语法",
+        href: "/read-together/details/dont-know-js/types-grammar-ch1",
         syllabus:
-          "尚未开始",
-          items:[]
-      }
+          "在这里，我们将研究 JS 的核心值类型，特别是称为原始的非对象类型。",
+        items: [
+          {
+            title: "变体",
+            href: "/read-together/details/dont-know-js/types-grammar-ch1",
+            name: "types-grammar-ch1", 
+          },
+        ]
+      },
+      
  
     ],
   },
