@@ -1,0 +1,207 @@
+---
+title: "对象值"
+description: "现在我们已经对内置的原始类型感到熟悉，我们将注意力转向 JavaScript 中的对象类型。我可以写一本书深入讨论对象；事实上，我已经写过！本系列的“对象与类”标题已经深入涵盖了对象，因此请确保在继续本章之前阅读过该内容。为了避免重复那本书的内容，这里我们将重点关注对象值类型的行为及其与 JavaScript 中其他值的交互。"
+
+name: "types-grammar-ch3"
+---
+
+### 对象的类型
+
+该对象值类型包含多个子类型，每个子类型都有特定的行为，包括：
+
+- 普通对象
+- 基本对象（包装原始值）
+- 内置对象
+- 数组
+- 正则表达式
+- 函数（即“可调用对象”）
+
+除了特定的行为之外，所有对象的一个共同特征是它们都可以充当属性的集合（持有值，包括函数/方法）。
+
+---
+
+### 普通对象
+一般对象值类型有时被称为普通的 JavaScript 对象（POJOs）。
+
+普通对象具有字面形式：
+
+```js 
+address = {
+    street: "12345 Market St",
+    city: "San Francisco",
+    state: "CA",
+    zip: "94114"
+};
+```
+
+这个普通对象（POJO）用 `{ .. }` 大括号定义，是一组命名属性的集合（street、city、state 和 zip）。属性可以持有任何值，包括原始值或其他对象（包括数组、函数等）。
+
+同样的对象也可以使用 new Object() 构造函数以命令式的方式定义：
+
+```js 
+address = new Object();
+address.street = "12345 Market St";
+address.city = "San Francisco";
+address.state = "CA";
+address.zip = "94114";
+```
+
+普通对象默认 [[Prototype]] 链接到 Object.prototype，从而使它们可以委托访问几个通用对象方法，如：
+
+- toString() / toLocaleString()
+- valueOf()
+- isPrototypeOf(..)
+- hasOwnProperty(..)（最近已弃用——替代方案：静态 Object.hasOwn(..) 工具）
+- propertyIsEnumerable(..)
+- \_\_proto\_\_（getter 函数）
+
+```js 
+address.isPrototypeOf(Object.prototype);    // true
+address.isPrototypeOf({});                  // false
+```
+
+---
+
+### 基本对象
+
+JavaScript 定义了几个基本对象类型，它们是各种内置构造函数的实例，包括：
+
+- new String()
+- new Number()
+- new Boolean()
+{/* todo */}
+请注意，这些构造函数必须使用 new 关键字来构造基本对象的实例。否则，这些函数实际上会执行类型转换（见第 4 章）。
+
+这些基本对象构造函数创建对象值类型，而不是原始值：
+
+```js 
+myName = "Kyle";
+typeof myName;                      // "string"
+
+myNickname = new String("getify");
+typeof myNickname;                  // "object"
+```
+
+换句话说，<mark>基本对象构造函数的实例实际上可以看作是对应的底层原始值的包装。</mark>
+
+<Callout icon="⚠️" type="warning">
+几乎普遍认为直接实例化这些基本对象是个坏习惯。原始值通常更具可预测性、更高效，并且在需要访问属性/方法的对象包装形式时会自动包装（见“自动对象”部分）。
+</Callout>
+
+Symbol(..) 和 BigInt(..) 函数在规范中被称为“构造函数”，尽管它们不与 new 关键字一起使用，并且它们在 JavaScript 程序中产生的值确实是原始值。
+
+然而，针对这两种类型，存在内部基本对象，用于原型委托和自动包装。
+
+相比之下，对于 null 和 undefined 原始值，不存在 Null() 或 Undefined() “构造函数”，也没有相应的基本对象或原型。
+
+**原型**
+
+基本对象构造函数的实例与其构造函数的原型对象 [[Prototype]] 链接：
+
+- String.prototype：定义了 length 属性，以及字符串特定的方法，如 toUpperCase() 等。
+- Number.prototype：定义了数字特定的方法，如 toPrecision(..)、toFixed(..) 等。
+- Boolean.prototype：定义了默认的 toString() 和 valueOf() 方法。
+- Symbol.prototype：定义了描述（getter），以及默认的 toString() 和 valueOf() 方法。
+- BigInt.prototype：定义了默认的 toString()、toLocaleString() 和 valueOf() 方法。
+- 任何直接实例化内置构造函数的对象都可以 [[Prototype]] 委托访问其相应的原型属性/方法。此外，相应的原始值也通过自动包装具备这样的委托访问。
+
+**自动对象**
+
+我之前多次提到自动包装（auto-boxing）（包括第 1 章和第 2 章，以及本章中几次）。现在是时候解释这个概念了。
+
+访问值的属性或方法要求该值是一个对象。正如我们在第 1 章中看到的，原始值不是对象，因此 JavaScript 需要临时转换/包装这样的原始值为其基本对象对应值，以执行该访问。
+
+例如：
+
+```js 
+myName = "Kyle";
+
+myName.length;              // 4
+
+myName.toUpperCase();       // "KYLE"
+```
+
+访问 length 属性或 toUpperCase() 方法，仅允许在原始字符串值上进行，因为 <mark>JavaScript 会将原始字符串自动包装为一个基本对象的实例，即 new String(..)。</mark>否则，所有这样的访问都会失败，因为原始值没有任何属性。
+
+更重要的是，当原始值被自动包装到其基本对象对应值时，这些内部创建的对象通过 [[Prototype]] 链接访问预定义的属性/方法（如 length 和 toUpperCase()）。
+
+因此，<mark>自动包装的字符串是 new String() 的实例，并因此链接到 String.prototype。</mark>同样，数字（作为 new Number() 的实例包装）和布尔值（作为 new Boolean() 的实例包装）也是如此。
+
+尽管 Symbol(..) 和 BigInt(..) “构造函数”（在不使用 new 的情况下使用）产生原始值，但这些原始值也可以自动包装为其内部基本对象的包装形式，以便委托访问属性/方法。
+
+{/* todo */}
+<Callout icon="💡" type="info">
+有关 [[Prototype]] 链接和基本对象构造函数原型对象的委托/继承访问的更多信息，请参见本系列的“对象与类”书籍。
+</Callout>
+
+由于 null 和 undefined 没有相应的基本对象，因此这些值没有自动包装。
+
+一个主观问题值得考虑：自动包装是一种强制转换吗？我认为是的，尽管有些人不同意。内部上，原始值被转换为对象，意味着值类型发生了变化。是的，这种变化是暂时的，但很多强制转换也是暂时的。此外，这种转换相当隐式（由属性/方法访问暗示，但仅在内部发生）。我们将在第 4 章重新审视强制转换的性质。
+
+---
+
+### 其他内置对象
+
+除了基本对象构造函数，JavaScript 还定义了许多其他内置构造函数，创建进一步的特殊对象子类型：
+
+- new Date(..)
+- new Error(..)
+- new Map(..)，new Set(..)，new WeakMap(..)，new WeakSet(..) -- 键控集合
+- new Int8Array(..)，new Uint32Array(..) 等 -- 索引的、类型化数组集合
+- new ArrayBuffer(..)，new SharedArrayBuffer(..) 等 -- 结构化数据集合
+
+---
+
+### 数组
+
+数组是专门化的对象，作为数值索引的值集合，而不是像普通对象那样通过命名属性来持有值。
+
+数组具有字面形式：
+
+```js 
+favoriteNumbers = [ 3, 12, 42 ];
+
+favoriteNumbers[2];                 // 42
+```
+
+同样的数组也可以使用 new Array() 构造函数以命令式的方式定义：
+
+```js 
+favoriteNumbers = new Array();
+favoriteNumbers[0] = 3;
+favoriteNumbers[1] = 12;
+favoriteNumbers[2] = 42;
+```
+
+数组与 Array.prototype 链接，赋予它们访问各种数组相关方法的权限，如 map(..)、includes(..) 等：
+
+```js 
+favoriteNumbers.map(v => v * 2);
+// [ 6, 24, 84 ]
+
+favoriteNumbers.includes(42);       // true
+```
+
+在 Array.prototype 上定义的一些方法，例如 push(..)、pop(..)、sort(..) 等，行为是直接修改数组的值。其他方法，例如 concat(..)、map(..)、slice(..)，则通过创建一个新数组返回，从而保持原数组不变。第三类数组函数，例如 indexOf(..)、includes(..) 等，仅计算并返回一个（非数组）结果。
+
+---
+
+### 正则表达式
+等待作者更新...🏗️🏗️🏗️🏗️
+
+---
+
+### 函数
+等待作者更新...🏗️🏗️🏗️🏗️
+
+---
+
+### 提议：记录/元组
+
+在撰写本文时，存在一个（阶段2）提案，旨在向 JavaScript 添加一组新特性，这些特性与普通对象和数组密切相关，但有一些显著的区别。
+
+记录类似于普通对象，但它是不可变的（密封的、只读的），并且（与对象不同）在值赋值和相等比较时被视为原始值。语法上的区别是在 `{ }` 分隔符前加一个 #。记录只能包含原始值（包括记录和元组）。
+
+元组与数组的关系完全相同，包括在 [ ] 分隔符前加一个 #。
+
+重要的是要注意，尽管这些看起来像对象/数组，但它们实际上是原始（非对象）值。

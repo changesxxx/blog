@@ -191,6 +191,21 @@ export const books = [
             href: "/read-together/details/dont-know-js/types-grammar-ch1",
             name: "types-grammar-ch1", 
           },
+          {
+            title: "原始值的行为",
+            href: "/read-together/details/dont-know-js/types-grammar-ch2",
+            name: "types-grammar-ch2", 
+          },
+          {
+            title: "对象值",
+            href: "/read-together/details/dont-know-js/types-grammar-ch3",
+            name: "types-grammar-ch3", 
+          },
+          {
+            title: "强制转换值",
+            href: "/read-together/details/dont-know-js/types-grammar-ch4",
+            name: "types-grammar-ch4", 
+          },
         ]
       },
       
