@@ -1,0 +1,429 @@
+---
+title: "渲染 props 的高级配置"
+description: "在上一章中，我们讨论了灵活性、组件配置、如何将元素作为 props 传递来解决这个问题，以及如何在这些元素上设置默认值。但是，元素作为 props，尽管很优秀，并不能为我们解决所有问题。如果一个组件通过 props 接受其他组件，需要以某种明确的非魔法方式影响它们的 props 或将一些状态传递给它们，那么元素作为 props 和 cloneElement 函数在这里就无能为力了。"
+
+name: "render-props-advanced-configuration"
+---
+
+这就是被称为“渲染 props”的模式派上用场的地方。在这一章中，你将学习：
+
+- 渲染 props 模式是什么，以及它解决了哪些配置问题，而元素作为 props 则无法解决。
+- 如何通过渲染 props 分享状态逻辑，以及作为渲染 props 的 children 看起来是怎样的。
+- 为什么在如今拥有 hooks 的情况下，我们实际上不应该这样做。
+- 在 hooks 时代，分享逻辑的渲染 props 模式何时仍然有用。
+
+---
+
+### 问题
+
+这是我们在上一章中实现的按钮组件：
+
+```jsx
+const Button = ({ appearance, size, icon }) => {
+  // 创建默认 props
+  const defaultIconProps = {
+    size: size === "large" ? "large" : "medium",
+    color: appearance === "primary" ? "white" : "black",
+  };
+  const newProps = {
+    ...defaultIconProps,
+    // 确保来自 icon 的 props 覆盖 default （如果存在）
+    ...icon.props,
+  };
+  // 克隆图标并为其分配新 props
+  const clonedIcon = React.cloneElement(icon, newProps);
+  return (
+    <button className={`button ${appearance}`}>Submit {clonedIcon}</button>
+  );
+};
+```
+
+按钮接受一个图标元素，并默认设置其大小和颜色 props。
+
+虽然这种方法对于简单情况非常有效，但对于更复杂的情况就不那么理想了。如果我想在按钮中引入一些状态，并让按钮的消费者访问该状态呢？比如在按钮被悬停时调整图标？在按钮中实现该状态非常简单：
+
+```jsx
+const Button = ({ ... }) => {
+ const [isHovered, setIsHovered] = useState();
+ return <button onMouseOver={() => setIsHovered(true)} />
+}
+
+```
+
+但接下来怎么办？我们如何将其与图标共享？
+
+这种方法的另一个问题是，我们对通过图标 prop 传递的元素做出了一些重大假设。我们期望它至少具有大小和颜色 props。如果我们想使用不同的图标库，而那些图标没有这些确切的 props 呢？我们的默认 props 逻辑将无法工作，且没有修复的方法。
+
+---
+
+### 用于渲染元素的渲染 props
+
+幸运的是，正如我之前提到的，React 中有一百万种方法可以解决完全相同的问题。在这种情况下，我们可以将元素作为渲染 prop（或渲染函数）传递，而不是将其作为 prop 传递。渲染 prop 只是一个返回元素的函数。这个函数几乎与组件相同。唯一的区别是，你不会直接调用组件——React 为你调用它。但渲染函数则由你来控制。
+
+在按钮及其图标的情况下，使用渲染函数将是这样的：
+
+```jsx
+// 而不是需要 Element 的 “icon”
+// 我们正在接收一个返回 Element 的函数
+const Button = ({ renderIcon }) => {
+  // 然后只需在应该呈现图标的位置调用此函数;
+  return <button>Submit {renderIcon()}</button>;
+};
+```
+
+我们接受一个 renderIcon 函数，并在图标应该出现的地方调用它。然后，在消费者一侧，我们将传递返回图标的函数，而不是直接传递图标：
+
+```jsx
+<Button renderIcon={() => <HomeIcon />} />
+```
+
+我们当然可以根据需要调整图标，就像处理常规元素一样：
+
+```jsx
+// red icon
+<Button renderIcon={() => <HomeIcon color="red" /> } />
+// large icon
+<Button renderIcon={() => <HomeIcon size="large" /> } />
+```
+
+那么，使用这个函数的意义何在？首先是图标的 props。现在，我们可以直接将对象传递给函数，而无需克隆元素，这样做虽然有些不太妥当：
+
+```jsx
+const Button = ({ appearance, size, renderIcon }) => {
+  // 像以前一样创建默认 props
+  const defaultIconProps = {
+    size: size === "large" ? "large" : "medium",
+    color: appearance === "primary" ? "white" : "black",
+  };
+  // 然后将它们传递给函数
+  return <button>Submit {renderIcon(defaultIconProps)}</button>;
+};
+```
+
+然后，在图标的侧面，我们可以接受这些 props 并将它们展开到图标上：
+
+```jsx
+<Button renderIcon={(props) => <HomeIcon {...props} />} />
+```
+
+我们可以覆盖其中一些：
+
+```jsx
+<Button
+  renderIcon={(props) => <HomeIcon {...props} size="large" color="red" />}
+/>
+```
+
+或者将它们转换为图标实际上接受的 props：
+
+```jsx
+<Button
+  renderIcon={(props) => (
+    <HomeIcon fontSize={props.size} style={{ color: props.color }} />
+  )}
+/>
+```
+
+<Callout icon="🔍">
+
+[互动示例和完整代码](https://advanced-react.com/examples/04/01)
+
+</Callout>
+
+一切都是显式的，没有什么是通过隐藏的魔法覆盖的。数据流虽然有些循环，但却是可见且可追踪的。
+
+![image-20240913160739838](/assets/images/books/advanced-react/props.png)
+
+共享状态也不再是问题。我们可以简单地将该状态值合并到传递给图标的对象中：
+
+```jsx
+const Button = ({ appearance, size, renderIcon }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const iconParams = {
+    size: size === "large" ? "large" : "medium",
+    color: appearance === "primary" ? "white" : "black",
+    // 在此处添加状态 - 它毕竟只是一个对象
+    isHovered,
+  };
+  return <button ...>Submit {renderIcon(iconParams)}</button>;
+};
+```
+
+或者我们甚至可以将其作为第二个参数传递，以清晰地区分状态和 props。无论对我们的代码库来说什么更有意义：
+
+```jsx
+const Button = ({ appearance, size, renderIcon }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const iconParams = {
+    size: size === "large" ? "large" : "medium",
+    color: appearance === "primary" ? "white" : "black",
+  };
+  // 在此处将 state 作为第二个参数传递
+  return <Button ...>Submit {renderIcon(iconParams, { isHovered })}</Button>;
+};
+```
+
+然后在图标侧面，我们可以再次对这个 hovered 状态做任何我们想做的事情。我们可以渲染另一个图标：
+
+```jsx
+const icon = (props, state) => state.isHovered ? <HomeIconHovered
+{...props} /> : <HomeIcon {...props} />
+<Button renderIcon={icon} />
+```
+
+应用不同的 className：
+
+```jsx
+const icon = (props, state) => <HomeIcon {...props} className=
+{state.isHovered ? 'hovered' : ''} />
+<Button renderIcon={icon} />
+```
+
+或者完全忽略它。
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/04/02)
+</Callout>
+
+---
+
+### 共享状态逻辑：作为渲染 props 的 children
+
+渲染 props 的另一个有用应用是共享组件之间的状态逻辑，通常与“children 作为 props”模式结合使用。正如在上一章中讨论的那样，“children”在作为类似 HTML 的嵌套语法使用时，不过是一个 prop：
+
+```jsx
+<Parent>
+ <Child />
+</Parent>
+// 同上
+<Parent children={<Child />} />
+```
+
+因此，实际上没有什么阻止我们将 children 也作为一个函数。我们甚至不必用 render 前缀。renderSomething 只是一种命名约定。它将看起来像这样：
+
+```jsx
+// 使其成为函数
+<Parent children={() => <Child />} />
+```
+
+在 Parent 中，你可以像调用任何其他渲染 prop 一样调用它：
+
+```jsx
+const Parent = ({ children }) => {
+  // 它只是一个返回元素的函数，只需调用它
+  //这里
+  return children();
+};
+```
+
+这种漂亮的嵌套语法也可以与此一起使用：
+
+```jsx
+<Parent>{() => <Child />}</Parent>
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/04/03)
+</Callout>
+
+这为什么会有用？想象一下，你正在实现一个“尺寸检测器”组件。一个跟踪浏览器窗口调整大小事件的组件：
+
+```jsx
+const ResizeDetector = () => {
+  const [width, setWidth] = useState();
+  useEffect(() => {
+    const listener = () => {
+      const width = window.innerWidth;
+      setWidth(width);
+    };
+    window.addEventListener("resize", listener);
+    // 代码的其余部分
+  }, []);
+  return ...;
+};
+```
+
+你希望使其通用，以便应用中的不同组件可以跟踪窗口宽度，而无需在每个地方实现该代码。因此，ResizeDetector 需要以某种方式与其他组件共享该状态。技术上，我们可以通过 props 来实现，仅需将 onWidthChange prop 添加到检测器：
+
+```jsx
+const ResizeDetector = ({ onWidthChange }) => {
+  const [width, setWidth] = useState();
+  useEffect(() => {
+    const listener = () => {
+      const width = window.innerWidth;
+      setWidth(width);
+      // 在此处触发 onWidthChange 属性
+      onWidthChange(width);
+    };
+    window.addEventListener("resize", listener);
+    // 代码的其余部分
+  }, []);
+  return ...;
+};
+```
+
+但这意味着任何想要使用它的组件必须维护自己的状态：
+
+```jsx
+const Layout = () => {
+  const [windowWidth, setWindowWidth] = useState(0);
+  return (
+    <>
+      <ResizeDetector onWindowWidth={setWindowWidth} />
+      {windowWidth > 600 ? <WideLayout /> : <NarrowLayout />}
+    </>
+  );
+};
+```
+
+这有点杂乱。
+
+我们可以做的替代方案是让 ResizeDetector 接受 children 作为一个函数，并直接将宽度传递给 children：
+
+```jsx
+const ResizeDetector = ({ children }) => {
+  const [width, setWidth] = useState();
+  //与之前的代码相同
+  //将宽度传递给子项
+  return children(width);
+};
+```
+
+然后，任何需要该宽度的组件都可以直接使用，而无需为此引入不必要的状态：
+
+```jsx
+const Layout = () => {
+  return (
+    <ResizeDetector>
+      {(windowWidth) => {
+        //不再有状态！直接从调整大小器中获取
+        return windowWidth > 600 ? <WideLayout /> : <NarrowLayout />;
+      }}
+    </ResizeDetector>
+  );
+};
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/04/04)
+</Callout>
+
+在实际应用中，当然我们会在这里遇到重新渲染的问题：每次宽度变化都会触发状态更新。因此，我们必须在检测器内部计算布局或进行防抖处理。但共享状态的原则将保持不变。
+
+此外，在现代代码中，我们可能根本不会使用这一点，因为……
+
+hooks 取代了渲染 props。
+
+在过去两年中，有人从事 React 编码时，可能会想：“嘿，你所说的并没有意义。为什么要做这么复杂的事情，当我们有 hooks 可以共享状态逻辑？”
+
+你完全正确！在几乎 99% 的情况下，hooks 取代了这一模式。而且这是有理由的。完全相同的用例可以用 hooks 这样重写：
+
+```jsx
+const useResizeDetector = () => {
+  const [width, setWidth] = useState();
+  useEffect(() => {
+    const listener = () => {
+       const width = ... // get window width here
+      setWidth(width);
+    };
+    window.addEventListener("resize", listener);
+    // the rest of the code
+  }, []);
+  return width;
+};
+```
+
+只需将 ResizeDetector 组件的整个逻辑提取为一个 hook，然后在任何地方使用：
+
+```jsx
+const Layout = () => {
+  const windowWidth = useResizeDetector();
+  return windowWidth > 600 ? <WideLayout /> : <NarrowLayout />;
+};
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/04/05)
+</Callout>
+
+更少的代码，更容易理解发生了什么。
+
+那么，为什么还要学习这个模式呢？有几个原因：
+
+- 之前描述的用于配置和灵活性的渲染 props 用例仍然非常可行。
+- 如果你在一个几年前的项目中工作，这种模式将在代码库中随处可见。在引入 hooks 之前，它确实非常流行，特别是在封装表单验证逻辑方面。一些流行的库至今仍在使用它。
+- 对于特定场景，它仍然很有用，例如，当你想要共享的逻辑和状态依赖于 DOM 元素时。
+
+最后一个用例的一个非常常见的例子是跟踪区域中的滚动：
+
+```jsx
+const ScrollDetector = ({ children }) => {
+  const [scroll, setScroll] = useState();
+  return (
+    <div onScroll={(e) => setScroll(e.currentTarget.scrollTop)}>{children}</div>
+  );
+};
+```
+
+正是与之前相同的情况：你有一些值，并希望与其他组件共享该值。再次，使用 props 会显得杂乱。
+
+而将其提取为一个 hook 并不会像以前那样简单：这次你需要将 onScroll 监听器附加到一个 div，而不是 window。因此，你需要引入一个 Ref 进行传递（关于 Refs 的更多内容请参见第九章：Refs：从存储数据到命令式 API）。或者仅使用渲染 prop 模式：
+
+```jsx
+const ScrollDetector = ({ children }) => {
+  const [scroll, setScroll] = useState();
+  return (
+    <div onScroll={(e) => setScroll(e.currentTarget.scrollTop)}>
+      {children(scroll)}
+    </div>
+  );
+};
+```
+
+在需要根据用户滚动的多少进行操作的地方使用它：
+
+```jsx
+const Layout = () => {
+  return (
+    <ScrollDetector>
+      {(scroll) => {
+        return <>{scroll > 30 ? <SomeBlock /> : null}</>;
+      }}
+    </ScrollDetector>
+  );
+};
+```
+
+---
+
+### 关键要点
+
+希望这一切都能让你明白，这个模式现在清晰明了。从这一章中需要记住的几件事：
+
+如果一个具有元素作为 props 的组件希望控制这些元素的 props 或将状态传递给它们，则需要将这些元素转换为渲染 props：
+
+```jsx
+const Button = ({ renderIcon }) => {
+ const [someState, setSomeState] = useState()
+ const someProps = { ... };
+ return <button>Submit {renderIcon(someProps, someState)}
+</button>;
+                    };
+<Button renderIcon={(props, state) => <IconComponent {...props}
+someProps={state} /> } />
+
+```
+
+children 也可以是渲染 props，包括“嵌套”语法。
+
+```jsx
+const Parent = ({ children }) => {
+  return children(somedata);
+};
+```
+
+当我们需要在组件之间共享状态逻辑而不提升它时，渲染 props 非常有用。
+
+但在 99% 的情况下，hooks 取代了这一用例。
+
+用于共享状态逻辑和数据的渲染 props 今天仍然可能有用，例如，当这些逻辑与 DOM 元素相关联时。

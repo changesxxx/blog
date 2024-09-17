@@ -1,0 +1,407 @@
+---
+title: "现代世界中的高阶组件"
+description: "在转向 React 的其他部分之前，还有一种最终的组合技术需要讨论：高阶组件！在 hooks 出现之前，这是共享状态逻辑和上下文数据的最流行模式之一。即使在今天，它仍然在一些旧库或在 hooks 出现之前开始的项目中使用。所以虽然在新代码中引入它们可能不是最好的主意，但理解它们是什么以及它们是如何工作的仍然或多或少是强制性的。"
+
+name: "higher-order-components"
+---
+
+所以让我们从头开始，学习的过程包括：
+
+- 什么是高阶组件模式？
+- 我们如何使用高阶组件来增强回调和 React 生命周期事件？
+- 将数据传递给高阶组件的不同方法。
+- 如何创建可重用的组件，拦截 DOM 和键盘事件。
+
+---
+
+### 什么是高阶组件？
+
+根据 React 文档，高阶组件是一种重用组件逻辑的高级技术，用于交叉关注。
+
+简单来说，它是一个接受组件作为其参数之一的函数，执行某些逻辑，然后返回一个渲染参数中组件的另一个组件。最简单的变体是什么都不做：
+
+```jsx
+// accept a Component as an argument
+const withSomeLogic = (Component) => {
+  // do something
+  // return a component that renders the component from the
+  argument;
+  return (props) => <Component {...props} />;
+};
+```
+
+关键在于函数的返回部分——它只是一个组件，和其他任何组件一样。
+
+然后，当需要使用它时，它看起来是这样的：
+
+```jsx
+// just a button
+const Button = ({ onClick }) => <button onClick={onClick}>Button</button>;
+// same button, but with enhanced functionality
+const ButtonWithSomeLogic = withSomeLogic(Button);
+```
+
+你将你的 Button 组件传递给函数，它返回一个新的 Button，其中包含在高阶组件中定义的逻辑。然后这个按钮可以像其他按钮一样使用：
+
+```jsx
+const SomePage = () => {
+  return (
+    <>
+      <Button />
+      <ButtonWithSomeLogic />
+    </>
+  );
+};
+```
+
+最简单和最常见的用例是向组件注入 props。例如，我们可以实现一个 withTheming 组件，提取网站的当前主题（深色或亮色模式）并将该值发送到 theme prop。它看起来像这样：
+
+```jsx
+const withTheme = (Component) => {
+  // isDark will come from something like context
+  const theme = isDark ? "dark" : "light";
+  // making sure that we pass all props to the component back
+  // and also inject the new one: theme
+  return (props) => <Component {...props} theme={theme} />;
+};
+```
+
+现在，如果我们在按钮上使用它，它将具有可用的 theme prop：
+
+```jsx
+const Button = ({ theme }) => {
+ // theme prop here will come from withTheme HOC below
+ return <button className={theme} ...>Button</button>
+}
+const ButtonWithTheme = withTheme(Button);
+
+```
+
+互动示例和完整代码 https://advanced-react.com/examples/07/01
+
+在 hooks 出现之前，高阶组件被广泛用于访问上下文和任何外部数据订阅。 Redux 的旧 connect 或 React Router 的 withRouter 函数都是高阶组件：它们接受一个组件，向其注入一些 props，然后返回它。
+
+正如你所看到的，高阶组件写起来相当复杂并且难以理解。因此，当 hooks 被引入时，大家转向它们也就不足为奇了。
+
+现在，不必创建复杂的思维图来弄清楚哪个 prop 去哪里，以及主题是如何进入 props 的，我们可以直接写：
+
+```jsx
+const Button = () => {
+ // we see immediately where the theme is coming from
+ const { theme } = useTheme();
+ return <button appearance={theme} ...>Button</button>
+};
+```
+
+组件中发生的所有事情都可以从上到下读取，所有数据的来源都是显而易见的，这显著简化了调试和开发。
+
+尽管 hooks 可能已经取代了 99% 的共享逻辑关注和 100% 的访问上下文的用例，但高阶组件在现代代码中仍然可能有用。主要用于增强回调、React 生命周期事件，以及拦截 DOM 和键盘事件。当然，仅当你觉得有趣的时候。这些用例也可以通过 hooks 实现，只是没有那么优雅。
+
+让我们来看看它们。
+
+增强回调
+
+想象一下，你需要在某些回调中发送一些高级日志。例如，当你点击一个按钮时，你想发送一些带有数据的日志事件。你会如何用 hooks 完成它？你可能会有一个带有 onClick 回调的 Button 组件：
+
+```jsx
+const Button = ({ onClick, children }) => {
+  return <button onClick={onClick}>{children}</button>;
+};
+```
+
+然后在消费者端，你会钩入那个回调并在那发送日志事件：
+
+```jsx
+const SomePage = () => {
+  const log = useLoggingSystem();
+  const onClick = () => {
+    log("Button was clicked");
+  };
+  return <Button onClick={onClick}>Click here</Button>;
+};
+```
+
+如果你想触发一两个事件，这很好。但如果你希望在整个应用中每次按钮被点击时都能一致地触发日志事件呢？我们可能可以将其嵌入到 Button 组件本身中：
+
+```jsx
+const Button = ({ onClick }) => {
+  const log = useLoggingSystem();
+  const onButtonClick = () => {
+    log("Button was clicked");
+    onClick();
+  };
+  return <button onClick={onButtonClick}>Click me</button>;
+};
+```
+
+但然后呢？为了获得正确的日志，你还需要发送某种数据。我们当然可以用一些 loggingData props 扩展 Button 组件并向下传递。
+
+```jsx
+const Button = ({ onClick, loggingData }) => {
+  const onButtonClick = () => {
+    log("Button was clicked", loggingData);
+    onClick();
+  };
+  return <button onClick={onButtonClick}>Click me</button>;
+};
+```
+
+但如果你希望在其他组件上单击时触发相同的事件呢？按钮通常不是用户在应用中可以点击的唯一元素。如果我想在 ListItem 组件中添加相同的日志，是否要复制粘贴相同的逻辑？
+
+```jsx
+const ListItem = ({ onClick, loggingData }) => {
+  const onListItemClick = () => {
+    log("List item was clicked", loggingData);
+    onClick();
+  };
+  return <Item onClick={onListItemClick}>Click me</Item>;
+};
+```
+
+这太多的复制粘贴，容易出错，可能有人会忘记更改某些内容。
+
+我想要的本质上是将“某个事件触发 onClick 回调 - 发送一些日志事件”的逻辑封装在某个地方，然后在我想要的任何组件中重用它，而不改变那些组件的代码。
+
+这是高阶组件可以派上用场的第一个用例，而 hooks 则无能为力。
+
+为了避免在每个地方复制粘贴“点击发生 → 记录数据”的逻辑，我可以创建一个 `withLoggingOnClick` 函数，该函数：
+
+- 接受一个组件作为参数。
+- 拦截其 `onClick` 回调。
+- 将我需要的数据发送到用于记录的任何外部框架。
+- 返回具有原始 `onClick` 回调的组件，以便进一步使用。
+
+它看起来像这样：
+
+```jsx
+// just a function that accepts Component as an argument
+export const withLoggingOnClick = (Component) => {
+  return (props) => {
+    const onClick = () => {
+      console.log("Log on click something");
+      // don't forget to call onClick that is coming from props!
+      // we're overriding it below
+      props.onClick();
+    };
+    // return original component with all the props
+    // and overriding onClick with our own callback
+    return <Component {...props} onClick={onClick} />;
+  };
+};
+```
+
+现在，我可以将其添加到任何我想要的组件中。我可以有一个内置记录功能的按钮
+
+```jsx
+export const ButtonWithLoggingOnClick = withLoggingOnClick(SimpleButton);
+```
+
+或者在列表项中使用它
+
+```jsx
+export const ListItemWithLoggingOnClick = withLoggingOnClick(ListItem);
+```
+
+或在任何其他我想跟踪的具有 `onClick` 回调的组件中。甚至不需要在 `Button` 或 `ListItem` 组件中更改一行代码！
+
+互动示例和完整代码 https://advanced-react.com/examples/07/02
+
+### 向高阶组件添加数据
+
+现在，剩下的就是从外部向记录函数添加一些数据。考虑到高阶组件只不过是一个函数，我们可以很容易做到这一点。我们只需向函数添加一些其他参数，没别的：
+
+```jsx
+export const withLoggingOnClickWithParams = (
+  Component,
+  // adding some params as a second argument to the function
+  params,
+) => {
+  return (props) => {
+    const onClick = () => {
+      // accessing params that we passed as an argument here
+      // everything else stays the same
+      console.log("Log on click: ", params.text);
+      props.onClick();
+    };
+    return <Component {...props} onClick={onClick} />;
+  };
+};
+```
+
+现在，当我们用高阶组件包装按钮时，可以传递我们想要记录的文本：
+
+```jsx
+const ButtonWithLoggingOnClickWithParams = withLoggingOnClickWithParams(
+  SimpleButton,
+  {
+    text: "button component",
+  },
+);
+```
+
+在消费者端，我们只需将这个按钮用作普通按钮组件，而不必担心记录文本：
+
+```jsx
+const Page = () => {
+  return (
+    <ButtonWithLoggingOnClickWithParams onClick={onClickCallback}>
+      Click me
+    </ButtonWithLoggingOnClickWithParams>
+  );
+};
+```
+
+但如果我们实际想关注这个文本呢？如果我们希望在按钮使用的不同上下文中发送不同的文本呢？我们不想为每个用例创建一百万个包装按钮。
+
+这也很容易解决：我们可以将文本作为属性传递给结果按钮，而不是作为函数参数传递。代码看起来如下：
+
+```jsx
+<ButtonWithLoggingOnClickWithProps
+  onClick={onClickCallback}
+  logText="this is Page button"
+>
+  Click me
+</ButtonWithLoggingOnClickWithProps>
+```
+
+然后我们可以从发送到按钮的 props 中提取 `logText`：
+
+```jsx
+export const withLoggingOnClickWithProps = (Component) => {
+  // it will be in the props here, just extract it
+  return ({ logText, ...props }) => {
+    const onClick = () => {
+      // and then just use it here
+      console.log("Log on click: ", logText);
+      props.onClick();
+    };
+    return <Component {...props} onClick={onClick} />;
+  };
+};
+```
+
+互动示例和完整代码 https://advanced-react.com/examples/07/03
+
+### 增强 React 生命周期事件
+
+我们这里并不局限于点击和回调。记住，这些只是组件，我们可以做任何我们想做的事情。我们可以利用 React 提供的一切。例如，我们可以在组件挂载时发送这些日志事件
+
+```jsx
+export const withLoggingOnMount = (Component) => {
+  return (props) => {
+    // no more overriding onClick
+    // use normal useEffect - it's just a component!
+    useEffect(() => {
+      console.log("log on mount");
+    }, []);
+    // and pass back props intact
+    return <Component {...props} />;
+  };
+};
+```
+
+或者在重新渲染时读取 props 并在某个特定的 prop 发生变化时发送它们：
+
+```jsx
+export const withLoggingOnReRender = (Component) => {
+  return ({ id, ...props }) => {
+    // fire logging every time "id" prop changes
+    useEffect(() => {
+      console.log("log on id change");
+    }, [id]);
+    // and pass back props intact
+    return <Component {...props} />;
+  };
+};
+```
+
+互动示例和完整代码 https://advanced-react.com/examples/07/04
+
+### 拦截 DOM 事件
+
+高阶组件的另一个非常有用的应用是拦截各种 DOM 和键盘事件。想象一下，你正在为页面实现某种键盘快捷键功能。当按下特定按键时，你想做各种事情，比如打开对话框、创建问题等。你可能会为此在窗口上添加一个事件监听器：
+
+```jsx
+useEffect(() => {
+  const keyPressListener = (event) => {
+    // do stuff
+  };
+  window.addEventListener("keypress", keyPressListener);
+  return () => window.removeEventListener("keypress", keyPressListener);
+}, []);
+```
+
+然后，你的应用中有各种部分，比如模态对话框、下拉菜单、抽屉等，你希望在对话框打开时阻止该全局监听器。如果只有一个对话框，你可以手动将 `onKeyPress` 添加到对话框本身，并在那里执行 `event.stopPropagation()`：
+
+```jsx
+export const Modal = ({ onClose }) => {
+  const onKeyPress = (event) => event.stopPropagation();
+  return <div onKeyPress={onKeyPress}>...// dialog code</div>;
+};
+```
+
+但和 `onClick` 记录的情况一样，如果你有多个组件想要实现这种逻辑呢？到处复制粘贴 `event.stopPropagation`？那可不行。
+
+我们可以做的是，再次实现一个高阶组件。这次它将接受一个组件，将其包装在一个附加 `onKeyPress` 回调的 div 中，并返回未更改的组件。
+
+```jsx
+export const withSuppressKeyPress = (Component) => {
+  return (props) => {
+    const onKeyPress = (event) => {
+      event.stopPropagation();
+    };
+    return (
+      <div onKeyPress={onKeyPress}>
+        <Component {...props} />
+      </div>
+    );
+  };
+};
+```
+
+就这样！现在我们可以将任何组件包装在其中
+
+```jsx
+const ModalWithSuppressedKeyPress = withSuppressKeyPress(Modal);
+const DropdownWithSuppressedKeyPress = withSuppressKeyPress(Dropdown);
+// etc
+```
+
+并在任何地方使用它：
+
+```jsx
+const Component = () => {
+  return <ModalWithSuppressedKeyPress />;
+};
+```
+
+现在，当这个模态打开并获得焦点时，任何键按事件将通过元素层次结构冒泡，直到到达我们在 `withSuppressKeyPress` 中包装模态的 div，并将在那里停止。
+
+任务完成，开发人员实现模态组件时甚至不需要知道或关心这一点。
+
+互动示例和完整代码 https://advanced-react.com/examples/07/05
+
+### 关键要点
+
+我认为这已经足够成为书中的历史教训。在我们跳到下一章之前，有几件事情需要记住，这一章涉及 React 中最令人兴奋和最有争议的部分：状态管理！
+
+- 高阶组件只是一个接受组件作为参数并返回新组件的函数。该新组件渲染来自参数的组件。
+
+- 我们可以将 props 或附加逻辑注入到被高阶组件包装的组件中。
+
+  ```jsx
+  // accept a Component as an argument
+  const withSomeLogic = (Component) => {
+    // inject some logic here
+    // return a component that renders the component from the
+    argument;
+    // inject some prop to it
+    return (props) => {
+      // or inject some logic here
+      // can use React hooks here, it's just a component
+      return <Component {...props} some="data" />;
+    };
+  };
+  ```
+
+- 我们可以通过函数参数或 props 向高阶组件传递附加数据。

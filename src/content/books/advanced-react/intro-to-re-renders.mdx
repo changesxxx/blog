@@ -1,0 +1,376 @@
+---
+title: "重新渲染简介"
+description: "让我们直接深入话题吧？我们马上就谈谈性能：这是目前构建应用时最重要的话题之一，因此也是本书的主线主题。"
+
+name: "intro-to-re-renders"
+---
+
+在谈到 React 和 React 中的性能时，理解重新渲染及其影响至关重要。它们是如何触发的，如何在应用中传播，当组件重新渲染时发生了什么，以及我们为什么需要它们。
+
+这一章介绍了这些概念，接下来几章将更详细地探讨。为了让它更有趣，我们以调查的形式进行。让我们引入一个应用中非常常见的性能问题，看看由于这个问题发生了什么，以及如何通过一种非常简单的组合技术来修复它。在此过程中，你将学习：
+
+- 什么是重新渲染，以及我们为什么需要它。
+- 所有重新渲染的初始来源是什么。
+- React 如何在应用中传播重新渲染。
+- 大重新渲染神话，以及属性自身变化为什么不重要。
+- “向下移动状态”技术以提高性能。
+- 在重新渲染时，为什么钩子可能是危险的。
+
+---
+
+### 问题
+
+想象一下，您自己是一名开发人员，继承了一个庞大、复杂且对性能非常敏感的应用程序。
+
+那里发生了很多事情，多年来，许多人一直在努力，数百万客户都在现在使用它。
+
+作为工作中的第一个任务，系统会要求您添加一个简单的按钮，在此应用程序的顶部打开一个模态对话框。
+
+您查看代码并找到对话框应该位于的位置触发：
+
+```jsx
+const App = () => {
+  // 这里有很多代码
+  return (
+    <div className="layout">
+      {/* 按钮应该放到这里的某个地方 */}
+      <VerySlowComponent />
+      <BunchOfStuff />
+      <OtherStuffAlsoComplicated />
+    </div>
+  );
+};
+```
+
+然后你实现它。这项任务似乎微不足道。我们都做过数百次：
+
+```jsx
+const App = () => {
+  // 添加一些状态
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="layout">
+      {/* 添加按钮 */}
+      <Button onClick={() => setIsOpen(true)}>Open dialog</Button>
+      {/* 添加对话框本身 */}
+      {isOpen ? <ModalDialog onClose={() => setIsOpen(false)} /> : null}
+      <VerySlowComponent />
+      <BunchOfStuff />
+      <OtherStuffAlsoComplicated />
+    </div>
+  );
+};
+```
+
+只需添加一些状态来保存对话框是打开还是关闭的状态。添加一个按钮，点击时触发状态更新。然后是对话框本身，如果状态变量为 true，则渲染它。
+你启动应用，试一下——哎呀，打开这个简单对话框几乎要花费一秒钟的时间！
+
+<Callout icon="🔍">
+  [查看互动示例和完整代码](https://advanced-react.com/examples/01/01)
+</Callout>
+
+有经验的 React 性能开发者可能会倾向于说：“哦，当然！你在重新渲染整个应用，你只需将所有内容包装在 React.memo 中，并使用 useCallback 钩子来防止它。” 从技术上讲，这是正确的。但不要急。记忆化在这里完全没有必要，反而会适得其反。有一种更有效的方法。
+
+但首先，让我们回顾一下这里到底发生了什么，以及为什么会这样。
+
+---
+
+### 状态更新、嵌套组件和重新渲染
+
+让我们从头开始：组件的生命周期以及在谈论性能时我们需要关注的最重要的阶段。它们是：挂载、卸载和重新渲染。
+
+当一个组件第一次出现在屏幕上时，我们称之为挂载。这是 React 第一次创建该组件的实例，初始化其状态，运行其钩子，并将元素附加到 DOM。最终结果是——我们在屏幕上看到在该组件中渲染的内容。
+
+接下来是卸载：这时 React 检测到一个组件不再需要。因此，它会进行最后的清理，销毁该组件的实例及与之关联的所有内容，比如组件的状态，最终移除与其关联的 DOM 元素。
+
+最后是重新渲染。这是 React 使用一些新信息更新已存在的组件。与挂载相比，重新渲染是轻量级的：React 只是重用已经存在的实例，运行钩子，进行所有必要的计算，并使用新属性更新现有的 DOM 元素。
+
+每次重新渲染都以状态开始。在 React 中，每当我们使用像 useState、useReducer 或任何外部状态管理库（如 Redux）这样的钩子时，我们就为组件添加了交互性。从那时起，组件将拥有一块在其整个生命周期内保持的数据。如果发生需要交互响应的事件，比如用户点击按钮或某些外部数据传入，我们会用新数据更新状态。
+
+重新渲染是理解 React 中最重要的事情之一。这是 React 使用新数据更新组件并触发所有依赖于该数据的钩子的时候。如果没有这些，React 中就不会有数据更新，因此也不会有交互性。应用程序将完全静态。而状态更新是 React 应用中所有重新渲染的初始源。如果我们以最初的应用为例：
+
+```jsx
+const App = () => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return <Button onClick={() => setIsOpen(true)}>Open dialog</Button>;
+};
+```
+
+当我们点击按钮时，我们触发了 setIsOpen 设置器函数：我们将 isOpen 状态从 false 更新为 true。结果，持有该状态的 App 组件重新渲染自己。
+在状态更新后，App 组件重新渲染，新数据需要传递给依赖于它的其他组件。React 会为我们自动完成这一切：它抓取初始组件内部渲染的所有组件，重新渲染它们，然后再重新渲染嵌套在它们内部的组件，依此类推，直到到达组件链的末端。
+
+如果你想象一个典型的 React 应用是一个树结构，从状态更新发起的地方向下，所有的内容都会被重新渲染。
+
+![state_update](/assets/images/books/advanced-react/state_update.png)
+
+在我们应用的例子中，当状态变化时，它渲染所有内容，所有那些非常慢的组件，也将会被重新渲染。
+
+```jsx
+const App = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  //此处返回的所有内容都将
+  //状态已更新
+  return (
+    <div className="layout">
+      <Button onClick={() => setIsOpen(true)}>Open dialog</Button>
+      {isOpen ? <ModalDialog onClose={() => setIsOpen(false)} /> : null}
+      <VerySlowComponent />
+      <BunchOfStuff />
+      <OtherStuffAlsoComplicated />
+    </div>
+  );
+};
+```
+
+结果，打开对话框几乎需要一秒钟——React 需要在对话框可以出现在屏幕上之前重新渲染所有内容。这里需要记住的重要一点是，React 在重新渲染组件时从不“向上”遍历渲染树。如果状态更新源自组件树的中间某处，只有树“下方”的组件会重新渲染。
+
+![image-20240913151248586](/assets/images/books/advanced-react/state_update1.png)
+
+位于“底部”的组件影响“顶部”层级组件的唯一方法是，它们要么显式调用“顶部”组件中的状态更新，要么将组件作为函数传递。
+
+---
+
+### 大重新渲染神话
+
+你有没有注意到我在这里没有提到任何关于 props 的内容？你可能听过这样的说法：“组件在其 props 变化时重新渲染。” 这是 React 中最常见的误解之一：每个人都相信它，没有人怀疑，但这并不正确。<mark>
+正常的 React 行为是，如果触发了状态更新，React 会重新渲染所有嵌套组件，而不管它们的 props。如果没有触发状态更新，那么更改 props 将被“吞噬”：React 不会监视它们。</mark>
+
+如果我有一个带有 props 的组件，并且我尝试在不触发状态更新的情况下更改这些 props，像这样：
+
+```jsx
+const App = () => {
+  // 局部变量不起作用
+  let isOpen = false;
+  return (
+    <div className="layout">
+      {/* 什么都不会发生 */}
+      <Button onClick={() => (isOpen = true)}>Open dialog</Button>
+      {/* 永远不会出现 */}
+      {isOpen ? <ModalDialog onClose={() => (isOpen = false)} /> : null}
+    </div>
+  );
+};
+```
+
+这将不起作用。当按钮被点击时，局部的 isOpen 变量会改变。但 React 的生命周期不会被触发，因此渲染输出永远不会更新，ModalDialog 将永远不会显示。
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/01/02)
+</Callout>
+
+在重新渲染的上下文中，组件的 props 是否发生变化只在一种情况下重要：如果该组件被包裹在 React.memo 高阶组件中。只有在这种情况下，React 才会停止其自然的重新渲染链，首先检查 props。如果没有任何 props 变化，则重新渲染将在此停止。如果即使只有一个 prop 发生变化，重新渲染将照常继续。
+
+![image-20240913151312962](/assets/images/books/advanced-react/state_update2.png)
+
+使用记忆化适当地防止重新渲染是一个复杂的话题，有几个注意事项。请在第 5 章中详细阅读关于使用 useMemo、useCallback 和 React.memo 的内容。
+
+---
+
+### 向下移动状态
+
+现在既然已经清楚了 React 如何重新渲染组件，是时候将这些知识应用到最初的问题上并修复它了。让我们仔细看看代码，特别是我们使用模态对话框状态的地方：
+
+```jsx
+const App = () => {
+  // 我们的状态在这里定义
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="layout">
+      {/* 此处使用state */}
+      <Button onClick={() => setIsOpen(true)}>Open dialog</Button>
+      {/* 此处使用state */}
+      {isOpen ? <ModalDialog onClose={() => setIsOpen(false)} /> : null}
+      <VerySlowComponent />
+      <BunchOfStuff />
+      <OtherStuffAlsoComplicated />
+    </div>
+  );
+};
+```
+
+如你所见，它相对独立：我们仅在 Button 组件和 ModalDialog 本身中使用它。其余的代码，所有那些非常慢的组件，并不依赖于它，因此在这个状态变化时实际上并不需要重新渲染。这是一个典型的被称为不必要重新渲染的例子。
+
+将它们包裹在 React.memo 中会防止它们在这种情况下重新渲染，这确实是正确的。但 React.memo 有许多注意事项和复杂性（在第 5 章中了解更多有关使用 useMemo、useCallback 和 React.memo 的内容）。还有更好的方法。我们需要做的就是将依赖于该状态的组件和状态本身提取到一个较小的组件中：
+
+```jsx
+const ButtonWithModalDialog = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  // 在此处仅渲染 Button 和 ModalDialog
+  return (
+    <>
+      <Button onClick={() => setIsOpen(true)}>Open dialog</Button>
+      {isOpen ? <ModalDialog onClose={() => setIsOpen(false)} /> : null}
+    </>
+  );
+};
+```
+
+然后只需在原始的大 App 中渲染这个新组件：
+
+```jsx
+const App = () => {
+  return (
+    <div className="layout">
+      {/* 这里是 Component 的 state */}
+      <ButtonWithModalDialog />
+      <VerySlowComponent />
+      <BunchOfStuff />
+      <OtherStuffAlsoComplicated />
+    </div>
+  );
+};
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/01/03)
+</Callout>
+
+现在，当按钮被点击时，状态更新仍然会被触发，并且因为这个原因，一些组件会重新渲染。但是！这仅发生在 ButtonWithModalDialog 组件内部的组件上。它只是一个小按钮和应该渲染的对话框。其余的应用程序是安全的。
+
+从本质上讲，我们只是创建了一个新的子分支并将我们的状态移到其中。
+
+![image-20240913151344928](/assets/images/books/advanced-react/state_update3.png)
+
+结果，模态对话框瞬间就出现了。我们通过简单的组合技术修复了一个重大的性能问题！
+
+---
+
+### 自定义钩子的危险
+
+在处理状态、重新渲染和性能时，另一个非常重要的概念是自定义钩子。毕竟，它们的引入正是为了让我们抽象出有状态的逻辑。我们常常会看到像上面那样的逻辑提取到类似 useModalDialog 的东西中。一个简化的版本可能看起来是这样的：
+
+```jsx
+const useModalDialog = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  return {
+    isOpen,
+    open: () => setIsOpen(true),
+    close: () => setIsOpen(false),
+  };
+};
+```
+
+然后在我们的 App 中使用这个钩子，而不是直接设置状态：
+
+```jsx
+const App = () => {
+  // state 现在在 hook 中
+  const { isOpen, open, close } = useModalDialog();
+  return (
+    <div className="layout">
+      {/* 只需使用 hook 中的 “open” 方法 */}
+      <Button onClick={open}>Open dialog</Button>
+      {/* 只需使用 hook 中的 close 方法  */}
+      {isOpen ? <ModalDialog onClose={close} /> : null}
+      <VerySlowComponent />
+      <BunchOfStuff />
+      <OtherStuffAlsoComplicated />
+    </div>
+  );
+};
+```
+
+为什么我称其为“危险”？这似乎是一个合理的模式，代码也稍微清晰一些。因为这个钩子隐藏了我们在应用中有状态的事实。但状态依然存在！每当它改变时，仍会触发使用这个钩子的组件的重新渲染。即使这个状态在 App 中没有直接使用，或者钩子甚至没有返回任何东西，这一点也无关紧要。
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/01/04)
+</Callout>
+
+例如，如果我想让这个对话框的定位更花哨，并在那个钩子内部引入一些监听窗口调整大小的状态：
+
+```jsx
+const useModalDialog = () => {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const listener = () => {
+      setWidth(window.innerWidth);
+    };
+    window.addEventListener("resize", listener);
+    return () => window.removeEventListener("resize", listener);
+  }, []);
+  // return is the same
+  return ...
+};
+```
+
+整个 App 组件会在每次调整大小时重新渲染，尽管这个值甚至没有从钩子中返回！
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/01/05)
+</Callout>
+
+钩子本质上只是你裤子里的口袋。如果你不把10公斤的哑铃放在手里，而是把它放进口袋里，这并不会改变你跑起来仍然很困难的事实：你身上多了10公斤的额外重量。但如果你把这10公斤放在一个自动驾驶的手推车里，你就可以自由自在地跑，甚至可以停下来喝杯咖啡：手推车会自己处理。组件为状态就像那个手推车。
+
+与使用其他 hooks 的 hooks 适用完全相同的逻辑：<mark>任何可以触发重新渲染的操作，无论它在 hooks 链中多深，都会触发使用最初那个 hook 的组件的重新渲染。</mark>如果我将那个额外的状态提取到一个返回 null 的 hook 中，App 仍然会在每次调整大小时重新渲染。
+
+```jsx
+const useResizeDetector = () => {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const listener = () => {
+      setWidth(window.innerWidth);
+    };
+    window.addEventListener("resize", listener);
+    return () => window.removeEventListener("resize", listener);
+  }, []);
+  return null;
+};
+const useModalDialog = () => {
+  // 我甚至不用它，就在这里调用
+  useResizeDetector();
+
+  // 相同的返回
+  return ...;
+};
+const App = () => {
+  // 这个钩子在下面使用 useResizeDetector，在调整大小时触发状态更新
+
+  // 每次调整大小时，整个应用程序都会重新渲染！
+
+  const { isOpen, open, close } = useModalDialog();
+  return; // 相同的返回
+};
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/01/06)
+</Callout>
+
+所以，请对这些保持谨慎。
+
+为了修复我们的应用，你仍然需要将那个按钮、对话框和自定义 hook 提取到一个组件中。
+
+```jsx
+const ButtonWithModalDialog = () => {
+  const { isOpen, open, close } = useModalDialog();
+  // 在此处仅渲染 Button 和 ModalDialog
+  return (
+    <>
+      <Button onClick={open}>Open dialog</Button>
+      {isOpen ? <ModalDialog onClose={close} /> : null}
+    </>
+  );
+};
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/01/07)
+</Callout>
+
+“因此，状态放置的位置非常重要。理想情况下，为了避免未来的性能问题，你应该尽可能将状态隔离到尽可能小且轻量的组件中。在下一章（第2章：元素、作为 props 的子组件和重新渲染）中，我们将探讨另一种有助于实现这一目标的模式。
+
+---
+
+### 关键要点
+
+这只是个开始。在接下来的章节中，我们将深入探讨所有这些如何运作的细节。同时，这里有一些要记住的关键点：
+
+- 重新渲染是 React 使用新数据更新组件的方式。
+- 如果没有重新渲染，我们的应用将没有交互性。
+- 状态更新是所有重新渲染的初始来源。
+- 如果一个组件的重新渲染被触发，那么该组件内部的所有嵌套组件也会被重新渲染。
+- 在正常的 React 重新渲染周期中（不使用记忆化的情况下），props 的变化并不重要：即使组件没有任何 props，也会重新渲染。
+- 我们可以使用“向下移动状态”的模式来防止大型应用中的不必要重新渲染。
+- &zwj;<mark>hook 中的状态更新将触发使用该 hook 的组件的重新渲染，即使状态本身未被使用。</mark>
+- &zwj;<mark>在使用其他 hooks 的 hook 的情况下，任何在该 hooks链中的状态更新都将触发使用最初那个 hook 的组件的重新渲染。</mark>

@@ -1,0 +1,393 @@
+---
+title: "React Portals 及其必要性"
+description: "让我们进一步讨论 UI。在上一章中，我们解决了令人烦恼的“闪烁”问题。现在，让我们看看另一个有趣的 UI bug：内容剪切。"
+
+name: "react-portals"
+---
+
+你可能听说过，我们需要在 React 中使用 Portals 来逃避在具有 overflow: hidden 的元素内部渲染元素的情况。网络上每篇关于 Portals 的文章几乎都有这个例子。这实际上并不正确：我们可以仅通过纯 CSS 来解决内容“剪切”问题。
+
+我们需要 Portals 是出于其他原因。这个“溢出问题”也可能给人一种错误的安全感：如果我们的应用中没有 overflow: hidden，我们就可以轻松安全地在任何地方定位一切。这个想法也不正确。
+
+让我们深入探讨这些内容，学习：
+
+- 元素的 CSS 定位是如何工作的。
+
+- 什么是堆叠上下文。
+
+- 如何用 CSS 解决内容剪切问题。
+
+- 为什么我们不能仅用 CSS 来完成所有工作，需要 Portals。
+
+- Portals 实际上是如何工作的及其注意事项。
+
+在这里提醒一下：这一章将涉及大量 CSS 内容。前半部分将详细介绍仅涉及 CSS 的概念，因为并不是每个 React 开发者都精通 CSS。
+
+---
+
+### CSS：绝对定位
+
+让我们从最简单的应用和一些大多数人可能已经知道的基础知识开始。
+
+我们有一个页面，里面有一些功能和一个位于中间的按钮。当按钮被点击时，我想显示一些附加信息：
+
+```jsx
+const App = () => {
+  const [isVisible, setIsVisible] = useState(false);
+  return (
+    <>
+      <SomeComponent />
+      <button onClick={() => setIsVisible(true)}>show more</button>
+      {isVisible && <ModalDialog />}
+      <AnotherComponent />
+    </>
+  );
+};
+```
+
+在这种实现中，附加内容在出现时会“推动” AnotherComponent 的内容向下。这是任何 HTML 文档的正常流动，以及“块”HTML 元素的默认行为：div、p、所有 h 标签等。
+
+但我们想将附加内容实现为模态对话框，而模态对话框通常会出现在页面内容的上方。我希望 ModalDialog 组件能够逃离正常的文档流。实现这一点最常用的方法是通过 CSS 属性“position”。
+
+position 属性支持两个值，允许我们脱离文档流：absolute 和 fixed。我们先从 absolute 开始，尝试使用它实现对话框。我们只需在 ModalDialog 组件中的 div 上应用 position: absolute CSS：
+
+```jsx
+// somewhere where you declare your css
+.modal {
+ position: absolute;
+}
+// our React component
+const ModalDialog = () => {
+ return (
+ <div className="modal">
+ some additional info
+ </div>
+ )
+}
+```
+
+然后就大功告成了！内容不再是文档布局的一部分，而是出现在顶部。现在我只需通过设置上方和左侧 CSS 属性的一些有意义的值来正确定位它。假设我想让对话框位于屏幕中间，它的 CSS 看起来大概是这样的：
+
+```jsx
+.modal {
+ position: absolute;
+ width: 300px;
+ top: 100px;
+ left: 50%;
+ margin-left: -150px;
+}
+```
+
+这个对话框将在屏幕中间出现，顶部留有 100 像素的间隙。
+
+互动示例和完整代码https://advanced-react.com/examples/13/01
+
+从技术上讲，这样是可行的。但如果你查看应用中的现有对话框或任何 UI 库，它们使用 position: absolute 的可能性非常小。甚至是工具提示、下拉菜单或任何弹出 UI 元素，实际上也是如此。
+
+这是有原因的。
+
+### 绝对并不那么绝对
+
+首先，绝对位置并不完全是……绝对的。它实际上是相对的：相对于最近设置了任何值的元素。在我们的例子中，由于我没有任何定位元素在我的模态对话框和应用根之间，它就恰好有效。
+
+如果对话框恰好在一个具有 position: relative（或 sticky 或 absolute）的 div 内部渲染，而这个 div 不在页面中间，那么一切就会崩溃。模态将被定位在那个 div 的中间，而不是屏幕的中间。
+
+![](/assets/images/books/advanced-react/position.png)
+
+互动示例和完整代码https://advanced-react.com/examples/13/02
+
+好吧，对于那些应该相对于屏幕定位的元素来说，绝对位置并不是最佳选择。尽管当然仍然可以计算，只是不能仅依靠纯 CSS。
+
+但是像工具提示或下拉菜单这样的东西呢？我们期望它们相对于其来源的元素进行定位，不是吗？因此，绝对是相对的这一点对它们来说是完美的：我们可以使用 offsetLeft 和 offsetTop 在触发器上获取触发器和父元素之间的左/上距离，我们的对话框/工具提示/菜单将始终相对于触发器完美定位。
+
+从技术上讲，是的，它将有效。
+
+直到堆叠上下文规则生效。
+
+### 理解堆叠上下文
+
+堆叠上下文对任何尝试在定位元素上使用 z-index 的人来说都是一场噩梦。堆叠上下文是以三维方式查看我们的 HTML 元素。这就像一个 Z 轴，除了我们正常的 X 和 Y 维度（窗口宽度和高度），它定义了当一个元素在屏幕上渲染时，什么在上面，什么在下面。例如，如果一个元素有阴影，并且与周围元素重叠，阴影应该在它们之上渲染还是在它们之下？这是由堆叠上下文决定的。
+
+堆叠上下文的默认规则本身相当复杂。通常，元素按它们在 DOM 中的出现顺序堆叠。在这样的代码中：
+
+```html
+<div>grey</div>
+<div>red</div>
+<div>green</div>
+```
+
+绿色 div 在红色 div 后面，因此从堆叠上下文规则的角度来看，它将“在前面”，而红色将在灰色的前面。如果我给它们添加一个小的负边距，我们将看到这个画面：
+
+![](/assets/images/books/advanced-react/position1.png)
+
+然而，设置了 absolute 或 relative 的元素将始终被推向前面。如果我仅在红色 div 上添加 position: relative，绿色 div 会突然出现在它下面。
+
+```html
+<div>grey</div>
+<div style={{ position: "relative" }}>red</div>
+<div>green</div>
+```
+
+![](/assets/images/books/advanced-react/position2.png)
+
+对于我们绝对定位的对话框来说，这意味着如果它在设置了位置的红色 div 内部，它将是 okay 且在所有内容之上。但如果它在灰色 div 内部，那么红色 div 将在对话框之上。
+
+![](/assets/images/books/advanced-react/position3.png)
+
+为了解决这种情况，我们有 z-index CSS 属性。该属性允许我们在同一堆叠上下文内操作 Z 轴。默认值为零。因此，如果我将对话框的 z-index 设置为负值，它将出现在所有 div 之下。如果设置为正值，则它将出现在所有 div 之上。
+
+![](/assets/images/books/advanced-react/position4.png)
+
+同一堆叠上下文内是关键。如果某个东西创建了一个新的堆叠上下文，那么该 z-index 将相对于新上下文。它是一个完全隔离的泡沫。新的堆叠上下文将由父上下文的规则控制，并且内部发生的事情将保持在内部。
+
+在同一元素上结合 position 和 z-index 将创建其自己的堆叠上下文。从我们多彩的 div 的角度来看，这意味着如果我在灰色 div 上添加 position: relative; z-index: 1，在红色 div 上添加 position: relative; z-index: 2，它们两个都将是各自堆叠上下文的父元素。灰色 div 和其中的所有内容将“在”红色 div 之下，包括我们的模态对话框。即使我将对话框的 z-index 更改为神奇的 9999 数字，也无济于事：对话框仍然会出现在红色 div 之下。
+
+![](/assets/images/books/advanced-react/position5.png)
+
+在下面的代码示例中，随意玩弄灰色 div 的 z-index；这确实很迷人。如果我移除它，新的堆叠上下文会消失，对话框现在是全球上下文及其规则的一部分，并开始出现在红色 div 之上。只要我给灰色 div 添加一个小于红色 div 的 z-index，它就会移到下面。
+
+顺便说一下，不仅仅是 position 和 z-index 的组合会触发它。transform 属性也会这样。所以你所有剩余的 CSS 动画都有可能干扰定位元素。或者 Flex 或 Grid 子项上的 z-index。或者其他一些不同的属性。
+
+互动示例和完整代码 https://advanced-react.com/examples/13/03
+
+当然，最终，带有溢出属性的元素。顺便说一下，仅仅在一个元素上设置 overflow 并不会剪裁内部的绝对定位 div；它需要与 position: relative 结合使用。但如果绝对定位的对话框渲染在带有 overflow 和 position 的 div 内部，那么它将会被剪裁。
+
+![](/assets/images/books/advanced-react/position6.png)
+
+互动示例和完整代码 https://advanced-react.com/examples/13/04
+
+我们能对这一切做些什么吗？当然可以，至少我们可以迅速解决溢出问题。
+
+### position: fixed。逃脱溢出
+
+还有一个我们可以用来逃离正常文档流的 position 值：fixed。它类似于 absolute，只是它定位的元素不是相对于其定位父元素，而是相对于视口。对于像模态对话框这样应该位于屏幕中间的元素，无论父元素如何，这个值更为有利。
+
+此外，由于它是相对于屏幕定位的，这个位置实际上允许我们逃脱溢出陷阱。因此，理论上，我们可以将其用于我们的对话框和工具提示。
+
+然而，即使是 position: fixed 也无法逃脱堆叠上下文的规则。没有任何东西可以。就像一个黑洞：一旦形成，所有在其引力范围内的东西都会消失。没有人能逃脱。
+
+如果灰色 div 的 z-index: 1，而红色 div 的 z-index: 2——这对于模态来说就是游戏结束。它们将出现在下面。
+
+![](/assets/images/books/advanced-react/position7.png)
+
+互动示例和完整代码 https://advanced-react.com/examples/13/05
+
+position: fixed 的另一个问题是它并不总是相对于视口定位。它实际上是相对于所谓的包含块定位的。它在大多数情况下恰好是视口。除非某些父元素设置了特定属性，否则它将相对于那个父元素定位。我们将遇到与最开始使用 position: absolute 时相同的情况。
+
+触发形成新包含块的属性相对较少，但包括 transform，而 transform 在动画中被广泛使用。
+
+### 真实应用中的堆叠上下文
+
+好吧，所有这些都很有趣，但有点理论。像堆叠上下文陷阱这样的情况在真实应用中会发生吗？当然！而且实际上相当容易。
+
+主要候选者是各种动画或“粘性”块，例如标题或列。这些是最可能被迫设置 position 和 z-index 或 translate 的地方。这将形成一个新的堆叠上下文。
+
+只需打开您喜欢的几个流行网站，查看那些具有“粘性”元素或动画的网站，打开 Chrome 开发者工具，找到 DOM 树中的某个块，将其 position 设置为 fixed，并设置高 z-index，然后稍微移动一下。为了好玩，我检查了 Facebook、Airbnb、Gmail、OpenAI 和 LinkedIn。在其中三个网站上，主要区域是一个陷阱：任何在其中的 position: fixed 和 z-index: 9999 的块将出现在粘性标题之下。
+
+逃脱这个陷阱的唯一方法是确保模态不在形成堆叠上下文的 DOM 元素内部渲染。在没有 React 的情况下，我们只需将模态附加到 body 或某个位于应用根部的 div 中，例如：
+
+```js
+const modalDialog = ... // get the dialog where the button is
+clicked
+document.getElementByClassName('body')[0].appendChild(modalDialog);
+```
+
+在 React 中，我们可以使用一个叫做 Portal 的工具来逃脱这个堆叠上下文陷阱。终于，可以做一些 React 了！
+
+### React Portal 如何解决这个问题
+
+让我们在比一堆多彩的 div 更有趣的东西中重现这个陷阱，以使我们的代码更现实，并看看它是多么容易发生。然后彻底修复它。
+
+我们做一个非常简单的应用：一个带有 position: sticky 的标题，左侧“可折叠”导航，以及主区域内的模态对话框。
+
+```jsx
+const App = () => {
+  const [isVisible, setIsVisible] = useState(false);
+  return (
+    <>
+      <div className="header"></div>
+      <div className="layout">
+        <div className="sidebar">// some links here</div>
+        <div className="main">
+          <button onClick={() => setIsVisible(true)}>show more</button>
+          {isVisible && <ModalDialog />}
+        </div>
+      </div>
+    </>
+  );
+};
+```
+
+我们的标题将是粘性的，因此我将为其设置粘性位置：
+
+```css
+.header {
+  position: sticky;
+}
+```
+
+我希望我们的导航在“折叠”状态下平滑移动，而没有任何跳动或消失的块。因此，我将在其上和主区域上设置 transition 属性：
+
+```css
+.main {
+  transition: all 0.3s ease-in;
+}
+.sidebar {
+  transition: all 0.3s ease-in;
+}
+```
+
+并在导航折叠时将其向左移动，展开时再移回来：
+
+```jsx
+const App = () => {
+  // hold navigation state here
+  const [isNavExpanded, setIsNavExpanded] = useState(true);
+  return (
+    <>
+      <div className="header"></div>
+      <div className="layout">
+        <div
+          className="sidebar"
+          // translate the nav to the left if collapsed, and back
+          style={{
+            transform: isNavExpanded
+              ? "translate(0, 0)"
+              : "translate(-300px, 0)",
+          }}
+        >
+          ...
+        </div>
+        <div
+          className="main"
+          // translate the main to the left if nav is collapsed,
+          and
+          back
+          style={{
+            transform: isNavExpanded
+              ? "translate(0, 0)"
+              : "translate(-300px, 0)",
+          }}
+        >
+          {/*main here*/}
+        </div>
+      </div>
+    </>
+  );
+};
+```
+
+这已经很好地工作了，除了一个问题：当我滚动时，标题在侧边栏和主区域下消失。没问题，我已经知道如何处理它：只需将 z-index 设置为 2 就可以了。完成，现在标题始终在最上方，展开/折叠工作得非常好！
+
+互动示例和完整代码 https://advanced-react.com/examples/13/06
+
+除了一个问题：主区域中的模态对话框现在完全失效。它曾经位于屏幕中间，但现在不再如此。当我打开它并滚动时，它出现在标题下。代码中的一切都合理，没有随机的 position: relative，但这仍然发生了。堆叠上下文陷阱。
+
+为了修复它，我们需要将模态对话框渲染在主区域之外。在我们的简单应用中，我们当然可以将其移动到底部：按钮、状态和对话框都在同一个组件内。在现实世界中，这不会那么简单。按钮很可能深埋在渲染树中，向上传递状态将是一个巨大的麻烦和性能杀手。上下文可能会有所帮助，但也有其自身的缺陷。
+
+相反，我们可以使用 React 提供的 createPortal 函数。严格来说，是 react-dom 库，但在我们的情况下，导入路径才是重要的。它接受两个参数：
+
+我们想要传送的内容，以 React 元素的形式（我们的 `<ModalDialog />`）
+
+我们想要传送到的地方，以 DOM 元素的形式。不是 id，而是元素本身！我们需要刷新我们的 JavaScript 技能，写一些类似于 document.getElementById("root") 的代码。
+
+```jsx
+import { createPortal } from "react-dom";
+const App = () => {
+  return (
+    <>
+      ... // the rest of the code with the button
+      {isVisible &&
+        createPortal(<ModalDialog />, document.getElementById("root"))}
+    </>
+  );
+};
+```
+
+就这样，陷阱不复存在！从开发者体验的角度来看，我们仍然“渲染”对话框和按钮。但它最终位于 id="root" 的元素内部。如果您打开 Chrome 开发者工具，您将看到它就在底部。
+
+互动示例和完整代码https://advanced-react.com/examples/13/07
+
+对话框现在居中，正如它应该的那样，并且出现在标题之上，正如它应该的那样。
+
+但是这样做有什么后果？重新渲染、React 生命周期、事件、访问上下文等呢？很简单。React 中的传送规则是：
+
+在 React 中发生的事情留在 React 中。
+
+React 无法控制的地方，其行为由 DOM 规则决定。
+
+这到底是什么意思？
+
+### React 生命周期、重新渲染、上下文和门户
+
+从 React 的角度来看，这个模态对话框是创建 `<ModalDialog />` 元素的组件的渲染树的一部分。在我们的例子中是 App 组件。如果我触发 App 的重新渲染，那么在其内部渲染的所有组件都将重新渲染，包括我们的对话框（如果它是打开的）。
+
+如果我们的 App 有访问上下文的权限，模态对话框将能够访问完全相同的上下文。
+
+如果创建对话框的应用部分被卸载，对话框也会消失。
+
+如果我想拦截在模态中发生的点击事件，“主” div 上的 onClick 处理程序将能够做到这一点。“点击”在这里是合成事件的一部分，因此它们在 React 树中“冒泡”，而不是常规 DOM 树中。任何 React 管理的合成事件都是同样的故事。
+
+互动示例和完整代码https://advanced-react.com/examples/13/08
+
+### CSS、本地 JavaScript、表单提交和门户
+
+从 DOM 的角度来看，这个对话框不再是“主”应用的一部分。因此，一切与 DOM 相关的事情都将发生变化。
+
+如果您依赖于 CSS 继承和级联来在“主”部分样式化对话框，它将不再有效。
+
+```css
+// won't work with portalled modal
+.main .dialog {
+ background: red;
+}
+```
+
+如果您依赖于“本地”事件传播，它也将无效。如果您尝试通过 element.addEventListener 捕获起源于模态的事件，而不是在“主” div 上的 onClick 回调，这也将无效。
+
+```jsx
+const App = () => {
+ const ref = useRef(null);
+ useEffect(() => {
+ const el = ref.current;
+ el.addEventListener("click", () => {
+ // trying to catch events, originated in the portalled modal
+      // not going to work!!
+ });
+ }, []);
+ // the rest of the app
+ return <div ref={ref} ... />
+}
+```
+
+如果你试图通过 parentElement 获取模态的父元素，它将返回根 div，而不是主应用。任何操作 DOM 元素的本地 JavaScript 函数也是如此。
+
+最后，在 `<form>` 元素上的 onSubmit。关于这一点最不明显。它看起来与 onClick 相似，但实际上，提交事件并不是由 React 管理的。这是一个本地 API 和 DOM 元素的事情。如果我将应用的主要部分包裹在 `<form>` 中，那么点击对话框内的按钮不会触发“提交”事件！从 DOM 的角度来看，这些按钮在表单之外。
+
+如果你想在对话框内有一个表单，并希望依赖 onSubmit 回调，那么 form 标签也应该在对话框内。
+
+互动示例和完整代码 https://advanced-react.com/examples/13/09
+
+### 关键要点
+
+关于 CSS 和门户的内容就足够了。我认为。下次尝试定位元素时要记住的事情：
+
+position: absolute 将元素相对于定位的父元素进行定位。
+
+position: fixed 将元素相对于视口进行定位，除非形成新的包含块。
+
+position: absolute 的元素将在 overflow: hidden 的元素内部被剪裁。
+
+position: fixed 的元素可以逃脱 overflow: hidden 问题，但无法逃脱堆叠上下文。
+
+没有什么可以逃脱堆叠上下文。如果你被困在那儿，就意味着游戏结束。
+
+堆叠上下文由设置 position 和 z-index、设置 translate 以及许多其他因素形成。
+
+门户允许你轻松地将一些元素（如模态对话框）渲染到其当前 DOM 位置之外，从而避免被堆叠上下文困住。
+
+使用门户时，规则是：
+
+在 React 中发生的事情留在 React 层次结构内。
+
+在 React 外部发生的事情遵循 DOM 结构规则。

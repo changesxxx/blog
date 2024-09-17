@@ -1,0 +1,499 @@
+---
+title: "在 React 中的用错误处理"
+description: "我们都希望我们的应用程序稳定、完美运行，并能满足所有可能的边缘案例，对吧？但悲惨的现实是，我们都是人（至少我是这样假设的），我们都会犯错误，代码不可能没有缺陷。无论我们多么小心，或者写多少自动化测试，总会有一些情况发生得非常糟糕。关于用户体验，重要的是预测这些可怕的事情，尽可能将其局限，并以优雅的方式处理它，直到真正解决。"
+
+name: "error-handling-react"
+---
+
+在最后一章中，让我们看看 React 中的错误处理：
+
+- 如果发生错误，我们可以做些什么。
+- 不同错误捕捉方法的注意事项是什么。
+- 如何减轻这些问题。
+
+为什么我们应该在 React 中捕获错误
+
+首先，为什么在 React 中拥有某种错误捕获解决方案至关重要？答案很简单：从版本 16 开始，如果生命周期中抛出错误，整个应用将会卸载，除非这个错误被阻止。在此之前，即使组件出现故障，也会保留在屏幕上。而现在，UI 中某个微不足道部分的未捕获错误，甚至是外部库中的错误，可能会摧毁整个页面，并让所有人看到空白屏幕。
+
+前端开发者从未拥有过如此破坏性的力量！
+
+---
+
+### 记住如何在 JavaScript 中捕获错误
+
+在常规 JavaScript 中捕获这些令人讨厌的意外时，工具是相当直接的。
+
+我们有老旧的 try/catch 语句，基本上是自解释的：尝试执行某些操作，如果失败——捕获错误并采取措施减轻它。
+
+```jsx
+try {
+ // if we're doing something wrong, this might throw an error
+ doSomething();
+} catch (e) {
+ // if error happened, catch it and do something with it without
+stopping the app
+ // like sending this error to some logging service
+}
+```
+
+这也适用于 async 函数，使用相同的语法。
+
+```jsx
+try {
+  await fetch("/bla-bla");
+} catch (e) {
+  // oh no, the fetch failed! We should do something about it!
+}
+```
+
+或者，如果我们使用老式的 promises，则有专门的 catch 方法。如果我们用 promise 基础 API 重写前面的 fetch 示例，效果将是一样的。
+
+```jsx
+fetch("/bla-bla")
+  .then((result) => {
+    // if a promise is successful, the result will be here
+    // we can do something useful with it
+  })
+  .catch((e) => {
+    // oh no, the fetch failed! We should do something about it!
+  });
+```
+
+这个概念是相同的，只是实现略有不同，因此在本章的其余部分，我将使用 try/catch 语法来处理所有错误。
+
+### React 中的简单 try/catch：如何使用及注意事项
+
+当捕获到错误时，我们需要对其采取行动，对吧？那么，我们可以做些什么，除了将其记录在某处？更准确地说：我们可以为用户做些什么？仅仅让他们看到空白屏幕或破损的界面并不友好。
+
+最明显和直观的回答是：在我们等待修复时渲染某些内容。幸运的是，我们可以在 catch 语句中做任何事情，包括设置状态。因此，我们可以这样做：
+
+```jsx
+const SomeComponent = () => {
+  const [hasError, setHasError] = useState(false);
+  useEffect(() => {
+    try {
+      // do something like fetching some data
+    } catch (e) {
+      // oh no! the fetch failed, we have no data to render!
+      setHasError(true);
+    }
+  });
+  // something happened during fetch, lets render some nice error
+  screen;
+  if (hasError) return <SomeErrorScreen />;
+  // all's good, data is here, let's render it
+  return <SomeComponentContent {...datasomething} />;
+};
+```
+
+我们尝试发送一个 fetch 请求，如果失败——设置错误状态，如果错误状态为 true，则渲染一个包含一些附加信息（如支持联系号码）的错误页面。
+
+这种方法相当直接，对于捕获失败的 fetch 请求等简单、可预测且狭窄的用例效果很好。但如果你想捕获组件中可能发生的所有错误，就会面临一些挑战和严重的限制。
+
+限制 1：你会在 useEffect 钩子中遇到麻烦。
+
+如果我们用 try/catch 包裹 useEffect，它将根本无法工作：
+
+```jsx
+try {
+  useEffect(() => {
+    throw new Error("Hulk smash!");
+  }, []);
+} catch (e) {
+  // useEffect throws, but this will never be called
+}
+```
+
+这是因为 useEffect 在渲染后异步调用，因此从 try/catch 的角度来看，一切都成功了。就像我们在第15章讨论的任何 Promise 一样，如果我们不等待结果，JavaScript 将继续执行，等到 promise 完成时才返回，并仅执行 useEffect 内部的内容（或 Promise 的 then）。此时，try/catch 块将被执行并早已结束。
+
+为了捕获 useEffect 内部的错误，try/catch 也应该放置在内部：
+
+```jsx
+useEffect(() => {
+  try {
+    throw new Error("Hulk smash!");
+  } catch (e) {
+    // this one will be caught
+  }
+}, []);
+```
+
+互动示例和完整代码 https://advanced-react.com/examples/16/01
+
+这适用于任何使用 useEffect 的钩子或任何异步操作。结果是，你需要将其拆分为多个块：每个钩子一个。
+
+限制 2：子组件。
+
+try/catch 无法捕获子组件内部发生的任何事情。你不能这样做：
+
+```jsx
+const Component = () => {
+ let child;
+ try {
+ child = <Child />;
+ } catch (e) {
+ // useless for catching errors inside Child component, won't
+be triggered }
+ return child;
+};
+```
+
+或者甚至这样：
+
+```jsx
+const Component = () => {
+ try {
+ return <Child />;
+ } catch (e) {
+ // still useless for catching errors inside Child component,
+won't be triggered
+ }
+};
+```
+
+互动示例和完整代码https://advanced-react.com/examples/16/02
+
+这是因为当我们写 `<Child />` 时，我们实际上并没有渲染这个组件。我们所做的只是创建一个组件元素，它不过是组件定义的一个对象，包含 React 本身稍后将使用的必要信息，如组件类型和 props，实际上触发该组件的渲染。我们在第2章、第3章和第6章中详细讨论了这一点。
+
+渲染将在 try/catch 块成功执行后发生，和 promises 以及 useEffect 钩子是一个道理。
+
+限制 3：在渲染期间设置状态是不允许的。
+
+如果你试图在 useEffect 和各种回调之外（即在组件的渲染期间）捕获错误，妥善处理它们就不那么简单了：在渲染期间更新状态是不允许的。
+
+例如，简单的代码如果发生错误将导致无限重渲染循环：
+
+```jsx
+const Component = () => {
+  const [hasError, setHasError] = useState(false);
+  try {
+    doSomethingComplicated();
+  } catch (e) {
+    // don't do that! will cause infinite loop in case of an error
+    // see codesandbox below with live example
+    setHasError(true);
+  }
+};
+```
+
+互动示例和完整代码https://advanced-react.com/examples/16/03
+
+当然，我们可以在这里直接返回错误页面，而不是设置状态：
+
+```jsx
+t Component = () => {
+ try {
+ doSomethingComplicated();
+ } catch (e) {
+ // this allowed
+ return <SomeErrorScreen />;
+ }
+};
+```
+
+但你可以想象，这样做有点麻烦，并迫使我们以不同的方式处理同一组件中的错误：useEffect 和回调的状态，以及其他所有内容的直接返回。
+
+```jsx
+// while it will work, it's super cumbersome and hard to maitain,
+don't do that
+const SomeComponent = () => {
+ const [hasError, setHasError] = useState(false);
+ useEffect(() => {
+ try {
+ // do something like fetching some data
+ } catch (e) {
+ // can't just return in case of errors in useEffect or
+callbacks
+ // so have to use state
+ setHasError(true);
+ }
+ });
+ try {
+ // do something during render
+ } catch (e) {
+ // but here we can't use state, so have to return directly in
+case of an error
+ return <SomeErrorScreen />;
+ }
+ // and still have to return in case of error state here
+ if (hasError) return <SomeErrorScreen />;
+ return <SomeComponentContent {...datasomething} />;
+};
+```
+
+总结这一部分：如果我们在 React 中仅依赖 try/catch，我们将错过大多数错误，或者将每个组件变成一个难以理解的代码混乱，可能会导致自身出错。
+
+幸运的是，还有另一种方法。
+
+### React ErrorBoundary 组件
+
+为了减轻上述限制，React 给我们提供了所谓的“错误边界”：一个特殊的 API，将常规组件在某种程度上转变为 try/catch 语句，仅适用于 React 声明式代码。典型的用法在每个示例中都可以看到，包括 React 文档，通常是这样的：
+
+```jsx
+const Component = () => {
+  return (
+    <ErrorBoundary>
+      <SomeChildComponent />
+      <AnotherChildComponent />
+    </ErrorBoundary>
+  );
+};
+```
+
+现在，如果在任何这些组件或其子组件中渲染时出现问题，错误将被捕获并处理。
+
+但 React 并没有直接给我们这个组件，它只给我们一个实现它的工具。最简单的实现看起来大致是这样的：
+
+```jsx
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    // initialize the error state
+    this.state = { hasError: false };
+  }
+  // if an error happened, set the state to true
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+  render() {
+    // if error happened, return a fallback component
+    if (this.state.hasError) {
+      return <>Oh no! Epic fail!</>;
+    }
+    return this.props.children;
+  }
+}
+```
+
+我们创建一个常规的类组件（这里采用传统方式，不使用钩子）并实现 `getDerivedStateFromError` 方法——这将使组件成为一个真正的错误边界。
+
+处理错误时，另一个重要的事情是将错误信息发送到一个可以通知值班人员的地方。为此，错误边界提供了 `componentDidCatch` 方法。
+
+```jsx
+class ErrorBoundary extends React.Component {
+  // everything else stays the same
+  componentDidCatch(error, errorInfo) {
+    // send error to somewhere here
+    log(error, errorInfo);
+  }
+}
+```
+
+错误边界设置完成后，我们可以像其他组件一样对其进行处理。例如，我们可以使其更具重用性，并将回退组件作为 prop 传递：
+
+```jsx
+render() { // if error happened, return a fallback component
+ if (this.state.hasError) {
+ return this.props.fallback;
+ }
+ return this.props.children;
+}
+```
+
+使用时可以这样：
+
+```jsx
+const Component = () => {
+  return (
+    <ErrorBoundary fallback={<>Oh no! Do something!</>}>
+      <SomeChildComponent />
+      <AnotherChildComponent />
+    </ErrorBoundary>
+  );
+};
+```
+
+或者根据需要进行其他处理，比如在按钮点击时重置状态、区分错误类型或将错误推送到某个上下文中。
+
+互动示例和完整代码https://advanced-react.com/examples/16/04
+
+不过，在这个无错误的世界里，有一个注意事项：它并不能捕获所有内容。
+
+### 错误边界组件的限制
+
+错误边界仅捕获在 React 生命周期中发生的错误。发生在生命周期之外的事情，如已解决的 promises、具有 `setTimeout` 的异步代码、各种回调和事件处理程序，如果不明确处理将会消失。
+
+```jsx
+const Component = () => {
+  useEffect(() => {
+    // this one will be caught by ErrorBoundary component
+    throw new Error("Destroy everything!");
+  }, []);
+  const onClick = () => {
+    // this error will just disappear into the void
+    throw new Error("Hulk smash!");
+  };
+  useEffect(() => {
+    // if this one fails, the error will also disappear
+    fetch("/bla");
+  }, []);
+  return <button onClick={onClick}>click me</button>;
+};
+const ComponentWithBoundary = () => {
+  return (
+    <ErrorBoundary>
+      <Component />
+    </ErrorBoundary>
+  );
+};
+```
+
+这里的常见建议是使用常规的 try/catch 来处理这些类型的错误。在这里，我们可以相对安全地使用状态（或多或少）：事件处理程序的回调正是我们通常设置状态的地方。因此，在技术上，我们可以将这两种方法结合起来，做类似的处理。
+
+```jsx
+const Component = () => {
+ const [hasError, setHasError] = useState(false);
+ // most of the errors in this component and in children will be
+caught by the ErrorBoundary
+ const onClick = () => {
+ try {
+ // this error will be caught by catch
+ throw new Error('Hulk smash!');
+ } catch (e) {
+ setHasError(true);
+ }
+ };
+ if (hasError) return 'something went wrong';
+ return <button onClick={onClick}>click me</button>;
+};
+const ComponentWithBoundary = () => {
+ return (
+ <ErrorBoundary fallback={'Oh no! Something went wrong'}>
+ <Component />
+ </ErrorBoundary>
+ );
+};
+```
+
+但是，我们又回到了起点：每个组件都需要维护自己的“错误”状态，更重要的是，决定该如何处理它。
+
+当然，我们可以选择不在组件级别处理这些错误，而是通过 props 或上下文将其向上传播到具有错误边界的父组件。通过这种方式，至少我们可以在一个地方拥有一个“回退”组件：
+
+```jsx
+const Component = ({ onError }) => {
+  const onClick = () => {
+    try {
+      throw new Error("Hulk smash!");
+    } catch (e) {
+      // just call a prop instead of maintaining state here
+      onError();
+    }
+  };
+  return <button onClick={onClick}>click me</button>;
+};
+const ComponentWithBoundary = () => {
+  const [hasError, setHasError] = useState();
+  const fallback = "Oh no! Something went wrong";
+  if (hasError) return fallback;
+  return (
+    <ErrorBoundary fallback={fallback}>
+      <Component onError={() => setHasError(true)} />
+    </ErrorBoundary>
+  );
+};
+```
+
+但这会增加很多额外的代码！我们必须为渲染树中的每个子组件都这样做。更不用说我们现在基本上维护了两个错误状态：一个在父组件中，另一个在错误边界本身。而错误边界已经具备向上传播错误的所有机制，因此我们在做重复工作。
+
+难道我们不能直接用错误边界捕获异步代码和事件处理程序中的错误吗？
+
+### 捕获异步错误与错误边界
+
+有趣的是，我们实际上可以用错误边界捕获所有错误！有一个巧妙的技巧可以实现这一点。
+
+这里的技巧是先用 try/catch 捕获这些错误。然后在 catch 语句内部，触发正常的 React 重新渲染，然后将这些错误重新抛出回重新渲染的生命周期。通过这种方式，错误边界可以像捕获其他错误一样捕获它们。由于状态更新是触发重新渲染的方式，而状态设置函数实际上可以接受一个更新函数作为参数，因此这个解决方案简直是魔法。
+
+```jsx
+const Component = () => {
+  // create some random state that we'll use to throw errors
+  const [state, setState] = useState();
+  const onClick = () => {
+    try {
+      // something bad happened
+    } catch (e) {
+      // trigger state update, with updater function as an argument
+      setState(() => {
+        // re-throw this error within the updater function
+        // it will be triggered during state update
+        throw e;
+      });
+    }
+  };
+};
+```
+
+互动示例和完整代码 https://advanced-react.com/examples/16/05
+
+这里的最后一步是将这个技巧抽象出来，以便我们不必在每个组件中创建随机状态。我们可以创造性地制作一个钩子，给我们一个异步错误抛出器：
+
+```jsx
+const useThrowAsyncError = () => {
+  const [state, setState] = useState();
+  return (error) => {
+    setState(() => throw error);
+  };
+};
+```
+
+并像这样使用它：
+
+```jsx
+const Component = () => {
+  const throwAsyncError = useThrowAsyncError();
+  useEffect(() => {
+    fetch("/bla")
+      .then()
+      .catch((e) => {
+        // throw async error here!
+        throwAsyncError(e);
+      });
+  });
+};
+```
+
+或者，我们可以为回调创建一个包装器，如下所示：
+
+```jsx
+const useCallbackWithErrorHandling = (callback) => {
+  const [state, setState] = useState();
+  return (...args) => {
+    try {
+      callback(...args);
+    } catch (e) {
+      setState(() => throw e);
+    }
+  };
+};
+```
+
+并像这样使用它：
+
+```jsx
+const Component = () => {
+  const onClick = () => {
+    // do something dangerous here
+  };
+  const onClickWithErrorHandler = useCallbackWithErrorHandling(onClick);
+  return <button onClick={onClickWithErrorHandler}>click me!</button>;
+};
+```
+
+或任何其他你心中所想，应用需要的东西。没有限制！再也没有错误会逃脱。
+
+互动示例和完整代码 https://advanced-react.com/examples/16/06
+
+### 我可以直接使用 `react-error-boundary` 库吗？
+
+对于那些讨厌重复造轮子或更喜欢现成库的人来说，有一个不错的库叫做“react-error-boundary”，它实现了一个灵活的错误边界组件，并具有一些类似于上述描述的有用工具。
+
+是否使用这个库只是个人偏好、编码风格和组件内独特情况的问题。
+
+### 关键要点
+
+这就是关于错误及本章的内容，实际上也是本书的结束！希望你享受这个过程。在处理 React 中的错误时，请记住：
+
+- 在版本 16 之后，React 生命周期中的未捕获错误将卸载整个应用。因此，在战略性位置至少需要几个错误边界是不可妥协的。
+- 简单的 try/catch 可以很好地捕获回调或 promises 中的错误，但无法捕获来自任何嵌套组件的错误，也无法将 useEffect 或组件的返回值包裹在 try/catch 中。
+- 错误边界组件相反。它将捕获在渲染树中任何组件中产生的错误，但会跳过 promises 和回调（任何异步操作）。
+- 我们可以将它们合并，创建一个超级错误边界组件，如果我们用 try/catch 捕获异步错误并重新抛出到正常的 React 生命周期中。
+- 我们可以实现一个简单的 `useAsyncError` 钩子来处理此问题，或者使用 `react-error-boundary` 库，该库基于类似的原则运作。

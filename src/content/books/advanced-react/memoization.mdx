@@ -1,0 +1,554 @@
+---
+title: "memoization"
+description: "现在我们知道了最重要的组合模式及其工作原理，是时候进一步讨论性能了。更准确地说，让我们讨论一个与提高 React 性能密切相关的话题，但实际上在我们进行的所有操作中，至少一半的时间并没有按预期工作。记忆化。我们最喜欢的 useMemo 和 useCallback hooks 以及 React.memo 高阶组件。"
+
+name: "memoization"
+---
+
+我并不是在开玩笑或夸大这半个时间。正确地进行记忆化是困难的，远比看起来要难。希望在本章结束时，你会同意我的看法。在这里，你将学习：
+
+- 我们试图通过记忆化解决什么问题（而不仅仅是性能！）。
+
+- useMemo 和 useCallback 的底层工作原理，以及它们之间的区别。
+
+- 单靠在组件上记忆化 props 是一种反模式。
+
+- 什么是 React.memo，我们为何需要它，以及成功使用它的基本规则。
+
+- 如何正确使用它与“作为 children 的元素”模式。
+
+- useMemo 在昂贵计算中的作用。
+
+---
+
+### 问题：比较值
+
+这一切都与在 JavaScript 中比较值有关。我们通过实际值比较字符串或布尔值：
+
+```jsx
+const a = 1;
+const b = 1;
+a === b; // 将为 true，则值完全相同
+```
+
+对于对象及其继承的任何内容（如数组或函数），情况则不同。
+
+当我们创建一个对象变量时 `const a = { id: 1 }`，存储的值并不是实际值。它只是一个指向内存中某个持有该对象的部分的引用。当我们用相同数据创建另一个变量时 `const b = { id: 1 }`，它将存储在内存的另一部分。由于它是不同的部分，因此引用也会不同。
+
+因此，即使这些对象看起来完全相同，我们的新 a 和 b 变量中的值也不同：它们指向内存中的不同对象。
+
+结果是，对它们进行简单比较时，a === b 将始终返回 false：
+
+```jsx
+const a = { id: 1 };
+const b = { id: 1 };
+a === b; // 将始终为 false
+```
+
+要使比较 a === b 返回 true，我们需要确保 b 的引用与 a 的引用完全相同。像这样：
+
+```jsx
+const a = { id: 1 };
+const b = a;
+a === b; //现在将是真的
+```
+
+这就是 React 在每次需要比较重新渲染之间的值时所要处理的内容。它在每次使用带有依赖项的 hooks 时进行这种比较，例如在 useEffect 中：
+
+```jsx
+const Component = () => {
+  const submit = () => {};
+  useEffect(() => {
+    //在此处调用函数
+    submit();
+    // 它是在 useEffect 之外声明的
+    // 所以应该在依赖项中
+  }, [submit]);
+  return ...;
+};
+```
+
+在这个例子中，<mark>submit 函数在 useEffect hook 之外声明。因此，如果我想在 hook 内部使用它，它应该被声明为依赖项。但由于 submit 是在 Component 内部局部声明的，它将在每次 Component 重新渲染时被重新创建。</mark>
+
+记住，我们在第二章讨论过：<mark>重新渲染只是 React 调用组件的函数。在此过程中，每个局部变量都会被重新创建，就像 JavaScript 中的任何函数一样。</mark>
+
+因此，<mark>React 将比较重新渲染前后的 submit，以确定是否应该在这次运行 useEffect hook。比较将始终返回 false，因为每次都是新的引用。结果，useEffect hook 将在每次重新渲染时触发。</mark>
+
+---
+
+### useMemo 和 useCallback：它们如何工作
+
+为了应对这一点，我们需要一种方法来在重新渲染之间保留对 submit 函数的引用。这样比较才会返回 true，hook 就不会不必要地触发。这就是 useMemo 和 useCallback hooks 的作用。两者拥有类似的 API，并且服务于类似的目的：确保这些 hooks 所分配的变量中的引用仅在 hook 的依赖项更改时变化。
+
+如果我用 useCallback 包裹 submit：
+
+```jsx
+const submit = useCallback(() => {
+  // 无依赖项，引用在重新渲染之间不会更改
+}, []);
+```
+
+那么 submit 变量中的值将在重新渲染之间保持相同的引用，比较将返回 true，而依赖于它的 useEffect hook 将不会每次都被触发：
+
+```jsx
+const Component = () => {
+  const submit = useCallback(() => {
+    // 在此处提交内容
+  }, []);
+  useEffect(() => {
+    submit();
+    // submit 被记住，因此 useEffect 不会每次重新渲染
+  }, [submit]);
+  return ...;
+};
+```
+
+useMemo 也是如此，只是在这种情况下，我需要返回我想要记忆化的函数：
+
+```jsx
+const submit = useMemo(() => {
+  return () => {
+    // 这是 out 提交函数 - 它是从传递给 memo 的函数
+  };
+}, []);
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/05/01)
+</Callout>
+
+如你所见，API 上有一些微小的差别。<mark>useCallback 将我们要记忆化的函数作为第一个参数，而 useMemo 则接受一个函数并记忆其返回值。</mark>
+
+由于这一点，它们的行为也略有不同。由于两个 hooks 都接受一个函数作为第一个参数，而且我们在 React 组件内部声明这些函数，这意味着在每次重新渲染时，这个作为第一个参数的函数总是会被重新创建。这是正常的 JavaScript，与 React 无关。如果我声明一个接受另一个函数作为参数的函数，然后多次调用它并传入一个内联函数，那么每次调用时，该内联函数将从头开始重新创建。
+
+```jsx
+// 接受函数作为第一个参数的函数
+const func = (callback) => {
+  //在此处使用此回调执行某些操作
+};
+// 函数作为参数 - 首次调用
+func(() => {});
+// 函数作为参数 - 第二次调用，新函数作为 论点;
+func(() => {});
+```
+
+而我们的 hooks 只是集成到 React 生命周期中的函数，仅此而已。
+
+因此，为了在 useCallback hook 中返回完全相同的引用，React 会执行类似这样的操作：
+
+```jsx
+let cachedCallback;
+const func = (callback) => {
+  if (dependenciesEqual()) {
+    return cachedCallback;
+  }
+  cachedCallback = callback;
+  return callback;
+};
+```
+
+&zwj;<mark>它缓存传入的第一个函数，并在 hook 的依赖项未变化时每次返回该函数。如果依赖项发生变化，它则更新缓存并返回刷新后的函数。</mark>
+
+useMemo 的情况也是如此，只不过它调用该函数并返回结果，而不是返回函数：
+
+```jsx
+let cachedResult;
+const func = (callback) => {
+  if (dependenciesEqual()) {
+    return cachedResult;
+  }
+  cachedResult = callback();
+  return cachedResult;
+};
+```
+
+实际实现当然要复杂得多，但这就是基本思路。这一切为什么重要？对于实际应用来说，除了理解 API 之间的差异外，并没有太大意义。然而，这里有一种信念时不时会出现，那就是 useMemo 在性能上优于 useCallback，因为 useCallback 在每次重新渲染时都会重新创建传递给它的函数，而 useMemo 则不会。正如你所看到的，这并不正确。第一个参数中的函数在这两者中都会被重新创建。
+
+我能想到的唯一与此相关的情况是，当我们传递的第一个参数不是函数本身，而是另一个函数执行的结果硬编码在内联中的时候。基本上就是这种情况：
+
+```jsx
+const submit = useCallback(something(), []);
+```
+
+在这种情况下，<mark>something 函数将在每次重新渲染时被调用，即使 submit 引用不会改变。因此，避免在这些函数中进行昂贵的计算。</mark>
+
+---
+
+### 反模式：记忆化 props
+
+记忆化 hooks 的第二大常见用例是将它们传递给 props。你肯定见过这样的代码：
+
+```jsx
+const Component = () => {
+  const onClick = useCallback(() => {
+    // 在单击时执行某些操作
+  }, []);
+  return <button onClick={onClick}>click me</button>;
+};
+```
+
+不幸的是，这里的 useCallback 是毫无用处的。许多人普遍认为，甚至 ChatGPT 似乎也持有这样的观点，认为记忆化 props 可以防止组件重新渲染。但正如我们之前所知，<mark>如果一个组件重新渲染，那么该组件内部的每个组件也会重新渲染。</mark>
+
+因此，无论我们是否将 onClick 函数包装在 useCallback 中，在这里都没有任何意义。我们所做的只是让 React 多做一些工作，并使我们的代码更难以阅读。当只有一个 useCallback 时，它看起来并不是那么糟糕。但它从来不会只有一个，对吗？会有另一个，然后又一个，它们开始相互依赖，不久之后，应用中的逻辑就会被难以理解和调试的 useMemo 和 useCallback 的混乱淹没。
+
+&zwj;<mark>实际上，我们只需要在组件上记忆化 props 的两个主要用例。第一个是当这个 prop 在下游组件的另一个 hook 中被用作依赖项时。</mark>
+
+```jsx
+const Parent = () => {
+  //这需要记住！
+  //Child 在 useEffect 中使用它
+  const fetch = () => {};
+  return <Child onMount={fetch} />;
+};
+const Child = ({ onMount }) => {
+  useEffect(() => {
+    onMount();
+  }, [onMount]);
+};
+```
+
+这应该是不言自明的：如果一个非原始值进入依赖项，它在重新渲染之间应该保持稳定引用，即使它来自一系列 props。
+
+&zwj;<mark>第二个用例是当一个组件被包装在 React.memo 中时。</mark>
+
+---
+
+### 什么是 React.memo
+
+React.memo 或简称 memo 是 React 提供的一个非常有用的工具。它允许我们对组件本身进行记忆化。<mark>如果一个组件的重新渲染是由其父组件触发的（并且仅在这种情况下），并且该组件被包装在 React.memo 中，那么只有在这种情况下，React 才会停止并检查其 props。如果没有任何 props 发生变化，那么该组件将不会被重新渲染，正常的重新渲染链将被停止。</mark>
+
+![image-20240913162419298](/assets/images/books/advanced-react/memo.png)
+
+这再次是 React 执行我们在本章开头讨论的比较的情况。如果其中一个 props 发生了变化，那么被 React.memo 包裹的组件将照常重新渲染：
+
+```jsx
+const Child = ({ data, onChange }) => {};
+const ChildMemo = React.memo(Child);
+const Component = () => {
+  // 内联声明的对象和函数
+  // 将随每次重新渲染而变化
+  return <ChildMemo data={{ ...some_object }} onChange={() =>
+  {...}} />
+};
+```
+
+在上述例子中，data 和 onChange 是在先声明的，因此它们会在每次重新渲染时发生变化。
+
+这就是 useMemo 和 useCallback 发光的地方：
+
+```jsx
+const Child = ({ data, onChange }) => {};
+const ChildMemo = React.memo(Child);
+const Component = () => {
+ const data = useMemo(() => ({ ... }), []); // 某些对象
+ const onChange = useCallback(() => {}, []); // 一些回调
+ // data 和 onChange 现在有稳定的引用
+ // 将阻止 ChildMemo 的重新渲染
+return(<ChildMemo data={data} onChange={onChange} />)
+}
+```
+
+&zwj;<mark>通过记忆化 data 和 onChange，我们保留了这些对象在重新渲染之间的引用。现在，当 React 比较 ChildMemo 组件的 props 时，检查将通过，组件将不会重新渲染。</mark>
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/05/02)
+</Callout>
+
+但是，确保所有 props 都被记忆化并不像听起来那么简单。我们在许多情况下都做错了！一个小错误就会导致 props 检查失败，结果是每个 React.memo、useCallback 和 useMemo 都变得完全无用。
+
+---
+
+### React.memo 和来自 props 的 props
+
+第一个和最简单的记忆化失败案例是来自 props 的传递，尤其是在组件之间涉及 props 扩展时。想象一下，你有一系列组件：
+
+```jsx
+const Child = () => {};
+const ChildMemo = React.memo(Child);
+const Component = (props) => {
+  return <ChildMemo {...props} />;
+};
+const ComponentInBetween = (props) => {
+  return <Component {...props} />;
+};
+const InitialComponent = (props) => {
+  // 这个state 将触发 Component 的重新渲染;
+  return <ComponentInBetween {...props} data={{ id: "1" }} />;
+};
+```
+
+你认为那些需要将额外数据添加到 InitialComponent 的人有多大可能会逐个检查每个组件，深入查看它们是否被包装在 React.memo 中？尤其是当这些组件在不同文件中且实现相当复杂时。绝对不可能发生。
+
+但结果是，InitialComponent 破坏了 ChildMemo 组件的记忆化，因为它向其传递了一个非记忆化的数据 prop。
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/05/03)
+</Callout>
+
+因此，除非你准备好并能够强制执行每个 prop 在任何地方都应该被记忆化的规则，否则在组件上使用 React.memo 函数必须遵循某些规则。
+
+规则 1：<mark>永远不要扩展来自其他组件的 props。</mark>
+
+```jsx
+const Component = (props) => {
+  return <ChildMemo {...props} />;
+};
+```
+
+而是应该是明确的，例如：
+
+```jsx
+const Component = (props) => {
+  return <ChildMemo some={prop.some} other={props.other} />;
+};
+```
+
+规则 2：<mark>避免传递来自其他组件的非原始 props。</mark>
+
+即使像上面的明确示例仍然相当脆弱。如果任何这些 props 是非记忆化的对象或函数，记忆化将再次失败。
+
+规则 3：<mark>避免传递来自自定义 hooks 的非原始值。</mark>
+
+这似乎与将状态逻辑提取到自定义 hooks 的普遍做法相矛盾。但它们的便利性在这里是双刃剑：它们确实隐藏了复杂性，但也隐藏了数据或函数是否具有稳定引用。
+
+考虑这个：
+
+```jsx
+const Component = () => {
+  const { submit } = useForm();
+  return <ChildMemo onChange={submit} />;
+};
+```
+
+submit 函数隐藏在 useForm 自定义 hook 中。每个自定义 hook 都将在每次重新渲染时被触发。你能从上面的代码中判断将 submit 安全地传递给 ChildMemo 吗？
+
+不，你不能。而且有可能它看起来会是这样的：
+
+```jsx
+const useForm = () => {
+  // 大量代码来控制表单状态
+  const submit = () => {
+    // 在提交时执行某些操作，例如数据验证
+  };
+  return {
+    submit,
+  };
+};
+```
+
+通过将 submit 函数传递给 ChildMemo，我们破坏了它的记忆化——从现在开始，它将像没有被 React.memo 包裹一样重新渲染。
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/05/04)
+</Callout>
+
+看看这个模式是多么脆弱？情况还会更糟。
+
+---
+
+### React.memo 和 children
+
+让我们看看这段代码：
+
+```jsx
+const ChildMemo = React.memo(Child);
+const Component = () => {
+  return (
+    <ChildMemo>
+      <div>Some text here</div>
+    </ChildMemo>
+  );
+};
+```
+
+看起来无害：一个没有 props 的记忆化组件，里面渲染了一些 div，对吧？然而，这里记忆化又被破坏了，React.memo 包裹完全无用。
+
+记住我们在第二章讨论的内容。<mark>元素、作为 props 的 children 重新渲染？这种漂亮的嵌套语法只不过是 children prop 的语法糖。</mark>我可以将这段代码重写成这样：
+
+```jsx
+const Component = () => {
+  return <ChildMemo children={<div>Some text here</div>} />;
+};
+```
+
+它的行为将是完全相同的。正如我们在第二章中讨论的那样，所有 JSX 只是 React.createElement 的语法糖，实际上只是一个对象。在这种情况下，它将是一个类型为 "div" 的对象：
+
+```jsx
+{
+ type: "div",
+ ... //其余的东西
+}
+```
+
+从记忆化和 props 的角度来看，<mark>我们这里有一个被 React.memo 包裹的组件，并且它有一个包含非记忆化对象的 prop！</mark>
+
+为了修复它，我们需要记忆化 div ：
+
+```jsx
+const Component = () => {
+  const content = useMemo(() => <div>Some text here</div>, []);
+  return <ChildMemo children={content} />;
+};
+```
+
+或者，回到漂亮的语法：
+
+```jsx
+const Component = () => {
+  const content = useMemo(() => <div>Some text here</div>, []);
+  return <ChildMemo>{content}</ChildMemo>;
+};
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码]( https://advanced-react.com/examples/05/05)
+</Callout>
+
+顺便说一句，作为渲染 prop 的 children 也适用同样的故事。这将被破坏：
+
+```jsx
+const Component = () => {
+  return <ChildMemo>{() => <div>Some text here</div>}</ChildMemo>;
+};
+```
+
+这里的 children 是一个在每次重新渲染时都会重新创建的函数。还需要用 useMemo 对其进行记忆化：
+
+```jsx
+const Component = () => {
+  const content = useMemo(() => () => <div>Some text here</div>, []);
+  return <ChildMemo>{content}</ChildMemo>;
+};
+```
+
+或者直接使用 useCallback：
+
+```jsx
+const Component = () => {
+  const content = useCallback(() => <div>Some text here</div>, []);
+  return <ChildMemo>{content}</ChildMemo>;
+};
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码]( https://advanced-react.com/examples/05/06)
+</Callout>
+
+现在看看你的应用。多少这样的情况已经悄悄溜过了？
+
+---
+
+### React.memo 和记忆化 children（几乎）
+
+如果你检查了你的应用，修复了所有这些模式，并且对记忆化的状态感到满意，别急。生活什么时候会这么简单！你觉得这个怎么样？是可以还是被破坏了？
+
+```jsx
+const ChildMemo = React.memo(Child);
+const ParentMemo = React.memo(Parent);
+const Component = () => {
+  return (
+    <ParentMemo>
+      <ChildMemo />
+    </ParentMemo>
+  );
+};
+```
+
+它们都是记忆化的，所以应该没问题，对吧？错。
+
+ParentMemo 将表现得好像没有被 React.memo 包裹——它的 children 实际上并没有被记忆化！
+
+让我们仔细看看发生了什么。正如我们已经知道的，<mark>
+元素只是 React.createElement 的语法糖，返回一个指向组件的对象。</mark>如果我创建一个 `<Parent />` 元素，它将是这样的：
+
+```jsx
+{
+ type: Parent,
+ ... // React 的其余内容
+}
+
+```
+
+对于记忆化组件，情况是完全相同的。`<ParentMemo />` 元素将被转换为一个类似形状的对象。唯一的 "type" 属性将包含关于我们的 ParentMemo 的信息。
+
+而这个对象只是一个对象，它本身并没有被记忆化。因此，从记忆化和 props 的角度来看，我们有一个 ParentMemo 组件，其 children prop 包含一个非记忆化的对象。因此，ParentMemo 的记忆化被破坏了。
+
+为了修复它，我们需要记忆化这个对象本身：
+
+```jsx
+const Component = () => {
+  const child = useMemo(() => <ChildMemo />, []);
+  return <ParentMemo>{child}</ParentMemo>;
+};
+```
+
+然后我们甚至可能不需要 ChildMemo。这取决于它的内容和我们的意图，当然。至少为了防止 ParentMemo 重新渲染，ChildMemo 是不必要的，它可以恢复为普通的 Child：
+
+```jsx
+const Component = () => {
+  const child = useMemo(() => <Child />, []);
+  return <ParentMemo>{child}</ParentMemo>;
+};
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码]( https://advanced-react.com/examples/05/07)
+</Callout>
+
+---
+
+### useMemo 和昂贵的计算
+
+useMemo 的最后一个相当流行的与性能相关的用例是记忆化“昂贵的计算”。因为它常常被误用，所以加上引号。
+
+首先，什么算是“昂贵的计算”？拼接字符串算昂贵吗？还是对 300 项的数组进行排序？或者在 5000 个单词的文本上运行正则表达式？我不知道。你也不知道。没有人知道，直到它被实际测量：
+
+- 在一个代表你的用户群的设备上
+
+- 在上下文中
+
+- 与同时发生的其他事情进行比较
+
+- 与之前或理想状态进行比较
+
+在我的笔记本电脑上，对 300 项的数组进行排序，即使 CPU 降速 6 倍，也只需不到 2 毫秒。但在某些老旧的 Android 2 手机上，可能需要一秒钟。
+
+在一个耗时 100 毫秒的文本上执行正则表达式感觉很慢。但如果它是在按钮点击的结果下运行，偶尔在设置屏幕深处，几乎是瞬时的。一个耗时 30 毫秒的正则表达式运行起来似乎足够快。但如果它在每次鼠标移动或滚动事件时运行，那就是不可饶恕的慢，需要改进。
+
+这总是取决于。“先测量”应该是当有冲动要将某物包装在 useMemo 中作为“昂贵的计算”时的默认思维。
+
+第二点要考虑的是 React。特别是，组件的渲染与原始 JavaScript 计算的比较。大多数情况下，在 useMemo 中计算的任何内容都将比重新渲染实际元素快一个数量级。例如，在我的笔记本电脑上，对 300 项的数组进行排序只需不到 2 毫秒。重新渲染来自该数组的列表元素，即使它们只是一些带文本的简单按钮，也需要超过 20 毫秒。如果我想提高该组件的性能，<mark>最好是摆脱所有不必要的重新渲染，而不是记忆化一些不到 2 毫秒的内容。</mark>
+
+因此，关于记忆化的“先测量”规则的补充是：“不要忘记测量重新渲染组件元素所需的时间。”如果你将每个 JavaScript 计算都包装在 useMemo 中并获得 10 毫秒的收益，但实际组件的重新渲染仍然需要将近 200 毫秒，那么有什么意义呢？这只会使代码复杂化，而没有任何明显的收益。
+
+最后，<mark>useMemo 仅在重新渲染时有用。这就是它的整个意义及其工作原理。如果你的组件从未重新渲染，那么 useMemo 就没有任何作用。</mark>
+
+不仅如此，它还迫使 React 在初始渲染时做额外的工作。不要忘记：<mark>useMemo hook 第一次运行时，当组件第一次挂载时，React 需要进行缓存。</mark>这将占用一点内存和计算能力，而这些本可以是免费的。对于一个 useMemo，其影响当然不会显著。但在大型应用中，数百个分布在各处的 useMemo 实际上会显著减慢初始渲染。最终会是千刀万剐的结果。
+
+---
+
+### 关键要点
+
+这真让人沮丧。这一切是否意味着我们不应该使用记忆化？一点也不。它可以成为我们性能战斗中的一个非常有价值的工具。但考虑到围绕它的许多注意事项和复杂性，我建议在可能的情况下优先使用基于组合的优化技术。React.memo 应该是所有其他方法失败后的最后手段。
+
+&zwj;<mark>让我们记住：</mark>
+
+- React 通过引用而非值来比较对象/数组/函数。该比较发生在 hooks 的依赖项和被 React.memo 包裹的组件的 props 中。
+
+- 传递给 useMemo 或 useCallback 的内联函数将在每次重新渲染时重新创建。
+
+- useCallback 记忆化的是该函数本身，useMemo 则记忆化其执行结果。
+
+- 在组件上记忆化 props 只有在以下情况下才有意义：
+
+  - 该组件被包装在 React.memo 中。
+
+  - 该组件在任何 hooks 中使用这些 props 作为依赖项。
+
+  - 该组件将这些 props 传递给其他组件，并且它们符合上述的任一情况。
+
+- 如果一个组件被包装在 React.memo 中，并且它的重新渲染是由其父组件触发的，则如果其 props 没有变化，React 将不会重新渲染该组件。在其他情况下，重新渲染将照常进行。
+
+- 在被 React.memo 包裹的组件上记忆化所有 props 比看起来更难。避免将来自其他 props 或 hooks 的非原始值传递给它。
+
+- 记忆化 props 时，请记住“children”也是一个需要记忆化的非原始 prop。

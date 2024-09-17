@@ -1,0 +1,381 @@
+---
+title: "逃避闪烁 UI 的 useLayoutEffect"
+description: "让我们谈谈 React 中的 DOM 访问。在前面的章节中，我们讨论了如何使用 Ref，并学习了关于 Ref 的所有内容。然而，还有一个非常重要但相对少见的话题与根据实际 DOM 测量（如元素的大小或位置）来更改元素有关。"
+
+name: "flickering-ui-useLayoutEffect"
+---
+
+那么，具体是什么问题，为什么“正常”的策略不够好呢？让我们通过编码来弄清楚。在此过程中，我们将学习：
+
+- 关于 useLayoutEffect 的所有知识。
+- 我们何时以及为什么想要使用它而不是 useEffect。
+- 浏览器如何渲染我们的 React 代码。
+- 什么是绘制，所有这些为什么重要。
+- SSR 在这里扮演的角色。
+
+---
+
+### useEffect 有什么问题？
+
+该编码时间到了！让我们做一些花哨的事情：一个响应式导航组件。它可以渲染一行链接，并根据容器的大小调整这些链接的数量。
+
+![](/assets/images/books/advanced-react/navigation.png)
+
+如果某些链接不适合，则显示一个“更多”按钮，点击后将在下拉菜单中打开它们。
+
+![](/assets/images/books/advanced-react/more.png)
+
+现在，组件本身将是一个接受数据数组并渲染适当链接的组件：
+
+```jsx
+const Component = ({ items }) => {
+  return (
+    <div className="navigation">
+      {items.map((item) => (
+        <a href={item.href}>{item.name}</a>
+      ))}
+    </div>
+  );
+};
+```
+
+那么，我们如何使其响应式？这里的问题是我们需要计算在可用空间中能容纳多少项。为此，我们需要知道渲染它们的容器的宽度以及每个项的尺寸。在这里我们不能提前假设任何内容，例如通过计算字母：文本在浏览器中的渲染将高度依赖于使用的字体、语言、浏览器，甚至可能是月相。
+
+获取实际尺寸的唯一方法是让浏览器渲染这些项，然后通过原生 JavaScript API（如 getBoundingClientRect）提取尺寸。
+
+我们需要分几个步骤来做这件事。首先，获取对元素的访问。我们可以创建一个 Ref，并将其分配给包装这些项的 div：
+
+```jsx
+const Component = ({ items }) => {
+  const ref = useRef(null);
+  return (
+    <div className="navigation" ref={ref}>
+      ...
+    </div>
+  );
+};
+```
+
+其次，在 useEffect 中获取 div 元素并获取其大小。
+
+```jsx
+const Component = ({ items }) => {
+ useEffect(() => {
+ const div = ref.current;
+ const { width } = div.getBoundingClientRect();
+ }, [ref]);
+ return ...
+}
+```
+
+第三，遍历 div 的子元素并将它们的宽度提取到一个数组中。
+
+```jsx
+const Component = ({ items }) => {
+ useEffect(() => {
+ // same code as before
+ // convert div's children into an array
+ const children = [...div.childNodes];
+ // all the widths
+ const childrenWidths = children.map(child =>
+child.getBoundingClientRect().width)
+ }, [ref]);
+ return ...
+}
+```
+
+现在，我们只需要遍历该数组，求和子项的宽度，与父 div 进行比较，最终找到最后一个可见项的索引。
+
+但等等，还有一个我们忘记的东西：“更多”按钮。我们需要将其宽度考虑在内。否则，我们可能会发现一些项可以适应，但“更多”按钮不适合。
+
+![](/assets/images/books/advanced-react/more1.png)
+
+同样，我们只能在浏览器中渲染它后才能获取其宽度。因此，我们必须在初始渲染时明确添加该按钮：
+
+```jsx
+const Component = ({ items }) => {
+  return (
+    <div className="navigation">
+      {items.map((item) => (
+        <a href={item.href}>{item.name}</a>
+      ))}
+      {/* add the "more" button after the links explicitly */}
+      <button id="more">...</button>
+    </div>
+  );
+};
+```
+
+如果我们将所有计算宽度的逻辑抽象到一个函数中，我们将在 useEffect 中得到这样的内容：
+
+```jsx
+useEffect(() => {
+  const itemIndex = getLastVisibleItem(ref.current);
+}, [ref]);
+```
+
+其中 getLastVisibleItem 函数执行所有数学运算并返回一个数字——最后一个可以适应可用空间的链接的索引。我不打算深入探讨逻辑本身。有很多方法可以做到这一点，最终的代码示例将在稍后提供。
+
+这里重要的是我们得到了那个数字。接下来，从 React 的角度来看，我们应该怎么做？如果我们就这样保持不变，所有链接和“更多”按钮都将可见。而解决这个问题的唯一方法是当我们获得该数字时，需要将其保存在状态中：
+
+```jsx
+const Component = ({ items }) => {
+ // set the initial value to -1, to indicate that we haven't run
+the calculations yet
+ const [lastVisibleMenuItem, setLastVisibleMenuItem] =
+ useState(-1);
+ useEffect(() => {
+ const itemIndex = getLastVisibleItem(ref.current);
+ // update state with the actual number
+ setLastVisibleMenuItem(itemIndex);
+ }, [ref]);
+};
+```
+
+然后，在渲染菜单时考虑这一点：
+
+```jsx
+const Component = ({ items }) => {
+ // render everything if it's the first pass and the value is
+still the default
+ if (lastVisibleMenuItem === -1) {
+ // render all of them here, same as before
+ return ...
+ }
+ // show "more" button if the last visible item is not the last
+one in the array
+ const isMoreVisible = lastVisibleMenuItem < items.length - 1;
+ // filter out those items which index is more than the last
+visible
+ const filteredItems = items.filter((item, index) => index <=
+lastVisibleMenuItem);
+ return (
+ <div className="navigation">
+ {/*render only visible items*/}
+ {filteredItems.map(item => <a href={item.href}>{item.name}
+</a>)}
+          {/*render "more" conditionally*/}
+ {isMoreVisible && <button id="more">...</button>}
+ </div>
+ )
+}
+```
+
+就这样！现在，在状态根据实际数字更新之后，它将触发导航的重新渲染，而 React 将重新渲染项并移除那些不该出现的项。为了获得“适当”的响应体验，我们还需要监听调整大小事件并重新计算这个数字，但我将留给你来实现。
+
+完整的工作示例可以在下面的链接中找到。带有调整大小的。不过，不要太兴奋：用户体验有一个主要缺陷。
+
+互动示例和完整代码 https://advanced-react.com/examples/12/01
+
+尝试刷新几次，特别是在 CPU 降速的情况下。不幸的是，应该能明显看到初始渲染——当菜单中的所有项目和“更多”按钮都是可见的。在投入生产之前，我们一定需要解决这个问题。
+
+### 用 useLayoutEffect 修复
+
+造成闪烁的原因应该很明显：我们在移除不必要的项目之前会先渲染这些项目并使它们可见。我们必须先渲染它们，否则精美的响应性就无法工作。因此，一种可能的修复是仍然进行第一次渲染，但不可见地：将不透明度设置为 0，或者在某个不可见区域的 div 中。只有在提取尺寸和神奇数字之后，才使它们可见。这是我们过去处理此类问题的方式。
+
+然而，在 ~16.8 版本的 React（带有钩子）中，我们只需将 useEffect 钩子替换为 useLayoutEffect。
+
+```jsx
+const Component = ({ items }) => {
+  // everything is exactly the same, only the hook name is
+  different;
+  useLayoutEffect(() => {
+    // the code is still the same
+  }, [ref]);
+};
+```
+
+这是纯魔法，再也没有初始闪烁。
+
+互动示例和完整代码 https://advanced-react.com/examples/12/02
+
+这样做安全吗？我们为什么不在所有地方都使用它而不是 useEffect？文档明确指出 useLayoutEffect 可能会影响性能[15]，应避免使用。为什么会这样？它也说它在浏览器重绘屏幕之前被触发，这意味着 useEffect 在之后被触发。但在实际意义上，这意味着什么？我需要在编写简单下拉菜单时考虑浏览器绘制等低级概念吗？
+
+要回答这些问题，我们需要暂时离开 React，谈谈浏览器和古老的 JavaScript。
+
+### 为什么这个解决方案有效：渲染、绘制和浏览器
+
+我们首先需要了解“浏览器渲染”。在 React 的世界中，它也被称为“绘制”，以便与 React 的渲染区分开来——这两者是非常不同的！这里的概念相对简单。浏览器并不会实时持续更新所有需要在屏幕上显示的内容。它并不像在白板上绘画，你画线、擦除线、写一些文字，或者涂鸦一只猫头鹰。
+
+相反，它更像是向人们展示幻灯片：你展示一张幻灯片，等待他们理解其中的创意，然后过渡到下一张幻灯片，以此类推。
+
+只是他们的速度非常快。通常，现代浏览器试图保持 60 FPS 的帧率，每 13 毫秒更换一张幻灯片。这就是我们在 React 中所称的“绘制”。
+
+更新这些幻灯片的信息被分为“任务”。任务被放入队列中。浏览器从队列中抓取一个任务并执行。如果还有时间，它会执行下一个任务，以此类推，直到在大约 13 毫秒的时间间隔内没有剩余时间，然后刷新的屏幕。并继续这样不停地工作，努力使我们能够在 Twitter 上“无意识地”滑动。
+
+什么是“任务”？在普通的 JavaScript 中，它就是我们放在 script 标签中并同步执行的所有内容。
+
+考虑以下代码:
+
+```jsx
+const app = document.getElementById("app");
+const child = document.createElement("div");
+child.innerHTML = "<h1>Heyo!</h1>";
+app.appendChild(child);
+child.style = "border: 10px solid red";
+child.style = "border: 20px solid green";
+child.style = "border: 30px solid black";
+```
+
+我通过其 ID 获取一个元素，将其存储在 app 变量中，创建一个 div，更新其 HTML，将该 div 附加到 app，并三次更改该 div 的边框。整个过程将被浏览器视为一个任务。因此，它将执行每一行代码，然后再绘制最终结果：带有黑色边框的 div。
+
+你将无法在屏幕上看到这个红-绿-黑的过渡。
+
+如果一个“任务”花费的时间超过 13 毫秒，会发生什么？那就不太好了。浏览器无法停止或拆分它。它将继续执行，直到完成，然后再绘制最终结果。如果我在这些边框更新之间添加 1 秒的同步延迟：
+
+```jsx
+const waitSync = (ms) => {
+  let start = Date.now(),
+    now = start;
+  while (now - start < ms) {
+    now = Date.now();
+  }
+};
+child.style = "border: 10px solid red";
+waitSync(1000);
+child.style = "border: 20px solid green";
+waitSync(1000);
+child.style = "border: 30px solid black";
+waitSync(1000);
+```
+
+我们仍然无法看到“中间”的结果。我们将只是盯着空白屏幕，直到浏览器处理完毕，享受最后的黑色边框。这就是我们所称的“阻塞渲染”或“阻塞绘制”代码。
+
+只需要翻译 不要举例 https://advanced-react.com/examples/12/03
+
+虽然 React 只是 JavaScript，但它并不是作为一个单一的任务执行的。互联网如果是这样，那将是无法忍受的。我们都将被迫出去玩，进行面对面的互动，谁愿意呢？将像渲染整个应用程序这样的大任务“拆分”为更小的任务的方法是使用各种“异步”方法：回调、事件处理程序、Promise 等等。
+
+如果我简单地将这些样式调整包裹在 setTimeout 中，即使是 0 延迟：
+
+```jsx
+setTimeout(() => {
+  child.style = "border: 10px solid red";
+  wait(1000);
+  setTimeout(() => {
+    child.style = "border: 20px solid green";
+    wait(1000);
+    setTimeout(() => {
+      child.style = "border: 30px solid black";
+      wait(1000);
+    }, 0);
+  }, 0);
+}, 0);
+```
+
+那么每一个定时器都会被视为一个新的“任务”。因此，浏览器将在完成一个任务后重新绘制屏幕，然后再开始下一个任务。我们将能够看到从红色到绿色的缓慢而华丽的过渡，而不是在白屏上冥想三秒钟。
+
+互动示例和完整代码 https://advanced-react.com/examples/12/04
+
+这就是 React 为我们做的。它本质上是一个复杂而高效的引擎，将我们庞大的 npm 依赖与自己的代码结合，拆分成浏览器能够在 13 毫秒内处理的最小块（理想情况下）。
+
+### 回到 useEffect 与 useLayoutEffect。
+
+现在，回到 useEffect 和 useLayoutEffect，以及我们一开始的问题。
+
+useLayoutEffect 是 React 在组件更新期间同步运行的。在这个代码中：
+
+```jsx
+const Component = () => {
+ useLayoutEffect(() => {
+ // do something
+ })
+ return ...
+}
+```
+
+无论我们在组件中渲染什么，都将与 useLayoutEffect 一起作为同一个“任务”运行。React 确保这一点。即使我们在 useLayoutEffect 中更新状态，虽然我们通常认为这是一项异步任务，但 React 仍然会确保整个流程是同步运行的。
+
+如果我们回到最初实现的“导航”示例，从浏览器的角度来看，这将是一个“任务”。
+
+![](/assets/images/books/advanced-react/useLayoutEffect.png)
+
+这种情况就像我们看不到的红绿黑边框过渡！
+
+而使用 useEffect 的流程将被拆分为两个任务：
+
+![](/assets/images/books/advanced-react/useEffect.png)
+
+第一个任务渲染了“初始”导航，包括所有按钮。第二个任务移除那些我们不需要的子元素。在屏幕重绘之间！与使用定时器中的边框情况完全相同。
+
+所以，回答我们最开始的问题：使用 useLayoutEffect 是否安全？是的！它会影响性能吗？绝对会！我们最不希望的就是整个 React 应用变成一个巨大的同步“任务”。
+
+仅在你需要消除由于根据真实元素大小调整 UI 而导致的视觉“故障”时，才使用 useLayoutEffect。对于其他所有情况，useEffect 是最佳选择。你可能甚至不需要使用它。
+
+### 关于 useEffect 的更多信息
+
+虽然将 useEffect 的执行模型视为在 setTimeout 中运行是理解差异的便利方式，但这并不完全正确。首先，为了使实现细节明确，React 使用 postMessage 与 requestAnimationFrame 的组合。
+
+其次，它并不保证异步运行。虽然 React 会尽量优化，但在某些情况下，它可能会在浏览器绘制之前运行，并因此阻塞它。其中一种情况是当你在更新链中已有 useLayoutEffect。
+
+这是因为，React 在“快照”或周期中运行重新渲染。每次重新渲染周期将按以下顺序进行：“状态更新触发 -> useLayoutEffect 触发 -> useEffect 触发”。如果任何一个触发了状态更新，它将启动另一个重新渲染周期。但在此之前，React 需要完成触发状态更新的周期。因此，useEffect 必须在新周期开始之前运行。因此，如果状态更新是在 useLayoutEffect 中触发的（而这是同步的），React 则别无选择，只能同步运行 useEffect。
+
+### useLayoutEffect 在 Next.js 和其他 SSR 框架中的应用
+
+够了低级 JavaScript 和浏览器的内容，让我们回到我们的生产代码。因为在“现实生活”中，这些并不是我们需要经常关注的事情。在“现实生活”中，我们希望只是编码我们美丽的响应式导航，并在一些如 Next.js 的精美框架中构建良好的用户体验。
+
+然而，当我们尝试这样做时，首先会注意到它根本无法正常工作。故障依然存在，魔法消失了。要复制这一点，只需将我们之前修复的导航复制粘贴到你的 Next.js 应用中，如果你有的话。
+
+发生了什么？
+
+这是 SSR，服务器端渲染。一种某些框架默认支持的酷炫功能。但在处理此类问题时，它确实很麻烦。
+
+你看，当我们启用 SSR 时，渲染 React 组件的第一步和调用所有生命周期事件是在服务器上完成的，代码到达浏览器之前。如果你不熟悉 SSR 的工作原理，这意味着在后端的某个地方，有一个方法调用类似于 `React.renderToString(<App />)`。
+
+![](/assets/images/books/advanced-react/ssr_code.png)
+
+然后，React 遍历应用中的所有组件，“渲染”它们（即，调用它们的函数），并生成这些组件所代表的 HTML。
+
+接着，这个 HTML 被注入到将发送到浏览器的页面中，然后就这样出发了。就像在过去的一切都在服务器上生成，我们只使用 JavaScript 来打开菜单。之后，浏览器下载页面，展示给我们，下载所有脚本（包括 React），运行它们（再次包括 React），React 会遍历那预生成的 HTML，在其上添加一些交互性，我们的页面又活了过来。
+
+这里的问题是：在生成初始 HTML 时，浏览器尚不存在。因此，任何涉及计算元素实际尺寸的操作（就像我们在 useLayoutEffect 中所做的）在服务器上根本无法工作：那里没有尺寸的元素，只有字符串。而 useLayoutEffect 的整个目的就是获取元素的大小，因此在服务器上运行它没有太大意义。
+
+而 React 也不会这样做。
+
+因此，当浏览器首次加载页面并显示我们在组件的“第一次渲染”阶段渲染的内容时，我们看到的是所有按钮的行，包括“更多”按钮。当浏览器有机会执行所有操作并让 React 活过来时，它最终可以运行 useLayoutEffect，按钮才最终被隐藏。但视觉上的故障依然存在。
+
+如何修复这是一个用户体验问题，完全取决于你愿意“默认”向用户展示什么。我们可以向他们展示一些“加载”状态，而不是菜单。或者显示一两个最重要的菜单项。甚至可以完全隐藏这些项，只在客户端进行渲染。这由你决定。
+
+一种方法是引入一个“shouldRender”状态变量，并在 useEffect 中将其翻转为“true”：
+
+```jsx
+const Component = () => {
+  const [shouldRender, setShouldRender] = useState(false);
+  useEffect(() => {
+    setShouldRender(true);
+  }, []);
+  if (!shouldRender) return <SomeNavigationSubstitude />;
+  return <Navigation />;
+};
+```
+
+useEffect 只会在客户端运行，因此初始的 SSR 渲染将向我们展示替代组件。然后，客户端代码将启动，useEffect 将运行，状态将改变，React 将用正常的响应式导航替换它。
+
+不要害怕在这里引入状态，也不要尝试这样进行条件渲染：
+
+```jsx
+const Component = () => {
+  // Detectign SSR by checking whether window is there
+  if (typeof window === undefined) return <SomeNavigationSubstitude />;
+  return <Navigation />;
+};
+```
+
+虽然从技术上讲，typeof window === undefined 将指示 SSR 环境（服务器上没有 window），但这对我们的用例无效。React 需要来自 SSR 的 HTML 和来自客户端初始渲染的 HTML 完全匹配。
+
+否则，你的应用就像醉酒一样：样式会破损，块会错位，内容会出现在奇怪的地方。
+
+### 关键要点
+
+关于“闪烁”问题就这些。下一章，我们将继续讨论 UI，并学习如何处理 Portals 及其原因。在此期间，请记住几点：
+
+当我们在 useEffect 钩子中计算元素的尺寸并然后隐藏或调整它们的大小时，可能会看到视觉上的“故障”。
+
+这种情况发生是因为通常 useEffect 是异步执行的。从浏览器的角度来看，异步代码是一个单独的任务。因此，它有机会在变更前后绘制状态，导致故障。
+
+我们可以通过使用 useLayoutEffect 钩子来防止这种行为。
+
+这个钩子是同步执行的。从浏览器的角度来看，它将是一个大的、不可分割的任务。因此，浏览器会等待，并且不会在任务完成和最终尺寸计算之前绘制任何内容。
+
+在 SSR 环境中，useLayoutEffect 将无法工作，因为 React 不会在 SSR 模式下运行 useLayoutEffect，因此“故障”将再次显现。
+
+可以通过选择不在特定功能中使用 SSR 来修复这个问题。

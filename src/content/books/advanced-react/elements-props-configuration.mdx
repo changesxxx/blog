@@ -1,0 +1,384 @@
+---
+title: "作为属性的元素的配置问题"
+description: "在上一章中，我们探讨了如何通过将元素作为 props 传递来提高我们应用的性能。然而，性能增强并不是这种模式最常见的用途。实际上，它们更像是一种良好的副作用，且相对不为人知。该模式解决的最大用例实际上是组件的灵活性和配置。"
+
+name: "elements-props-configuration"
+---
+
+让我们继续探讨 React 的工作原理。这一次，我们将构建一个简单的“带图标的按钮”组件。这个按钮看起来可能不会有什么复杂之处，对吧？但在构建过程中，你将发现：
+
+- 将元素作为 props 如何显著改善此类组件的配置问题。
+- 组件的条件渲染如何影响性能。
+- 作为 props 传递的组件是如何精确渲染的。
+- 如何使用 cloneElement 函数为作为 props 传递的组件设置默认 props，以及这样做的缺点。
+
+准备好了吗？我们开始吧！
+
+---
+
+### 问题
+
+假设你需要实现一个按钮组件。一个要求是按钮在“加载”上下文中时，应该能够在右侧显示“加载”图标。这是数据发送表单中的一种常见模式。
+
+没问题！我们可以简单地实现按钮并添加 isLoading prop，根据该 prop 渲染图标。
+
+```jsx
+const Button = ({ isLoading }) => {
+  return <button>Submit {isLoading ? <Loading /> : null}</button>;
+};
+```
+
+第二天，这个按钮需要支持库中所有可用的图标，而不仅仅是 Loading。好吧，我们可以为按钮添加 iconName prop。接下来的日子里，人们希望能够控制该图标的颜色，以便与网站使用的调色板更好地对齐。于是添加了 iconColor prop。然后是 iconSize，用于控制图标的大小。随后，又出现了一个用例，要求按钮也支持左侧的图标和头像。
+
+最终，按钮上的一半 props 只是为了控制这些图标，没人能理解里面发生了什么，每次更改都会导致客户的某些功能出现故障。
+
+```jsx
+const Button = ({
+  isLoading,
+  iconLeftName,
+  iconLeftColor,
+  iconLeftSize,
+  isIconLeftAvatar,
+  ...
+}) => {
+  // 没有人知道这里发生了什么，以及所有这些道具是如何发生的
+  work;
+  return ...;
+};
+```
+
+这听起来是不是很熟悉？
+
+---
+
+### 元素作为 props
+
+幸运的是，有一种简单的方法可以显著改善这种情况。我们需要做的就是摆脱那些配置 props，改为将图标作为元素传递：
+
+```jsx
+const Button = ({ icon }) => {
+  return <button>Submit {icon}</button>;
+};
+```
+
+然后让消费者以他们想要的方式配置该图标：
+
+```jsx
+// default Loading icon
+<Button icon={<Loading />} />
+// red Error icon
+<Button icon={<Error color="red" />} />
+// yellow large Warning icon
+<Button icon={<Warning color="yellow" size="large" />} />
+// avatar instead of icon
+<Button icon={<Avatar />} />
+
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/03/01)
+</Callout>
+
+是否为按钮做这样的事情有时是可以争论的，当然。这高度依赖于设计的严格性及其对实现产品功能的允许偏差。
+
+但想象一下实现一个包含头部、内容区域和底部带有按钮的模态对话框。
+
+除非你的设计师非常严格且有权威，否则你很可能需要在不同的对话框中为这些按钮设置不同的配置：一个、两个、三个按钮，其中一个按钮是链接，一个按钮是“主要的”，当然还有不同的文本、不同的图标、不同的提示等。想象一下通过配置 props 传递所有这些内容！
+
+但通过将元素作为 props，这将变得简单得多：只需在对话框中创建一个 footer prop
+
+```jsx
+const ModalDialog = ({ content, footer }) => {
+  return (
+    <div className="modal-dialog">
+      <div className="content">{content}</div>
+      <div className="footer">{footer}</div>
+    </div>
+  );
+};
+```
+
+然后传递所需的任何内容：
+
+```jsx
+// 页脚中只有一个按钮
+<ModalDialog content={<SomeFormHere />} footer={<SubmitButton />}
+/>
+// 两个按钮
+<ModalDialog
+ content={<SomeFormHere />}
+ footer={<><SubmitButton /><CancelButton /></>}
+/>
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/03/02)
+</Callout>
+
+或者像 ThreeColumnsLayout 组件，它在屏幕上渲染三个列与一些内容。在这种情况下，你甚至无法进行任何配置：它实际上可以并且应当在那些列中渲染任何内容。
+
+```jsx
+<ThreeColumnsLayout
+  leftColumn={<Something />}
+  middleColumn={<OtherThing />}
+  rightColumn={<SomethingElse />}
+/>
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/03/03)
+</Callout>
+
+本质上，作为组件的元素的 props 是一种告诉消费者的方式：给我你想要的任何内容，我不知道或不关心它是什么，我只负责将其放入正确的位置。其余的由你来决定。
+
+当然，前一章中描述的“children 作为 props”模式在这里也非常有用。如果我们想传递某些我们认为是该组件的“主要”部分的内容，比如模态对话框中的“内容”区域，或三列布局中的中间列，我们可以使用嵌套语法来实现：
+
+```jsx
+// 之前
+<ModalDialog
+ content={<SomeFormHere />}
+ footer={<SubmitButton />}
+/>
+
+// 之后
+<ModalDialog
+ footer={<SubmitButton />}
+>
+ <SomeFormHere />
+</ModalDialog>
+
+```
+
+在 ModalDialog 的视角下，我们需要做的就是将 "content" prop 重命名为 "children"：
+
+```jsx
+const ModalDialog = ({ children, footer }) => {
+  return (
+    <div className="dialog">
+      <div className="content">{children}</div>
+      <div className="footer">{footer}</div>
+    </div>
+  );
+};
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/03/04)
+</Callout>
+
+&zwj;<mark>请始终记住：在这个上下文中，“children”不过是一个 prop，而“嵌套”语法仅是语法糖而已！</mark>
+
+---
+
+### 条件渲染与性能
+
+有时与这种模式相关的最大担忧之一是其性能。具有讽刺意味的是，在上一章中，我们讨论了如何利用它来提高性能。那么，这里发生了什么？
+
+假设我们有一个条件性渲染的组件，它接受元素作为 props。就像我们的 ModalDialog，通常只有在 isDialogOpen 变量为 true 时才会渲染：
+
+```jsx
+const App = () => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  // 这个什么时候渲染?
+  const footer = <Footer />;
+  return isDialogOpen ? <ModalDialog footer={footer} /> : null;
+};
+```
+
+这里的问题是，即使是经验丰富的开发者有时也会困惑的是：我们在对话框之前声明了 Footer。当对话框仍然关闭并且可能不会打开时，footer 是否总会被渲染，即使对话框不在屏幕上？这对性能有什么影响？这不会减慢 App 组件的速度吗？
+
+幸运的是，我们在这里没有什么好担心的。记住，在第二章中，我们讨论了元素、作为 props 的 children 和重新渲染时，元素是什么吗？当我们声明 footer 变量时`（footer = <Footer />）`，我们所做的只是创建一个元素，仅此而已。
+
+从 React 和代码的角度来看，这只是在内存中静静存在的对象，什么也不做。创建对象是便宜的（至少相比于渲染组件来说）。
+
+这个 Footer 实际上只有在它出现在某个组件的返回对象中时才会被渲染，而不是更早。在我们的例子中，它将是 ModalDialog 组件。无论 `<Footer />` 元素是在 App 中创建的都无关紧要。是 ModalDialog 负责接收并实际返回它：
+
+```jsx
+const ModalDialog = ({ children, footer }) => {
+  return (
+    <div className="dialog">
+      <div className="content">{children}</div>
+      {/* 无论来自 footer prop 的任何内容都将是
+仅当整个组件呈现 */}
+      {/*不会更早 */}
+      <div className="footer">{footer}</div>
+    </div>
+  );
+};
+```
+
+这就是像某些版本的 React 路由器中路由模式完全安全的原因：
+
+```jsx
+const App = () => {
+  return (
+    <>
+      <Route path="/some/path" element={<Page />} />
+      <Route path="/other/path" element={<OtherPage />} />
+      ...
+    </>
+  );
+};
+```
+
+这里没有条件，因此感觉 App 同时拥有并渲染了` <Page />` 和 `<OtherPage />`。但实际上并非如此。它只是创建了描述这些页面的小对象。实际的渲染只有在某个路由的路径与 URL 匹配并且元素 prop 实际从 Route 组件返回时才会发生。
+
+### 来自 props 的元素的默认值
+
+让我们再多谈谈我们的按钮及其图标。
+
+对将这些图标作为 props 传递的一个反对意见是，这种模式太灵活。对于 ThreeColumnsLayout 组件，可以接受左侧列 prop 中的任何内容是可以的。但在按钮的情况下，我们并不希望在这里传递所有内容。在实际应用中，按钮需要对图标有一定的控制。如果按钮具有 isDisabled 属性，则你可能希望图标也显示为“禁用”状态。较大的按钮可能默认希望较大的图标。蓝色按钮可能希望默认使用白色图标，而白色按钮则希望使用黑色图标。
+
+然而，如果我们保持当前的实现，这将是有问题的：这将取决于按钮的消费者记住所有这些内容。
+
+```jsx
+// 主按钮应具有白色图标
+<Button appearance="primary" icon={<Loading color="white" />} />
+// 辅助按钮应具有黑色图标
+<Button appearance="secondary" icon={<Loading color="black" />} />
+// 大按钮应具有大图标
+<Button size="large" icon={<Loading size="large" />} />
+
+```
+
+一半的时间，这些内容会被遗忘，另一半则会被误解。我们需要为这些图标分配一些默认值，使按钮能够控制，同时仍然保留模式的灵活性。
+
+幸运的是，我们确实可以做到这一点。记住，这些 props 中的图标仅是具有已知和可预测形状的对象。React 具有允许我们轻松操作它们的 API。在我们的情况下，我们可以利用<code class="code-warning"> React.cloneElement</code>函数克隆图标，并将我们想要的任何 props 分配给该新元素。因此，没有什么阻止我们创建一些默认图标 props，将它们与来自原始图标的 props 合并，并将它们分配给克隆的图标：
+
+```jsx
+const Button = ({ appearance, size, icon }) => {
+  // 创建默认 props
+  const defaultIconProps = {
+    size: size === "large" ? "large" : "medium",
+    color: appearance === "primary" ? "white" : "black",
+  };
+  const newProps = {
+    ...defaultIconProps,
+    // 确保来自 icon 的 props 覆盖 default （如果存在）
+    ...icon.props,
+  };
+  // 克隆图标并为其分配新 props
+  const clonedIcon = React.cloneElement(icon, newProps);
+  return <button>Submit {clonedIcon}</button>;
+};
+```
+
+现在，我们所有的带图标按钮示例将简化为仅此：
+
+```jsx
+// 主按钮将具有白色图标
+<Button appearance="primary" icon={<Loading />} />
+// 辅助按钮应具有黑色图标
+<Button appearance="secondary" icon={<Loading />} />
+// 大按钮应具有大图标
+<Button size="large" icon={<Loading />} />
+
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/03/05)
+</Callout>
+
+不需要在任何图标上添加额外的 props，只有按钮现在控制的默认 props！然后，如果有人确实需要覆盖默认值，他们仍然可以通过通常的方式传递 prop。
+
+```jsx
+// 用红色图标覆盖默认的黑色
+<Button appearance="secondary" icon={<Loading color="red" />} />
+```
+
+实际上，按钮的消费者甚至不会知道默认 props。对他们而言，图标就像魔法一样工作。
+
+我们不应该对默认值过于疯狂
+
+说到魔法：设置默认值似乎神奇的事实可能是一个大缺点。最大的问题在于，容易导致错误并永久覆盖 props。例如，如果我没有用实际的 props 覆盖默认 props，而是直接分配它们：
+
+```jsx
+const Button = ({ appearance, size, icon }) => {
+  // 创建默认 props
+  const defaultIconProps = {
+    size: size === "large" ? "large" : "medium",
+    color: appearance === "primary" ? "white" : "black",
+  };
+  //克隆图标并为其分配默认 props - 不要这样做
+
+  //从外面看它将覆盖传递给 icon 的所有 props ！
+  const clonedIcon = React.cloneElement(icon, defaultIconProps);
+  return <button>Submit {clonedIcon}</button>;
+};
+```
+
+我基本上会破坏图标的 API。人们会尝试将不同的大小或颜色传递给它，但它永远无法到达目标：
+
+```jsx
+// color “red” 在这里不起作用 - 我从未将这些 props 传递给“克隆”图标
+<Button appearance="secondary" icon={<Loading color="red" />} />
+// 但是如果我只是在按钮外部呈现此图标，它就会起作用
+<Loading color="red" />
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/03/06)
+</Callout>
+
+对任何试图理解为什么在按钮外部设置图标的颜色工作正常，但如果图标作为这个 prop 传递时却不起作用的人来说，祝他们好运。
+
+因此，请对这种模式非常小心，确保始终用实际的 props 覆盖默认 props。如果你对此感到不安——没关系。在 React 中，有一百万种方法可以实现完全相同的结果。有另一种模式在这种情况下可能会非常有用：渲染 props。如果你需要根据按钮的状态计算图标的 props，或者只是简单地将该状态传递回图标，这也可能非常有帮助。下一章将专门讨论这一模式。
+
+<Callout icon="📝" type="notes">
+
+React.cloneElement已过时，[官方文档建议通过 props 传递数据](https://zh-hans.react.dev/reference/react/cloneElement#alternatives)。这种方案优于 cloneElement，因为它更加清晰。
+
+```jsx
+const Button = ({
+  appearance = "primary",
+  size = "medium",
+  icon: Icon,
+  ...rest
+}) => {
+  // 设置默认图标 props
+  const defaultIconProps = {
+    size: size === "large" ? "large" : "medium",
+    color: appearance === "primary" ? "white" : "black",
+  };
+
+  return (
+    <button {...rest}>
+      {/* 数据通过props Icon 更多个性化的配置需在Icon做处理*/}
+      Submit {Icon ? <Icon {...defaultIconProps} /> : null}
+    </button>
+  );
+};
+```
+
+仅供参考,因为上面代码仅是个人理解 🫠
+
+</Callout>
+
+### 关键要点
+
+在我们继续讨论渲染 Props 模式之前，让我们记住：
+
+- 当一个组件渲染另一个组件时，其配置由 props 控制，我们可以将整个组件元素作为 prop 传递，而将配置问题留给消费者。
+
+```jsx
+const Button = ({ icon }) => {
+  return <button>Submit {icon}</button>;
+};
+// 大红色错误图标
+<Button icon={<Error color="red" size="large" />} />;
+```
+
+- 如果具有元素作为 props 的组件是条件性渲染的，即使那些元素是在条件之外创建的，它们也只会在条件组件被渲染时被渲染。
+
+```jsx
+const App = () => {
+  // 页脚仅在对话框本身呈现时呈现
+  //   在 isDialogOpen 设置为 “true” 之后
+  const footer = <Footer />;
+  return isDialogOpen ? <ModalDialog footer={footer} /> : null;
+};
+```
+
+- 如果我们需要为来自 props 的元素提供默认 props，我们可以使用 cloneElement 函数来实现。
+
+- 然而，这种模式非常脆弱。容易出错，因此仅在非常简单的情况下使用。

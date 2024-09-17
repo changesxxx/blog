@@ -1,0 +1,641 @@
+---
+title: "客户端的数据获取与性能"
+description: "在 React 中，性能不仅仅与重新渲染有关。如果获取主要数据需要两秒钟，那么再快的重新渲染也无济于事。或者如果页面在获取数据时显得如此“杂乱”，导致用户因 UI 元素的移动和旋转的加载动画而感到头痛。"
+
+name: "data-client-performance"
+---
+
+在前端世界中获取数据是困难的，遗憾的是，React 也不例外。
+
+你最近是否尝试过理解最新的数据获取情况？无尽的数据管理库的混乱，GraphQL 或非 GraphQL，useEffect 是邪恶的，因为它引发了瀑布效应，Suspense 本应拯救世界，但在本书出版时，它仍然没有正式准备好用于数据获取。然后是像 fetch-on-render、fetch-then-render 和 render-as-you-fetch 这样的模式，甚至连撰写这些内容的人有时也会感到困惑。到底发生了什么？为什么我突然需要博士学位才能进行简单的 GET 请求？
+
+在 React 中获取数据的“正确方式”究竟是什么？在这一章中，你将学习：
+
+- 前端数据获取的类型。
+
+- 我们可以仅使用简单的 fetch 进行数据获取吗？
+
+- 我们所说的“高性能”应用是什么意思？
+
+- 在获取数据时浏览器的限制是什么？
+
+- 请求瀑布效应是什么，它们是如何出现的？
+
+- 解决请求瀑布效应问题的几种方案。
+
+---
+
+### 数据获取的类型
+
+一般来说，在现代前端世界中，我们可以将“数据获取”的概念大致分为两类：初始数据获取和按需数据获取。
+
+按需数据是指在用户与应用互动后进行的获取。
+
+页面以便更新用户体验。所有各种自动完成功能、动态表单和搜索体验都属于这一类别。在 React 中，这类数据的获取通常是在回调中触发的。
+
+初始数据是你在打开页面时希望立即看到的数据。这是我们需要在组件显示之前获取的数据。我们需要尽快向用户展示一些有意义的体验。在 React 中，如果没有 SSR 涉及，像这样的数据获取通常发生在 useEffect 中（或在类组件的 componentDidMount 中）。
+
+有趣的是，尽管这些概念似乎截然不同，但数据获取的核心原则和基本模式在两者之间是完全相同的。然而，初始数据获取通常对大多数人来说是最重要的。在这个阶段，用户对你的应用的第一印象会形成：“慢得要命”或“极快”。这就是为什么本章的其余部分将专注于初始数据获取，以及如何在考虑性能的情况下正确地完成它。
+
+### 我真的需要外部库来在 React 中获取数据吗？
+
+首先，关于在 React 中使用外部库进行数据获取——是还是不是？
+
+简短的回答是——不，和是。取决于你的用例。如果你实际上只需要获取一点数据一次并忘记它，那么不，你不需要任何东西。在 useEffect 钩子中一个简单的 fetch 就足够了：
+
+```jsx
+const Component = () => {
+ const [data, setData] = useState();
+ useEffect(() => {
+ // fetch data
+ const dataFetch = async () => {
+ const data = await (
+ await fetch(
+ 'https://run.mocky.io/v3/b3bcb9d2-d8e9-43c5-bfb7-
+0062c85be6f9',
+ )
+ ).json();
+ // set state when the data received
+ setData(data);
+ };
+ dataFetch();
+ }, []);
+ return <>...</>;
+};
+```
+
+但一旦你的用例超出了“获取一次并忘记”的范围，你将面临棘手的问题。错误处理怎么办？如果多个组件想要从这个确切的端点获取数据呢？我应该缓存这些数据吗？缓存多久？竞态条件怎么办？如果我想从屏幕上移除该组件？我应该取消这个请求吗？内存泄漏怎么办？等等。
+
+列表中的每一个问题都不是特别针对 React 的；这是通过网络获取数据的普遍问题。要解决这些问题（以及更多！），只有两条路径：要么你需要重新发明轮子，写大量代码来解决这些问题；要么依赖一些已经在做这些事情的现有库。
+
+一些库，如 Axios，会抽象出一些关注点，例如取消请求，但对 React 特定的 API 没有意见。其他库，如 swr，将为你处理几乎所有事情，包括缓存。
+
+但本质上，这里的技术选择并不重要。没有任何库或 Suspense 能单独提高你应用的性能。它们只是以使某些事情变得更容易为代价，使某些事情变得更复杂。你始终需要理解数据获取和数据编排模式与技术的基本原理，以便编写高性能的应用。
+
+### 什么是“高性能”的 React 应用？
+
+在深入具体模式和代码示例之前，让我们讨论一下应用的“性能”是什么。你如何知道一个应用是否“高性能”？对于一个简单的组件，这相对简单：你只需测量它渲染所需的时间，结果就出来了！数字越小，组件的“性能”就越高（即越快）。
+
+对于异步操作（通常数据获取是这样的），以及在大型应用和用户体验的背景下，这并不那么明显。
+
+想象一下，我们正在为一个问题跟踪器实现一个问题视图。它将有左侧的侧边导航，包含一堆链接，中心是主要问题信息——诸如标题、描述或指派人，以及下面的评论部分。
+
+![](/assets/images/books/advanced-react/page2.png)
+
+假设这个应用以三种不同的方式实现：
+
+1. 显示加载状态直到所有数据加载完成，然后一次性渲染所有内容。大约需要 3 秒。
+2. 显示加载状态直到侧边栏数据首先加载，渲染侧边栏，并在主部分的数据加载完成之前保持加载状态。侧边栏大约需要 1 秒，应用的其余部分在约 3 秒内出现。总体需要约 4 秒。
+3. 显示加载状态直到主要问题数据加载完成，然后渲染它，保持侧边栏和评论的加载状态。当侧边栏加载完毕时——渲染它，评论仍处于加载状态。主要部分在约 2 秒内出现，侧边栏在此之后的约 1 秒内出现，评论再需要约 2 秒。总体需要约 5 秒。
+
+哪个应用是最具性能的呢？你认为呢？
+
+互动示例和完整代码https://advanced-react.com/examples/14/01
+
+互动示例和完整代码https://advanced-react.com/examples/14/02
+
+互动示例和完整代码https://advanced-react.com/examples/14/03
+
+答案当然是复杂的，最具性能的应用并不是你所选择的那个，而是……没有一个，或者所有，或者任何一个。这取决于情况。
+
+第一个应用仅需 3 秒加载——是所有应用中最快的。从纯数字的角度来看，它显然是赢家。但在 3 秒内它没有向用户展示任何内容——是所有应用中时间最长的。明显的输家？
+
+第二个应用在仅 1 秒内在屏幕上加载一些内容（侧边栏）。从尽快显示至少某些内容的角度来看，它显然是赢家。但它是所有应用中主部分显示时间最长的。明显的输家？
+
+第三个应用首先加载问题信息。从首先显示应用主要部分的角度来看，它显然是赢家。但从左到右语言的“自然”信息流是从左上到右下。这是我们通常阅读的方式。这个应用违反了这一点，使体验显得最为“杂乱”。更不用说它是所有应用中加载时间最长的。明显的输家？
+
+这始终取决于你试图传达给用户的信息。把自己想象成讲故事的人，而应用则是你的故事。故事中最重要的部分是什么？第二部分是什么？你的故事有流动性吗？你能否将其分成几部分讲述，还是希望用户立刻看到完整的故事，而无需任何中间步骤？
+
+只有在你对故事的外观有了想法之后，才是组装应用并优化故事以尽可能快地展示的时候。真正的力量来自于对以下内容的掌握：
+
+何时可以开始获取数据？
+
+我们在数据获取进行时可以做什么？
+
+数据获取完成后我们应该做什么？
+
+以及知道一些技术，让你能控制数据获取请求的三个阶段。
+
+但在深入实际技术之前，我们需要理解另外两个非常基本的事情：React 生命周期和浏览器资源以及它们对我们目标的影响。
+
+### React 生命周期与数据获取
+
+在规划你的获取请求策略时，最重要的事情是了解 React 组件的生命周期何时被触发。我们在第 3 章中已经讨论了条件渲染。元素作为 props 的配置问题，但在这里值得重复。请查看这段代码：
+
+```jsx
+const Child = () => {
+  useEffect(() => {
+    // do something here, like fetching data for the Child
+  }, []);
+  return <div>Some child</div>;
+};
+const Parent = () => {
+  // set loading to true initially
+  const [isLoading, setIsLoading] = useState(true);
+  if (isLoading) return "loading";
+  return <Child />;
+};
+```
+
+我们有一个 Parent 组件，它根据状态有条件地渲染 Child 组件。Child 的 useEffect，因此其中的 fetch 请求，会被触发吗？直观的答案是正确的——不会。只有在 Parent 的 isLoading 状态变为 false 后，Child 组件中的渲染和所有其他效果才会被触发。
+
+对于 Parent 的这个代码呢：
+
+```jsx
+const Parent = () => {
+  // set loading to true initially
+  const [isLoading, setIsLoading] = useState(true);
+  // child is now here! before return
+  const child = <Child />;
+  if (isLoading) return "loading";
+  return child;
+};
+```
+
+功能是相同的：如果 isLoading 设置为 false，则显示 Child，如果为 true，则显示加载状态。但这次 `<Child />` 元素在 if 条件之前。Child 中的 useEffect 这次会被触发吗？答案就不那么直观了，我见过很多人对此感到困惑。答案仍然是一样的——不会。
+
+当我们写 `const child = <Child />` 时，我们并没有“渲染” Child 组件。`<Child />` 只是一个创建未来元素描述的函数的语法糖。只有当这个描述最终出现在实际可见的渲染树中时——即从组件返回时，才会渲染。在那之前，它只是静静地作为一个对象存在，什么也不做。
+
+当然，还有更多关于 React 生命周期的知识：所有这些触发的顺序、在绘制之前或之后触发的内容、什么减慢了什么以及如何减慢，useLayoutEffect 钩子等。但所有这些在你完美地协调一切并且现在在一个非常大、复杂的应用中争取毫秒时变得相关。
+
+### 浏览器限制与数据获取
+
+此时你可能在想：“天啊，这太复杂了。我们不能尽快发出所有请求，将数据塞入某个全局存储中，然后在可用时直接使用吗？为什么还要担心生命周期和任何事情的协调？”
+
+我理解你的感受。当然，如果应用简单且只有少量请求需要发出，我们可以这样做。但在大型应用中，我们可能有数十个数据获取请求，这种策略可能会适得其反。我甚至不想谈论服务器负载以及它是否能处理这些请求。假设它能处理，问题在于我们的浏览器不能！
+
+你知道浏览器对可以并行处理的同一主机的请求数量有上限吗？假设服务器是 HTTP1（目前仍占互联网的 70%），这个数字并不大。在 Chrome 中，仅为 6 个请求并行！6 个请求并行！如果你同时发出更多，请求将不得不排队，等待第一个可用的“插槽”。
+
+而在大型应用中，进行 6 个初始数据获取请求并不不合理。我们非常简单的“问题跟踪器”已经有三个请求，甚至还没有实现任何有价值的内容。想象一下，如果你仅仅添加一个稍微慢一些的分析请求，而这个请求在应用开始时完全没有任何作用，结果却减慢了整个体验，你将会收到多少愤怒的目光。
+
+想看看它的实际效果吗？这里是最简单的代码：
+
+```jsx
+const App = () => {
+  // I extracted fetching and useEffect into a hook
+  const { data } = useData("/fetch-some-data");
+  if (!data) return "loading...";
+  return <div>I'm an app</div>;
+};
+```
+
+假设 fetch 请求在那里非常快，仅需 ~50ms。如果我在该应用之前添加六个请求，每个请求需要 10 秒，而不等待它们或解决它们，整个应用的加载时间将需要 10 秒（当然是在 Chrome 中）。
+
+```jsx
+// no waiting, no resolving, just fetch and drop it
+fetch('https://some-url.com/url1');
+fetch('https://some-url.com/url2');
+fetch('https://some-url.com/url3');
+fetch('https://some-url.com/url4');
+fetch('https://some-url.com/url5');
+fetch('https://some-url.com/url6');
+const App = () => {
+ ... same app code
+}
+```
+
+互动示例和完整代码 https://advanced-react.com/examples/14/04
+
+### 请求瀑布效应：它们如何出现
+
+最后，是时候进行一些严肃的编码了！现在我们已经有了所有需要的运动组件，并知道它们如何组合在一起，是时候编写我们问题跟踪应用的故事了。让我们实现本章开头的那些示例，看看有什么可能。
+
+首先，让我们先布局组件，然后再连接数据获取。我们将有应用组件本身，它将渲染 Sidebar 和 Issue，而 Issue 将渲染 Comments。
+
+```jsx
+const App = () => {
+  return (
+    <>
+      <Sidebar />
+      <Issue />
+    </>
+  );
+};
+const Sidebar = () => {
+  return; // some sidebar links
+};
+const Issue = () => {
+  return (
+    <>
+      // some issue data
+      <Comments />
+    </>
+  );
+};
+const Comments = () => {
+  return; // some issue comments
+};
+```
+
+现在进行数据获取。让我们首先提取实际的 fetch、useEffect 和状态管理到一个优雅的钩子中，以简化示例：
+
+```jsx
+export const useData = (url) => {
+  const [state, setState] = useState();
+  useEffect(() => {
+    const dataFetch = async () => {
+      const data = await (await fetch(url)).json();
+      setState(data);
+    };
+    dataFetch();
+  }, [url]);
+  return { data: state };
+};
+```
+
+然后，我可能自然想要将获取请求与大型组件放在一起：问题数据在 Issue 中，评论列表在 Comments 中。当然，我们希望在等待时显示加载状态！
+
+```jsx
+const Comments = () => {
+  // fetch is triggered in useEffect there, as normal
+  const { data } = useData("/get-comments");
+  // show loading state while waiting for the data
+  if (!data) return "loading";
+  // rendering comments now that we have access to them!
+  return data.map((comment) => <div>{comment.title}</div>);
+};
+```
+
+Issue 的代码与之完全相同，只是它将在加载后渲染 Comments 组件：
+
+```jsx
+const Issue = () => {
+  // fetch is triggered in useEffect there, as normal
+  const { data } = useData("/get-issue");
+  // show loading state while waiting for the data
+  if (!data) return "loading";
+  // render actual issue now that the data is here!
+  return (
+    <div>
+      <h3>{data.title}</h3>
+      <p>{data.description}</p>
+      <Comments />
+    </div>
+  );
+};
+```
+
+以及应用本身：
+
+```jsx
+const App = () => {
+  // fetch is triggered in useEffect there, as normal
+  const { data } = useData("/get-sidebar");
+  // show loading state while waiting for the data
+  if (!data) return "loading";
+  return (
+    <>
+      <Sidebar data={data} />
+      <Issue />
+    </>
+  );
+};
+```
+
+好了，完成了！
+
+这里只有一个小问题。应用非常慢。比上面的所有示例都要慢！
+
+我们在这里实现了经典的请求瀑布。还记得 React 生命周期部分吗？只有实际返回的组件才会被挂载、渲染，因此会触发 useEffect 和其中的数据获取。在我们的例子中，每个组件在等待数据时都返回一个“加载”状态。只有当数据加载完成后，它才会切换到渲染树中的下一个组件，触发它自己的数据获取，返回“加载”状态，循环重复。
+
+![](/assets/images/books/advanced-react/fetch.png)
+
+这样的瀑布并不是在尽快显示应用时的最佳解决方案。幸运的是，有几种方法可以处理它们（但不包括 Suspense，关于这一点稍后再说）。
+
+### 如何解决请求瀑布
+
+Promise.all 解决方案
+
+第一个也是最简单的解决方案是将所有数据获取请求尽可能高地放在渲染树中。在我们的例子中，就是根组件 App。但有一个问题：你不能只是“移动”它们而不做任何修改。我们不能仅仅这样做：
+
+```jsx
+useEffect(async () => {
+  const sidebar = await fetch("/get-sidebar");
+  const issue = await fetch("/get-issue");
+  const comments = await fetch("/get-comments");
+}, []);
+```
+
+这只是另一个瀑布，只是被放置在一个组件中。我们先获取侧边栏数据，等待它，然后获取问题数据，等待，获取评论，等待。所有数据可用于渲染的时间将是所有等待时间的总和：1s + 2s + 3s = 6 秒。相反，我们需要同时发出所有请求，以便它们并行发送。这样，我们等待的时间不会超过最长的请求：3 秒。性能提升了 50%！
+
+实现这一点的一种方法是使用 Promise.all
+
+```jsx
+useEffect(async () => {
+  const [sidebar, issue, comments] = await Promise.all([
+    fetch("/get-sidebar"),
+    fetch("/get-issue"),
+    fetch("/get-comments"),
+  ]);
+}, []);
+```
+
+然后将所有数据保存到父组件的状态中，并作为 props 传递给子组件。
+
+```jsx
+const useAllData = () => {
+  const [sidebar, setSidebar] = useState();
+  const [comments, setComments] = useState();
+  const [issue, setIssue] = useState();
+  useEffect(() => {
+    const dataFetch = async () => {
+      // waiting for allthethings in parallel
+      const result = (
+        await Promise.all([
+          fetch(sidebarUrl),
+          fetch(issueUrl),
+          fetch(commentsUrl),
+        ])
+      ).map((r) => r.json());
+      // and waiting a bit more - fetch API is cumbersome
+      const [sidebarResult, issueResult, commentsResult] =
+        await Promise.all(result);
+      // when the data is ready, save it to state
+      setSidebar(sidebarResult);
+      setIssue(issueResult);
+      setComments(commentsResult);
+    };
+    dataFetch();
+  }, []);
+  return { sidebar, comments, issue };
+};
+const App = () => {
+  // all the fetches were triggered in parallel
+  const { sidebar, comments, issue } = useAllData();
+  // show loading state while waiting for all the data
+  if (!sidebar || !comments || !issue) return "loading";
+  // render the actual app here and pass data from state to
+  children;
+  return (
+    <>
+      <Sidebar data={state.sidebar} />
+      <Issue comments={state.comments} issue={state.issue} />
+    </>
+  );
+};
+```
+
+互动示例和完整代码 https://advanced-react.com/examples/14/06
+
+这就是开始时测试的第一个应用程序是这样的
+![](/assets/images/books/advanced-react/fetch1.png)
+
+### 并行承诺解决方案
+
+但如果我们不想等待所有请求呢？评论是页面中速度最慢且最不重要的部分。在等待它们的同时阻塞侧边栏的渲染并没有多大意义。我们可以并行发出所有请求，但独立等待它们吗？
+
+当然可以！我们只需将这些 fetch 从 async/await 语法转换为传统的 Promise，并在 then 回调中保存数据：
+
+```js
+fetch("/get-sidebar")
+  .then((data) => data.json())
+  .then((data) => setSidebar(data));
+fetch("/get-issue")
+  .then((data) => data.json())
+  .then((data) => setIssue(data));
+fetch("/get-comments")
+  .then((data) => data.json())
+  .then((data) => setComments(data));
+```
+
+现在，每个 fetch 请求都是并行发出的，但独立解决。在 App 的渲染中，我们可以做一些很酷的事情，比如在数据到达状态时立即渲染 Sidebar 和 Issue 组件：
+
+```jsx
+const App = () => {
+ const { sidebar, issue, comments } = useAllData();
+ // show loading state while waiting for sidebar
+ if (!sidebar) return 'loading';
+ // render sidebar as soon as its data is available
+ // but show loading state instead of issue and comments while
+we're waiting for them
+ return (
+ <>
+ <Sidebar data={sidebar} />
+ {/*render local loading state for issue here if its data not
+available*/}
+ {/*inside Issue component we'd have to render 'loading' for
+empty comments as well*/}
+ {issue ? <Issue comments={comments} issue={issue} /> :
+'loading''}
+ </>
+ )
+}
+```
+
+在这里，我们在侧边栏、问题和评论组件的数据可用时立即渲染它们——与最初的瀑布行为完全相同。但由于我们并行发出了这些请求，整体等待时间将从 6 秒降至仅 3 秒。我们在保持应用行为不变的同时，大幅改善了应用性能！
+
+互动示例和完整代码https://advanced-react.com/examples/14/07
+
+![](/assets/images/books/advanced-react/fetch2.png)
+
+需要注意的是，在这个解决方案中，我们独立触发了三次状态变化，这将导致父组件的三次重新渲染。考虑到这发生在应用顶部，这样的无意义重新渲染可能会导致应用的一半不必要地重新渲染。性能影响确实取决于组件的顺序和大小，但这需要记住。
+
+### 数据提供者以抽象获取数据
+
+像上面的示例那样提升数据加载，尽管对性能有好处，但对应用架构和代码可读性却很糟糕。突然间，我们没有漂亮定位的数据获取请求和它们的组件，而是有一个巨大的组件获取所有数据，并且整个应用中都有大量的 props 传递。
+
+幸运的是，有一个简单（相对）解决方案：我们可以向应用引入“数据提供者”的概念。“数据提供者”在这里只是围绕数据获取的抽象，使我们能够在应用的一个地方获取数据，并在另一个地方访问这些数据，绕过所有中间组件。本质上，它就像每个请求的迷你缓存层。在“原始” React 中，这只是一个简单的上下文：
+
+```jsx
+const Context = React.createContext();
+export const CommentsDataProvider = ({ children }) => {
+  const [comments, setComments] = useState();
+  useEffect(async () => {
+    fetch("/get-comments")
+      .then((data) => data.json())
+      .then((data) => setComments(data));
+  }, []);
+  return <Context.Provider value={comments}>{children}</Context.Provider>;
+};
+export const useComments = () => useContext(Context);
+```
+
+为我们所有三个请求使用完全相同的逻辑。然后，我们的巨型 App 组件变成了一个简单的组件：
+
+```jsx
+const App = () => {
+ const sidebar = useSidebar();
+ const issue = useIssue();
+     // show loading state while waiting for sidebar
+ if (!sidebar) return 'loading';
+ // no more props drilling for any of those
+ return (
+ <>
+ <Sidebar />
+ {issue ? <Issue /> : 'loading''}
+ </>
+ )
+}
+```
+
+我们的三个提供者将包装 App 组件，并在它们挂载时并行发出获取请求：
+
+```jsx
+export const VeryRootApp = () => {
+  return (
+    <SidebarDataProvider>
+      <IssueDataProvider>
+        <CommentsDataProvider>
+          <App />
+        </CommentsDataProvider>
+      </IssueDataProvider>
+    </SidebarDataProvider>
+  );
+};
+```
+
+然后在像 Comments 这样的组件中（即，离根应用渲染树非常远），我们将从“数据提供者”获取数据：
+
+```jsx
+const Comments = () => {
+  // Look! No props drilling!
+  const comments = useComments();
+};
+```
+
+互动示例和完整代码 https://advanced-react.com/examples/14/08
+
+如果你对上下文不是很喜欢——别担心，完全相同的概念可以与任何你选择的状态管理解决方案一起使用。
+
+### 在 React 之前获取数据会怎样？
+
+最后一个关于对抗瀑布的技巧。这是一个非常重要的知识，以便你能在 PR 审查期间阻止同事使用它。我想说的是，这是一件非常危险的事情，因此要明智地使用它。
+
+让我们看看我们的 Comments 组件，当时我们实现了第一个瀑布，即自己获取数据的那个（我将 getData 钩子移动到内部）。
+
+```jsx
+const Comments = () => {
+  const [data, setData] = useState();
+  useEffect(() => {
+    const dataFetch = async () => {
+      const data = await (await fetch("/get-comments")).json();
+      setData(data);
+    };
+    dataFetch();
+  }, [url]);
+  if (!data) return "loading";
+  return data.map((comment) => <div>{comment.title}</div>);
+};
+```
+
+特别注意第六行。fetch('/get-comments') 是什么？这只不过是一个我们在 useEffect 中等待的 promise。它在这种情况下不依赖于 React 的任何东西——没有 props、状态或内部变量依赖。那么，如果我将它移动到最顶部，在我甚至声明 Comments 组件之前呢？然后在 useEffect 钩子中等待那个 promise？
+
+```jsx
+const commentsPromise = fetch("/get-comments");
+const Comments = () => {
+  useEffect(() => {
+    const dataFetch = async () => {
+      // just await the variable here
+      const data = await (await commentsPromise).json();
+      setState(data);
+    };
+    dataFetch();
+  }, [url]);
+};
+```
+
+一个真正的花哨的事情是：我们的 fetch 调用本质上“逃脱”了所有 React 生命周期，并将在 JavaScript 加载到页面上时被触发，甚至在根 App 组件中的任何 useEffect 被调用之前。它会被触发，JavaScript 将继续处理其他事情，数据将静静地等待，直到有人实际解决它。这就是我们在 Comments 中的 useEffect 所做的。
+
+还记得我们最初的瀑布图吗？
+
+![](/assets/images/books/advanced-react/fetch3.png)
+
+将 fetch 调用移出 Comments 组件后，结果变成了这样：
+
+![](/assets/images/books/advanced-react/fetch4.png)
+
+互动示例和完整代码 https://advanced-react.com/examples/14/09
+
+从技术上讲，我们本可以将所有 promises 移出组件，这样就能解决请求瀑布问题，而不必处理提升数据获取或数据提供者的问题。
+
+那么，我们为什么不这样做呢？为什么这不是一种常见的模式？
+
+很简单。还记得浏览器限制的部分吗？同一主机的请求并行数量限制为 6 个，接下来的请求将会排队。这些 fetch 请求将立即且完全不可控地被触发。一个在应用中偶尔渲染的组件，如果使用“传统”瀑布方法获取重数据，直到它实际被渲染时才会影响任何人。但使用这个技巧，它有可能窃取初始获取关键数据时最宝贵的毫秒。任何试图弄清楚一个在代码某个角落存在且从未在屏幕上渲染的组件，如何能减慢整个应用速度的人，将会面临巨大的挑战。
+
+我能想到的仅有两个“合法”的使用场景：
+
+1. 在路由层级预获取一些关键资源。
+2. 在懒加载组件中预获取数据。
+
+在第一种情况下，你确实需要尽快获取数据，并且你确定这些数据是关键且立即需要的。而懒加载组件的 JavaScript 只有在进入渲染树时才会被下载和执行，因此在所有关键数据被获取和渲染之后。因此，这样是安全的。
+
+### 如果我使用库来获取数据呢？
+
+到目前为止，在所有代码示例中，我仅使用了原生的 fetch。这是故意的：我想向你展示 React 中的基本数据获取模式，而这些模式与库无关。无论你使用或想使用什么库，瀑布原理、在 React 生命周期内外获取数据的方式都是一样的。
+
+像 Axios 这样的独立于 React 的库只是抽象掉了处理实际 fetch 的复杂性，仅此而已。我可以在示例中将所有 fetch 替换为 axios.get，结果将是相同的。
+
+与 hooks 及类似查询 API 结合的 React 集成库，如 swr，进一步抽象了处理 useCallback、状态以及许多其他问题（如错误处理和缓存）。与需要大量代码才能准备好生产的复杂代码相比
+
+```jsx
+const Comments = () => {
+  const [data, setData] = useState();
+  useEffect(() => {
+    const dataFetch = async () => {
+      const data = await (await fetch("/get-comments")).json();
+      setState(data);
+    };
+    dataFetch();
+  }, [url]);
+  // the rest of comments code
+};
+```
+
+使用 swr 我可以简单地写成这样：
+
+```jsx
+const Comments = () => {
+  const { data } = useSWR("/get-comments", fetcher);
+  // the rest of comments code
+};
+```
+
+在底层，它们都会使用 useEffect 或等效方法来获取数据，并更新状态以触发主组件的重新渲染。
+
+### 那么 Suspense 呢？
+
+在 React 数据获取的讨论中，如果不提及 Suspense，那将是不完整的。那么，Suspense 怎么样？其实没什么。到本书出版时，Suspense 用于数据获取仍然是一个未记录的特性，React 并不建议在像 Next.js 这样的框架外使用它。
+
+![](/assets/images/books/advanced-react/suspense.png)
+
+因此，如果你恰好使用其中一个框架，你需要查看它们的文档以了解如何使用 Suspense 进行数据获取。
+
+但让我们假设它明天对公众开放。它会从根本上解决数据获取问题，并使以上内容过时吗？绝对不会。
+
+Suspense 只是一种非常巧妙的方式来替代处理加载状态。而不是这样:
+
+```jsx
+const Comments = ({ commments }) => {
+  if (!comments) return "loading";
+  // render comments
+};
+```
+
+我们将提升加载状态并这样做：
+
+```jsx
+const Issue = () => {
+  return (
+    <>
+      {/*issue data*/}
+      <Suspense fallback="loading">
+        <Comments />
+      </Suspense>
+    </>
+  );
+};
+```
+
+其他所有问题，如浏览器限制、React 生命周期和请求瀑布的本质，依然保持不变。
+
+### 关键要点
+
+前端数据获取是一个复杂的话题。可能仅此主题就可以写一本书。在下一章中，我们将继续讨论数据获取，并谈论竞态条件。但在此之前，有几件事需要从本章中记住：
+
+1. 我们可以将客户端的数据获取分为两大类：初始和按需。
+2. 我们可以使用简单的 fetch，而不是使用数据获取库，但许多关注点我们需要手动实现。
+3. “高性能”应用始终是主观的，取决于我们试图传达给用户的信息。
+4. 在获取数据时，尤其是初始获取时，我们需要注意浏览器对并行请求的限制。
+5. 请求瀑布现象出现在我们不是并行触发数据获取，而是有条件或按顺序触发时。
+6. 我们可以使用诸如 Promise.all、并行承诺或使用 Context 的数据提供者等技术来避免请求瀑布。
+7. 我们甚至可以在 React 初始化之前预获取关键资源，但在这样做时需要记住浏览器的限制。

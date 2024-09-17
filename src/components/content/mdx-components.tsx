@@ -2,6 +2,7 @@ import * as React from "react";
 
 import Callout from "@/components/Callout.astro";
 
+
 import CodeBlock from "@/components/CodeBlock.astro";
 import CodeEffect from "@/components/CodeEffect.astro";
 import TitleIcon from "@/components/TitleIcon.astro";
@@ -169,5 +170,5 @@ export const MdxComponents = {
   Card: MdxCard,
   CodeBlock,
   CodeEffect,
-  TitleIcon,
+  TitleIcon
 };
