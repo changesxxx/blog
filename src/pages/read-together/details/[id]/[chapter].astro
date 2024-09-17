@@ -13,20 +13,31 @@ import { getCollection } from 'astro:content'
 import { FaChevronRight } from 'react-icons/fa'
 import { books } from '@/config/books'
 
-
 export function getStaticPaths() {
   const paths = books.flatMap((book) =>
-    book.chapter.flatMap((c) =>
-      c.items.map((item) => {
-        return {
-          params: { id: book.id, chapter: item.name },
-          props: {
-            title: c.title,
-            items: c.items,
+    book.chapter.flatMap((c) => {
+      if (c.items) {
+        return c.items.map((item) => {
+          return {
+            params: { id: book.id, chapter: item.name },
+            props: {
+              title: c.title,
+              items: c.items,
+            },
+          }
+        })
+      } else {
+        return [
+          {
+            params: { id: book.id, chapter: c.id },
+            props: {
+              title: c.title,
+              items: null,
+            },
           },
-        }
-      }),
-    ),
+        ]
+      }
+    }),
   )
 
   return paths
@@ -35,7 +46,6 @@ export function getStaticPaths() {
 const { id, chapter } = Astro.params
 
 const { title, items } = Astro.props
-
 
 const draftBlogPosts = await getCollection('books', ({ data }) => {
   return data.name === chapter
@@ -64,19 +74,27 @@ const { Content } = await doc.render()
         class="relative py-6 lg:gap-10 lg:py-8 xl:grid xl:grid-cols-[1fr_300px]"
       >
         <div class="mx-auto w-full min-w-0 text-sm">
+ {
+     items ?
           <div
             class="mb-4 flex items-center space-x-1 text-sm text-muted-foreground"
           >
-            <div class="truncate">{title}</div>
-            <FaChevronRight size={10} />
+         
+              <div class="truncate">{title}</div>
+              <FaChevronRight size={10} />
+               
             <div class="font-medium text-foreground">
               <font style="vertical-align: inherit;"
-                ><font style="vertical-align: inherit;">
-                  {doc.data.title}
-                </font></font
-              >
+                >
+                   <font style="vertical-align: inherit;"
+                >{doc.data.title}</font>
+                </font>
             </div>
+          
           </div>
+            :<></>
+
+}
 
           <DocsPageHeader
             heading={doc.data.title}

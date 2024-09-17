@@ -1,0 +1,761 @@
+---
+title: "Refs：从存储数据到命令式 API"
+description: "React 的许多美好之处在于它抽象了处理真实 DOM 的复杂性。我们无需手动查询元素、为如何添加类而苦恼，或与浏览器的不一致性斗争，而是可以专注于编写组件和用户体验。不过，仍然有一些情况（虽然很少）需要访问实际的 DOM。"
+
+name: "refs"
+---
+
+为此，我们需要 Refs。没有神秘感，这次我们将实现一个带有简单验证的华丽表单。在这个过程中，我们将学习：
+
+- 为何我们仍然需要访问 DOM 元素。
+- 什么是 Ref，Refs 和状态之间的区别。
+- 如何使用 Refs 访问 UI 元素。
+- 什么是 forwardRef，如何使用它，以及如何避免使用它（你会明白为什么！）
+- 为何我们在 React 中仍需要命令式 API，以及如何使用或不使用 useImperativeHandle 来实现它。
+
+---
+
+### 在 React 中访问 DOM
+
+假设我想为我正在组织的会议实现一个注册表单。我希望人们在我发送详细信息之前提供他们的姓名、电子邮件和 Twitter 账号。“姓名”和“电子邮件”字段我想设为必填。但我不想在用户尝试提交空字段时显示恼人的红色边框。我想让表单看起来酷一点。因此，我希望聚焦于空字段并稍微晃动一下，以引起注意，仅仅是为了好玩。
+
+现在，React 提供了很多功能，但并没有提供一切。像“手动聚焦一个元素”或“晃动那个元素”这样的功能并不是其包的一部分。为此，我们需要重新掌握一些生疏的原生 JavaScript API 技能。为此，我们需要访问实际的 DOM 元素。
+
+在非 React 的世界中，我们会做类似这样的事情：
+
+```jsx
+const element = document.getElementById("bla");
+```
+
+在那之后，我们可以聚焦它：
+
+```jsx
+element.focus();
+```
+
+或者滚动到它：
+
+```jsx
+element.scrollIntoView();
+```
+
+或者任何我们所想要的事情。在 React 世界中使用原生 DOM API 的一些典型用例包括：
+
+- 手动聚焦元素，如表单中的输入字段。
+- 当显示弹出元素时，检测组件外部的点击。
+- 在元素出现在屏幕上后手动滚动到它。
+- 计算屏幕上组件的大小和边界，以正确定位像工具提示这样的东西。
+
+尽管从技术上讲，现在没有什么阻止我们使用 getElementById，但 React 为我们提供了一种稍微更强大的方式来访问该元素，而不需要到处扩展 id 或了解底层 DOM 结构：Refs。
+
+### 什么是 Ref？
+
+Ref 是一个可变对象，React 在重新渲染之间保持它的存在。记住，组件内声明的所有内容都会不断被重新创建？
+
+```jsx
+const Component = () => {
+  // "data" object will be new with every re-render
+  const data = { id: "test" };
+};
+```
+
+组件只是函数，所以其中的一切基本上是该函数的局部变量。Refs 允许我们绕过这个限制。
+要创建一个 Ref，我们可以使用 useRef 钩子，并传递 Ref 的初始值：
+
+```jsx
+const Component = () => {
+  const ref = useRef({ id: "test" });
+};
+```
+
+该初始值现在可以通过 ref.current 属性访问：我们传递给 Ref 的所有内容都存储在这里。
+
+```jsx
+const Component = () => {
+  // pass initial value here
+  const ref = useRef({ id: "test" });
+  useEffect(() => {
+    // access it here
+    console.log(ref.current);
+  });
+};
+```
+
+初始值是缓存的，因此如果我们在重新渲染之间比较 ref.current，引用将保持相同。这就像我们在该对象上使用 useMemo 钩子一样。
+
+一旦创建了 Ref，我们就可以在 useEffect 或事件处理器中对其赋值。它只是一个对象，没什么特别的：
+
+```jsx
+const Component = () => {
+  useEffect(() => {
+    // assign url as an id, when it changes
+    ref.current = { id: url };
+  }, [url]);
+};
+```
+
+这一切看起来和状态非常相似，不是吗？只是 API 不同。那么问题是什么呢？我们为什么到处使用状态，而 Ref 被视为不应使用的逃生舱呢？在让我们的表单变得更加华丽之前，我们先弄清楚这个问题。也许我们根本不需要状态？
+
+### Ref 和状态的区别
+
+让我们开始实现表单，并实现第一个输入字段和提交按钮。
+
+```jsx
+const Form = () => {
+  return (
+    <>
+      <input type="text" />
+      <button onClick={submit}>submit</button>
+    </>
+  );
+};
+```
+
+现在，为了让我们的提交工作，我们需要以某种方式提取输入字段的内容。在 React 中，通常我们会为输入添加 onChange 回调，将该信息保存在状态中，以便在重新渲染之间保持一致，然后在提交函数中访问它：
+
+```jsx
+const Form = () => {
+  const [value, setValue] = useState();
+  const onChange = (e) => {
+    setValue(e.target.value);
+  };
+  const submit = () => {
+    // send to the backend here
+    console.log(value);
+  };
+  return (
+    <>
+      <input type="text" onChange={onChange} />
+      <button onClick={submit}>submit</button>
+    </>
+  );
+};
+```
+
+但我已经多次提到，我们存储在 Ref 中的任何内容也会在重新渲染之间保持一致。而且，方便的是，任何内容都可以分配给 Ref。如果我仅仅将输入中的值保存到 Ref 中而不是状态，会发生什么？
+
+```jsx
+const Form = () => {
+  const ref = useRef();
+  const onChange = (e) => {
+    // save it to ref instead of state
+    ref.current = e.target.value;
+  };
+  const submit = () => {
+    // get it from ref instead of state
+    console.log(ref.current);
+  };
+  return (
+    <>
+      <input type="text" onChange={onChange} />
+      <button onClick={submit}>submit</button>
+    </>
+  );
+};
+```
+
+它似乎与状态的效果完全相同：我在输入字段中输入内容，然后按下按钮，值被发送。
+
+互动示例和完整代码 https://advanced-react.com/examples/09/01
+
+那么，区别是什么？我们通常为何在应用中看不到这种模式？有几个原因。
+
+#### Ref 更新不会触发重新渲染
+
+Refs 和状态之间最大的、最明显的区别之一是，Refs 的更新不会导致重新渲染。如果你在这两种形式中都放置 console.log，你会看到使用状态的 Form 组件在每次键入时都会重新渲染，而使用 Ref 的 Form 则保持安静。
+
+```jsx
+useEffect(() => {
+  console.log("Form component re-renders");
+});
+```
+
+从表面上看，这似乎是个好消息。难道这本书的半数篇幅不是专门讨论重新渲染以及如何逃避它吗？如果 Refs 不会导致重新渲染，那它们当然是所有性能问题的解决方案？
+
+绝对不是。如果你记得第一章，重新渲染是 React 生命周期的关键部分。这是 React 如何用新信息更新我们的组件。例如，如果我想在文本字段下方显示输入的字母数量，我就无法用 Refs 来做到这一点。
+
+```jsx
+const Form = () => {
+  const ref = useRef();
+  const numberOfLetters = ref.current?.length ?? 0;
+  return (
+    <>
+      <input type="text" onChange={onChange} />
+      {/* Not going to work */}
+      Characters count: {numberOfLetters}
+      <button onClick={submit}>submit</button>
+    </>
+  );
+};
+```
+
+Refs 的更新不会导致重新渲染，因此我们的返回输出将始终显示 0 的`numberOfLetters`。
+
+实际上，比 0 更有趣的是。如果与该输入完全无关的事情导致 Form 组件重新渲染，值将突然更新为最新值。Ref 在重新渲染之间存储该值，记得吗？如果我在该表单中添加一个简单的模态对话框，那么打开对话框将触发组件更新自身，并使字母数量发生变化。
+
+```jsx
+const Form = () => {
+  // state for the dialog
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef();
+  const numberOfLetters = ref.current?.length ?? 0;
+  return (
+    <>
+      <input type="text" onChange={onChange} />
+      {/* This will not change when you type in the field */}
+      {/* Only when you open/close the dialog */}
+      Characters count: {numberOfLetters}
+      <button onClick={submit}>submit</button>
+      {/* Adding dialog here */}
+      <button onClick={() => setIsOpen(true)}>Open dialog</button>
+      {isOpen ? <ModalDialog onClose={() => setIsOpen(false)} /> : null}
+    </>
+  );
+};
+```
+
+互动示例和完整代码 https://advanced-react.com/examples/09/02
+
+更有趣的是。如果将该值作为原始值传递给下游组件，它的变化将不会被捕捉。
+
+想象一下，我想实现某种“搜索结果”组件。它将接受该文本值作为 prop，并在用户按下“显示结果”按钮时显示异步搜索结果：
+
+```jsx
+const SearchResults = ({ search }) => {
+  const [showResults, setShowResults] = useState(false);
+  return (
+    <>
+      Searching for: {search} <br />
+      {/*This will trigger re-render*/}
+      <button onClick={() => setShowResults(!showResults)}>show results</button>
+    </>
+  );
+};
+```
+
+如果我在我们的 Form 中使用该组件，并且我们将值保存在 Ref 中，它根本无法工作。
+
+```jsx
+const Form = () => {
+  const ref = useRef();
+  const onChange = (e) => {
+    ref.current = e.target.value;
+  };
+  return (
+    <>
+      <input type="text" onChange={onChange} />
+      {/* will never be updated */}
+      <SearchResults search={ref.current} />
+    </>
+  );
+};
+```
+
+Ref 更新永远不会触发重新渲染，因此 SearchResults 组件上的搜索 prop 从未显式更新。即使我们通过单击“显示结果”按钮在 SearchResults 内部触发重新渲染，搜索值仍然是空字符串。
+
+互动示例和完整代码 https://advanced-react.com/examples/09/03
+
+#### Ref 更新是同步和可变的
+
+第二个大区别是，Ref 更新是同步的。我们毕竟只是修改一个对象，这在 JavaScript 中是一个同步操作。然而，状态通常是异步的。它甚至不仅仅是异步的：状态更新在“快照”中运行。React 有一个复杂的系统来管理它，并确保在一个“快照”内的数据和组件是一致的并正确更新。
+
+然而，Ref 则没有这些：我们直接修改一个对象，仅此而已。
+
+当你尝试在 onChange 回调中访问状态和值时，这一点将变得非常明显。
+
+```jsx
+const Form = () => {
+  const [value, setValue] = useState();
+  const onChange = (e) => {
+    console.log("before", value);
+    setValue(e.target.value);
+    console.log("after", value); // same as before
+  };
+};
+```
+
+在上面的代码中，“之前”和“之后”的值将是相同的。当我们调用 setValue 时，我们并不是立即更新状态。我们只是在让 React 知道它需要在完成当前操作后安排一次状态更新。
+
+对于 Ref，情况正好相反：
+
+```jsx
+const Form = () => {
+  const ref = useRef();
+  const onChange = (e) => {
+    console.log("before", ref.current);
+    ref.current = e.target.value;
+    console.log("after", ref.current); // already changed
+  };
+};
+```
+
+我们修改了一个对象，该对象中的数据立即可用，但没有任何来自 React 生命周期的触发。
+
+### 那么何时可以使用 Ref？
+
+考虑到这些区别，实际上在何时使用 Ref 存储某些东西，何时更喜欢使用状态？问问自己这两个问题：
+
+- 该值是否用于渲染组件，现在或将来？
+- 该值是否以任何方式作为 props 传递给其他组件，现在或将来？
+
+如果这两个问题的答案都是“没有”，那么使用 Ref 是可以的。
+
+例如，我们可以使用 Ref 来存储一些关于组件的“开发”信息。也许我们有兴趣计算一个组件渲染的次数：
+
+```jsx
+useEffect(() => {
+  ref.current = ref.current + 1;
+  console.log("Render number", ref.current);
+});
+```
+
+或者，也许我们想访问先前的状态值：
+
+```jsx
+const usePrevious = (value) => {
+  const ref = useRef();
+  useEffect(() => {
+    // this will be changed after the value is returned
+    ref.current = value;
+  }, [value]);
+  return ref.current;
+};
+```
+
+然后在 `useEffect` 中有条件地触发某些操作：
+
+```jsx
+useEffect(() => {
+  if (previuosValue.length > value.length) {
+    console.log("Text was deleted");
+  } else {
+    console.log("Text was added");
+  }
+}, [previuosValue, value]);
+```
+
+互动示例和完整代码 https://advanced-react.com/examples/09/04
+
+当然，还可以将 DOM 元素分配给 Ref。这是 Ref 最重要和最常见的用例之一。
+
+### 将 DOM 元素分配给 Ref
+
+我们可以简单地通过使用 `useRef` 钩子创建一个 Ref，然后通过 `ref` 属性将该 Ref 传递给一个 DOM 元素来做到这一点：
+
+```jsx
+const Component = () => {
+  const ref = useRef(null);
+  // assing ref to an input element
+  return <input ref={ref} />;
+};
+```
+
+在这个输入组件渲染后，我将能够看到实际的输入 DOM 元素，正是我通过 `getElementById` 获得的那个元素，在 `ref.current` 值中：
+
+```jsx
+const Component = () => {
+  const ref = useRef(null);
+  useEffect(() => {
+    // this will be a reference to input DOM element!
+    // exactly the same as if I did getElementById for it
+    console.log(ref.current);
+  });
+  return <input ref={ref} />;
+};
+```
+
+这里需要记住的重要一点是，ref 只会在元素被 React 渲染并且其关联的 DOM 元素被创建后分配。我们需要一些东西来分配给那个 Ref，不是吗？这意味着 `ref.current` 值不会立即可用，因此像这样的逻辑将不起作用：
+
+```jsx
+const Component = () => {
+  const ref = useRef(null);
+  // trying to access ref value before it was actually assigned
+  // input will never be rendered here
+  if (!ref.current) return null;
+  return <input ref={ref} />;
+};
+```
+
+我们应该只在 `useEffect` 钩子或回调中读取和写入 `ref.current`。
+
+最后，回到我们最初的想法，创建一个华丽的注册表单。如果我将其实现为一个巨大的组件，我可以这样做：
+
+```jsx
+const Form = () => {
+ const [name, setName] = useState('');
+ const inputRef = useRef(null);
+ const onSubmitClick = () => {
+ if (!name) {
+ // focus the input field if someone tries to submit the
+empty name
+ ref.current.focus();
+ } else {
+ // submit the data here!
+ }
+ };
+ return (
+ <>
+ ...
+ <input
+ onChange={(e) => setName(e.target.value)}
+ ref={ref}
+ />
+ <button onClick={onSubmitClick}>
+ Submit the form!
+          </button>
+ </>
+ );
+};
+```
+
+将输入值存储在状态中，为所有输入创建 refs，当单击“提交”按钮时，我将检查这些值是否为空，如果为空，则聚焦于需要的输入。
+
+### 作为 prop 从父组件传递 Ref 到子组件
+
+当然，在现实生活中，我不会将所有内容放在一个巨大的组件中。更可能的是，我希望将输入提取到自己的组件中：以便可以在多个表单中重用它，并且可以封装和控制其样式，甚至可能具有一些附加功能，例如顶部有标签或右侧有图标。
+
+```jsx
+const InputField = ({ onChange, label }) => {
+  return (
+    <>
+      {label}
+      <br />
+      <input type="text" onChange={(e) => onChange(e.target.value)} />
+    </>
+  );
+};
+```
+
+但错误处理和提交功能仍将放在 `Form` 中，而不是输入中！
+
+```jsx
+const Form = () => {
+  const [name, setName] = useState("");
+  const onSubmitClick = () => {
+    if (!name) {
+      // deal with empty name
+    } else {
+      // submit the data here!
+    }
+  };
+  return (
+    <>
+      <InputField label="name" onChange={setName} />
+      <button onClick={onSubmitClick}>Submit the form!</button>
+    </>
+  );
+};
+```
+
+我该如何从 `Form` 组件告诉输入“聚焦自己”？在 React 中，控制数据和行为的“正常”方式是将 props 传递给组件并监听回调。我可以尝试将 prop “focusItself” 传递给 `InputField`，将其从 false 切换为 true，但这只会有效一次。
+
+```jsx
+// don't do this! just to demonstate how it could work in theory
+const InputField = ({ onChange, focusItself }) => {
+  const inputRef = useRef(null);
+  useEffect(() => {
+    if (focusItself) {
+      // focus input if the focusItself prop changes
+      // will work only once, when false changes to true
+      inputRef.current.focus();
+    }
+  }, [focusItself]);
+  // the rest is the same here
+};
+```
+
+我可以尝试添加一个 “onBlur” 回调，在输入失去焦点时将该 `focusItself` prop 重置为 false，或者用随机值代替布尔值，或者想出其他一些创造性的解决方案。
+
+幸运的是，还有另一种方法。我们可以在一个组件（`Form`）中创建一个 Ref，将其传递给另一个组件（`InputField`），并在那里的基础 DOM 元素上附加它。毕竟，Ref 只是一个可变对象。
+
+`Form` 将正常创建 Ref：
+
+```jsx
+const Form = () => {
+ // create the Ref in Form component
+ const inputRef = useRef(null);
+ ...
+}
+```
+
+而 `InputField` 组件将有一个接受 Ref 的 prop，并渲染一个期望 Ref 的输入字段。只有 Ref 在这里，而不是在 `InputField` 中创建，而是来自 props：
+
+```jsx
+const InputField = ({ inputRef }) => {
+ // the rest of the code is the same
+ // pass ref from prop to the internal input component
+     return <input ref={inputRef} ... />
+}
+```
+
+Ref 是一个可变对象，并且是这样设计的。当我们将其传递给一个元素时，React 在底层只是对其进行修改。而将被修改的对象是在 `Form` 组件中声明的。因此，一旦 `InputField` 被渲染，Ref 对象将被修改，我们的 `Form` 将能够在 `inputRef.current` 中访问输入 DOM 元素：
+
+```jsx
+const Form = () => {
+ // create the Ref in Form component
+ const inputRef = useRef(null);
+ useEffect(() => {
+ // the "input" element, that is rendered inside InputField,
+will be here
+ console.log(inputRef.current);
+ }, []);
+ return (
+ <>
+ {/* Pass Ref as prop to the input field component */}
+ <InputField inputRef={inputRef} />
+ </>
+ );
+};
+```
+
+或者在我们的提交回调中，我们可以调用 `inputRef.current.focus()`，与之前的代码完全相同。
+
+互动示例和完整代码 https://advanced-react.com/examples/09/06
+
+### 通过 forwardRef 从父组件传递 Ref 到子组件
+
+如果你在想我为什么将 prop 命名为 `inputRef`，而不是简单地使用 `ref`，其实这并不简单。`ref` 不是一个真正的 prop；它有点像一个“保留”名称。在以前的日子里，当我们仍在编写类组件时，如果我们将 Ref 传递给一个类组件，该组件的实例将是该 Ref 的 `.current` 值。
+
+但是函数组件没有类实例。因此，我们只会在控制台中收到警告：“函数组件无法被赋予 refs。尝试访问该 ref 将失败。你是想使用 `React.forwardRef()` 吗？”
+
+```jsx
+const Form = () => {
+  const inputRef = useRef(null);
+  // if we just do this, we'll get a warning in console
+  return <InputField ref={inputRef} />;
+};
+```
+
+为了让它工作，我们需要向 React 发出信号，表明这个 ref 实际上是有意的，并且我们想对其进行操作。我们可以借助 `forwardRef` 函数来实现：它接受我们的组件，并将来自 `ref` 属性的 Ref 注入为组件函数的第二个参数。就在 props 之后。
+
+```jsx
+// normally, we'd have only props there
+// but we wrapped the component's function with forwardRef
+// which injects the second argument - ref
+// if it's passed to this component by its consumer
+const InputField = forwardRef((props, ref) => {
+  // the rest of the code is the same
+  return <input ref={ref} />;
+});
+```
+
+我们甚至可以将上面的代码分成两个变量，以提高可读性：
+
+```jsx
+const InputFieldWithRef = (props, ref) => {
+  // the rest is the same
+};
+// this one will be used by the form
+export const InputField = forwardRef(InputFieldWithRef);
+```
+
+现在，`Form` 可以像对待常规 DOM 元素一样将 Ref 传递给 `InputField` 组件：
+
+```jsx
+return <InputField ref={inputRef} />;
+```
+
+是否应该使用 `forwardRef` 或仅仅将 Ref 作为 prop 传递，这只是个人喜好的问题：最终结果是相同的。
+
+互动示例和完整代码https://advanced-react.com/examples/09/07
+
+### 使用 useImperativeHandle 实现命令式 API
+
+好吧，从 `Form` 组件聚焦输入的功能已经解决了，但我们还没有完成我们的酷表单。记得吗，我们希望在发生错误时除了聚焦外还要晃动输入？在原生 JavaScript API 中没有这样的 `element.shake()`，因此访问 DOM 元素在这里无济于事。
+
+不过，我们可以很容易地将其实现为 CSS 动画：
+
+```jsx
+const InputField = () => {
+ // store whether we should shake or not in state
+ const [shouldShake, setShouldShake] = useState(false);
+ // just add the classname when it's time to shake it - css will
+handle it
+ const className = shouldShake ? 'shake-animation' : '';
+ // when animation is done - transition state back to false, so
+we can start again if needed
+ return (
+ <input
+ className={className}
+ onAnimationEnd={() => setShouldShake(false)}
+ />
+ );
+};
+```
+
+但是我们如何触发它？再次，和之前聚焦的情况一样，我可以想出一些使用 props 的创造性解决方案，但这将看起来奇怪，并显著使 `Form` 复杂化。尤其是考虑到我们通过 ref 处理聚焦，因此我们将为同一个问题有两个解决方案。如果我可以在这里做一些像 `InputField.shake()` 和 `InputField.focus()` 的事情就好了！
+
+说到聚焦，为什么我的 `Form` 组件仍然需要处理原生 DOM API 来触发它？难道不是 `InputField` 的责任和全部意义在于抽象掉这样的复杂性吗？为什么表单甚至要访问基础 DOM 元素——这基本上是在泄露内部实现细节。`Form` 组件不应该关心我们使用的是哪个 DOM 元素，或者我们是否在使用 DOM 元素或其他东西。关注点分离，你懂的。
+
+看起来是时候为我们的 `InputField` 组件实现一个合适的命令式 API 了。React 是声明式的，并期望我们以此方式编写代码。但有时我们确实需要一种方法来以命令式的方式触发某些东西。幸运的是，React 为此提供了一个逃生舱：`useImperativeHandle` 钩子。
+
+这个钩子稍微难以理解。我不得不阅读文档两次，尝试几次，并查看实际 React 代码中的实现，才能真正理解它的作用。但本质上，我们只需要两个东西：决定我们的命令式 API 看起来像什么，以及一个 Ref 以将其附加到。对于我们的输入，这很简单：我们需要 `.focus()` 和 `.shake()` 函数作为 API，而我们已经了解了 refs。
+
+```jsx
+// this is how our API could look like
+const InputFieldAPI = {
+  focus: () => {
+    // do the focus here magic
+  },
+  shake: () => {
+    // trigger shake here
+  },
+};
+```
+
+`useImperativeHandle` 钩子简单地将该对象附加到 Ref 对象的 “current” 属性，这就是它的工作原理：
+
+```jsx
+const InputField = () => {
+  useImperativeHandle(
+    someRef,
+    () => ({
+      focus: () => {},
+      shake: () => {},
+    }),
+    [],
+  );
+};
+```
+
+第一个参数是我们的 Ref，它可以是在组件内部创建的，也可以是从 props 传递的，或者通过 `forwardRef` 传递的。第二个参数是返回对象的函数——这个对象将作为 `inputRef.current` 可用。第三个参数是依赖数组，与其他任何 React 钩子相同。
+
+对于我们的组件，让我们显式传递 Ref 作为 `apiRef` prop。
+接下来要做的就是实现实际的 API。为此，我们需要另一个 Ref——这次是在 `InputField` 内部，以便我们可以将其附加到输入 DOM 元素并像往常一样触发聚焦：
+
+```jsx
+// pass the Ref that we'll use as our imperative API as a prop
+const InputField = ({ apiRef }) => {
+ // create another Ref - internal to Input component
+ const inputRef = useRef(null);
+ // "merge" our API into the apiRef
+ // the returned object will be available for use as
+apiRef.current
+ useImperativeHandle(
+ apiRef,
+ () => ({
+ focus: () => {
+ // just trigger focus on internal Ref that is attached to
+the DOM object
+ inputRef.current.focus();
+ },
+ shake: () => {},
+ }),
+ [],
+ );
+ return <input ref={inputRef} />;
+};
+```
+
+而对于“晃动”，我们只需触发状态更新：
+
+```jsx
+// pass the Ref that we'll use as our imperative API as a prop
+const InputField = ({ apiRef }) => {
+ // remember our state for shaking?
+ const [shouldShake, setShouldShake] = useState(false);
+ useImperativeHandle(apiRef, () => ({
+ focus: () => {},
+ shake: () => {
+ // trigger state update here
+ setShouldShake(true);
+ },
+ }), [])
+ return ...
+}
+```
+
+瞧！我们的 `Form` 可以创建一个 ref，将其传递给 `InputField`，并能够简单地调用 `inputRef.current.focus()` 和 `inputRef.current.shake()`，而不必担心它们的内部实现！
+
+```jsx
+const Form = () => {
+  const inputRef = useRef(null);
+  const [name, setName] = useState("");
+  const onSubmitClick = () => {
+    if (!name) {
+      // focus the input if the name is empty
+      inputRef.current.focus();
+      // and shake it off!
+      inputRef.current.shake();
+    } else {
+      // submit the data here!
+    }
+  };
+  return (
+    <>
+      <InputField label="name" onChange={setName} apiRef={inputRef} />
+      <button onClick={onSubmitClick}>Submit the form!</button>
+    </>
+  );
+};
+```
+
+互动示例和完整代码https://advanced-react.com/examples/09/08
+
+### 命令式 API 无需 useImperativeHandle
+
+如果 `useImperativeHandle` 钩子仍然让你感到困惑——别担心，我也是！但实际上，我们并不需要使用它来实现我们刚刚实现的功能。我们已经知道，ref 只是一个可变对象，我们可以将任何内容分配给它。因此，我们所需要做的就是将我们的 API 对象分配给所需 Ref 的 `ref.current`，类似这样：
+
+```jsx
+const InputField = ({ apiRef }) => {
+  useEffect(() => {
+    apiRef.current = {
+      focus: () => {},
+      shake: () => {},
+    };
+  }, [apiRef]);
+};
+```
+
+这几乎正是 `useImperativeHandle` 在底层所做的事情。而且它的工作方式与之前完全相同。
+
+互动示例和完整代码https://advanced-react.com/examples/09/09
+
+这是一个相当酷的技巧，不是吗？请记住：以命令式方式触发某些操作更多的是 React 中的一个逃生舱。在 99% 的情况下，正常的 props/callback 数据流已经足够。
+
+### 关键要点
+
+在下一章中，我们将深入探讨如何使用 Refs 存储函数而不是值，以及这会带来什么后果。在此期间，有几点要记住：
+
+- Ref 只是一个可变对象，可以存储任何值。该值将在重新渲染之间保持一致。
+- Ref 的更新不会触发重新渲染，并且是同步的。
+- 我们可以通过 `ref` 属性将 Ref 分配给 DOM 元素。
+- 在该元素渲染后，我们将在 `ref.current` 属性中看到该元素。
+- 我们可以将 Refs 作为常规 props 传递给任何组件。
+- 如果我们想将其作为实际的 ref prop 传递，我们需要将该组件包装在 `forwardRef` 中。否则，它在函数组件中将不起作用。该组件的第二个参数将是 ref 本身，我们需要将其传递给所需的 DOM 元素。
+
+```jsx
+// second argument, next to props, is ref that is injected by
+"forwardRef";
+const InputField = forwardRef((props, ref) => {
+  return <input ref={ref} />;
+});
+```
+
+- 我们可以隐藏组件的实现细节，并通过 `useImperativeHandle` 钩子公开其公共 API。我们需要将 Ref 传递给该组件，这将被包含 API 属性所修改：
+
+  ```jsx
+  const InputField = () => {
+    useImperativeHandle(
+      ousideRef,
+      () => ({
+        focus: () => {},
+        shake: () => {},
+      }),
+      [],
+    );
+  };
+  ```
+
+- 或者，我们可以在 `useEffect` 钩子中手动修改该 Ref。
+
+  ```jsx
+  const InputField = ({ apiRef }) => {
+    useEffect(() => {
+      ousideRef.current = {
+        focus: () => {},
+        shake: () => {},
+      };
+    }, [ousideRef]);
+  };
+  ```

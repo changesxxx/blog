@@ -16,7 +16,7 @@ const { pathname } = Astro.url
 ---
 
 {
-  items.length ? (
+  items?.length ? (
     <>
       <div class="w-full">
         {items.map((item) => (
@@ -44,5 +44,15 @@ const { pathname } = Astro.url
         </a>
       </Button>
     </>
-  ) : null
+  ) : (
+    <Button variant="secondary" size="sm" rounded="xl" className="px-4">
+      <a
+        href={`/read-together/details/${bookPath}`}
+        class="flex items-center gap-2"
+      >
+        <span>返回至目录</span>
+        <FcDataBackup size={22} />
+      </a>
+    </Button>
+  )
 }

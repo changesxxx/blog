@@ -1,0 +1,411 @@
+---
+title: "数据获取与竞态条件"
+description: "在前端数据获取中，竞态条件是一个值得单独一章讨论的重要话题。在我们正常生活中，这种情况相对较少，我们可以开发相当复杂的应用而不必处理它们。但一旦发生，调查和修复竞态条件可能会成为一项真正的挑战。由于 fetch 或任何 JavaScript 中的异步操作大多数时候只是一个被美化的 Promise，本章的主要重点是 Promises。"
+
+name: "data-race-conditions"
+---
+
+让我们调查一个存在竞态条件的应用，修复它，并在此过程中学习：
+
+- 什么是 Promises，以及非常简单的代码如何在我们没有注意到的情况下创建竞态条件。
+- 竞态条件出现的原因。
+- 如何以至少四种不同的方式修复它们。
+
+---
+
+### 什么是 Promise？
+
+在深入竞态条件之前，让我们回顾一下什么是 Promise 以及我们为什么需要它们。基本上，Promise 是一个……承诺。当 JavaScript 执行代码时，通常是同步执行：一步一步。Promise 是少数几种能够异步执行某些操作的方法之一。使用 Promises，我们可以立即触发一个任务并继续下一个步骤，而无需等待任务完成。任务承诺会在完成时通知我们。而且它确实会做到这一点！这是非常可靠的。
+
+Promise 最重要和最广泛使用的场景之一是数据获取。无论是实际的 fetch 调用还是其上方的一些抽象，例如 Axios，Promise 的行为都是相同的。
+
+从代码的角度来看，其实就是这样：
+
+```js
+console.log('first step'); // will log FIRST
+fetch('/some-url') // create promise here
+ .then(() => {
+ // wait for Promise to be done
+ // log stuff after the promise is done
+ console.log('second step'); // will log THIRD (if successful)
+ })
+ .catch(() => {
+ console.log('something bad happened'); // will log THIRD (if
+error happens)
+ });
+console.log('third step'); // will log SECOND
+```
+
+基本流程是：创建一个 Promise fetch('/some-url')，在结果可用时在 .then 中执行某些操作，或在 .catch 中处理错误。就是这样。当然，还有一些其他细节需要了解，以便完全掌握 promises。但这个流程的核心足以理解本章的其余部分。
+
+![](/assets/images/books/advanced-react/promise.png)
+
+### Promises 与竞态条件
+
+Promises 最有趣的部分之一是它们可能导致的竞态条件。为此，我实现了一个非常简单的应用进行实验，然后再深入代码。
+
+互动示例和完整代码 https://advanced-react.com/examples/15/01
+
+该应用在左侧有一个标签列，快速在标签之间导航会发送 fetch 请求，请求的数据在右侧渲染。如果我们尝试快速在标签之间导航，体验就会很糟糕：内容闪烁，数据似乎随机出现：有时第一个标签的内容出现，随后迅速被第二个标签替换，有时它们会形成某种轮播。整体行为非常奇怪。
+
+该应用的实现看起来像这样。我们有两个组件。一个是根 App 组件，它管理当前“页面”的状态，并渲染导航按钮和实际的 Page 组件。
+
+```jsx
+const App = () => {
+  const [page, setPage] = useState("1");
+  return (
+    <>
+      {/*left column buttons*/}
+      <button onClick={() => setPage("1")}>Issue 1</button>
+      <button onClick={() => setPage("2")}>Issue 2</button>
+      {/*the actual content*/}
+      <Page id={page} />
+    </>
+  );
+};
+```
+
+Page 组件接受当前页面的 id 作为 props，发送 fetch 请求以获取数据，然后渲染它。简化的实现（没有加载状态）看起来像这样：
+
+```jsx
+const Page = ({ id }: { id: string }) => {
+ const [data, setData] = useState({});
+ // pass id to fetch relevant data
+ const url = `/some-url/${id}`;
+ useEffect(() => {
+ fetch(url)
+ .then((r) => r.json())
+ .then((r) => {
+ // save data from fetch request to state
+ setData(r);
+ });
+ }, [url]);
+ // render data
+ return (
+ <>
+      <h2>{data.title}</h2>
+ <p>{data.description}</p>
+ </>
+ );
+};
+```
+
+通过 id，我们确定从哪里获取数据。然后我们在 useEffect 中发送 fetch 请求，并将结果数据存储在状态中——一切都很标准。那么，竞态条件和奇怪行为的来源是什么呢？
+
+### 竞态条件的原因
+
+这归结为两点：Promises 的性质和 React 生命周期。
+
+从生命周期的角度来看，发生了以下情况：
+
+- App 组件被挂载。
+- Page 组件使用默认 prop 值“1”被挂载。
+- Page 组件中的 useEffect 首次触发。
+
+然后，Promises 的性质发挥了作用：useEffect 中的 fetch 是一个 Promise，异步操作。它发送实际请求，然后 React 就继续它的工作，而不等待结果。大约 2 秒后，请求完成，promise 的 .then 被触发，在其中我们调用 setData 保存数据到状态，Page 组件更新为新数据，我们在屏幕上看到它。
+
+如果在所有内容渲染完成后，我点击导航按钮，将会发生以下事件流：
+
+- App 组件的状态更改为另一个页面。
+- 状态更改触发 App 组件的重新渲染。
+- 由于此，Page 组件也将重新渲染。
+- Page 组件中的 useEffect 依赖于 id，id 已更改，useEffect 再次被触发。
+- useEffect 中的 fetch 将被触发，新的 id 到来后，大约 2 秒后 setData 将再次被调用，Page 组件更新，我们将在屏幕上看到新数据。
+
+![](/assets/images/books/advanced-react/condition.png)
+
+但如果我在第一个 fetch 进行中并且尚未完成时点击导航按钮，id 更改会发生什么呢？会发生一个非常有趣的事情！
+
+App 组件将触发 Page 的重新渲染。
+useEffect 将再次被触发（id 已更改！）。
+fetch 将再次被触发，React 将继续正常运行。
+然后，第一个 fetch 将完成。它仍然保留对同一 Page 组件的 setData 的引用（记住——它刚刚更新，所以组件仍然是一样的）。
+第一个 fetch 后的 setData 将被触发，Page 组件将使用第一个 fetch 的数据更新自己。
+接着，第二个 fetch 完成。它也还在后台挂着，像任何 Promise 一样。它也有对同一 Page 组件的 setData 的引用，将被触发，Page 将再次更新，这次是第二个 fetch 的数据。
+
+竞态条件发生了！在导航到新页面后，我们看到内容闪烁：来自第一个完成的 fetch 的内容被渲染，然后被来自第二个完成的 fetch 的内容替换。
+
+![](/assets/images/books/advanced-react/condition1.png)
+
+如果第二个 fetch 在第一个 fetch 之前完成，这种效果就更加有趣。我们会首先看到下一个页面的正确内容，然后再被上一个页面的错误内容替换。
+
+![](/assets/images/books/advanced-react/condition2.png)
+
+这种行为在下面的示例中可以看到。等待第一次加载完成，然后导航到第二页，再快速导航回第一页。
+
+互动示例和完整代码 https://advanced-react.com/examples/15/02
+
+这真是太糟糕了：代码看起来无辜，但应用却是坏的。我们该如何解决它？
+
+### 修复竞态条件：强制重新挂载
+
+第一个解决方案甚至不算是一个真正的解决方案，它更像是对为什么这些竞态条件并不经常发生的解释，以及为什么在常规页面导航中我们通常看不到它们。
+
+想象一下，如果我们没有上述实现，而是有这样的实现：
+
+```jsx
+const App = () => {
+  const [page, setPage] = useState("issue");
+  return (
+    <>
+      {page === "issue" && <Issue />}
+      {page === "about" && <About />}
+    </>
+  );
+};
+```
+
+没有传递 props，Issue 和 About 组件有自己的唯一 URL 从中获取数据。数据获取发生在 useEffect 钩子中，和之前完全相同：
+
+```jsx
+const About = () => {
+ const [about, setAbout] = useState();
+ useEffect(() => {
+ fetch("/some-url-for-about-page")
+ .then((r) => r.json())
+ .then((r) => setAbout(r));
+ }, []);
+ ...
+}
+```
+
+这次在导航时应用中没有竞态条件。无论你导航多少次，速度多快：它的表现正常。
+
+互动示例和完整代码 https://advanced-react.com/examples/15/03
+
+为什么？
+
+答案在这里：`{page === ‘issue' && <Issue />}`。Issue 和 About 页面在页面值变化时并不会重新渲染，而是重新挂载。当值从 issue 变为 about 时，Issue 组件会卸载自己，About 组件会在其位置挂载。
+
+从获取的角度来看，发生的事情是：
+
+- App 组件首先渲染，挂载 Issue 组件，数据获取在此启动。
+- 当我在 fetch 仍在进行的过程中导航到下一个页面时，App 组件卸载 Issue 页面并挂载 About 组件，触发其自己的数据获取。
+
+当 React 卸载一个组件时，这意味着它完全消失了。完全消失，从屏幕上消失，没有人可以访问它，内部发生的一切，包括它的状态，都会丢失。与之前的代码比较，我们写了 `<Page id={page} />`。这个 Page 组件从未被卸载。我们只是重用了它及其状态进行导航。
+
+回到卸载的情况。当 Issue 的 fetch 请求在我处于 About 页时完成，Issue 组件的 .then 回调将尝试调用它的 setIssue 状态。但组件已经消失。从 React 的角度来看，它不再存在。因此，promise 将会消亡，它所获取的数据也将消失在虚空中。
+
+![](/assets/images/books/advanced-react/condition3.png)
+
+顺便提一下，你还记得那个可怕的警告“无法对已卸载的组件执行 React 状态更新”吗？这个警告正好出现在这些情况下：当像数据获取这样的异步操作在组件已经消失后完成。“曾经”，因为它也已经消失了。这个警告最近被移除了。
+
+无论如何，理论上，这种行为可以用于解决原始应用中的竞态条件：我们只需强制 Page 组件在导航时重新挂载。我们可以为此使用 "key" 属性：
+
+```jsx
+<Page id={page} key={page} />
+```
+
+正如我们在第6章中关于 diffing 和 reconciliation 的深入讨论所知，改变元素的 "key" 将强制 React 移除具有“旧” key 的元素，并挂载具有新 "key" 的元素，即使它们是相同的类型。
+
+然而，对于一般的竞态条件问题，我并不推荐这种解决方案。存在太多的注意事项：性能可能会受到影响，聚焦和状态可能会出现意外的错误，下游渲染树中的 useEffect 可能会意外触发。这更像是把问题扫到地毯下。在某些情况下，如果小心使用，它可以成为你工具箱中的一个工具，但处理竞态条件有更好的方法（见下文）。
+
+### 修复竞态条件：丢弃不正确的结果
+
+解决竞态条件的一个更温和的方法，而不是将整个 Page 组件彻底清除，是确保在 .then 回调中返回的结果与当前“活动”的 id 匹配。
+
+如果结果返回了用于生成 URL 的 id，我们可以进行比较。如果它们不匹配，则忽略它们。这里的技巧是逃脱 React 生命周期和局部数据，确保在 useEffect 的所有迭代中访问“最新”的 id，即使是“过时”的迭代。再一次，这是我们在第9章中讨论的 Refs 的另一个用例。
+
+```jsx
+const Page = ({ id }) => {
+ // create ref
+ const ref = useRef(id);
+     useEffect(() => {
+ // update ref value with the latest id
+ ref.current = id;
+ fetch(`/some-data-url/${id}`)
+ .then((r) => r.json())
+ .then((r) => {
+ // compare the latest id with the result
+ // only update state if the result actually belongs to
+that id
+ if (ref.current === r.id) {
+ setData(r);
+ }
+ });
+ }, [id]);
+};
+```
+
+互动示例和完整代码https://advanced-react.com/examples/15/04
+
+你的结果没有返回任何可靠的标识？没问题，我们可以简单地比较 URL：
+
+```jsx
+const Page = ({ id }) => {
+  // create ref
+  const ref = useRef(id);
+  useEffect(() => {
+    // update ref value with the latest url
+    ref.current = url;
+    fetch(`/some-data-url/${id}`).then((result) => {
+      // compare the latest url with the result's url
+      // only update state if the result actually belongs to that
+      url;
+      if (result.url === ref.current) {
+        result.json().then((r) => {
+          setData(r);
+        });
+      }
+    });
+  }, [url]);
+};
+```
+
+互动示例和完整代码https://advanced-react.com/examples/15/05
+
+### 修复竞态条件：丢弃所有先前的结果
+
+不喜欢之前的解决方案，或认为使用 refs 处理这种情况很奇怪？没问题，还有另一种方法。useEffect 有一个叫做“清理”函数的东西，我们可以在其中清理订阅等内容。或者在我们的情况中，是主动的 fetch 请求。
+
+它的语法看起来是这样的：
+
+```jsx
+// normal useEffect
+useEffect(() => {
+  // "cleanup" function - function that is returned in useEffect
+  return () => {
+    // clean something up here
+  };
+  // dependency - useEffect will be triggered every time url has
+  changed;
+}, [url]);
+```
+
+清理函数在组件卸载后或在更改依赖项之前的每次重新渲染时运行。因此，重新渲染期间的操作顺序如下：
+
+- URL 更改
+- “清理”函数被触发
+- useEffect 的实际内容被触发
+
+这与 JavaScript 的函数和闭包的特性一起，使我们能够做到这一点：
+
+```jsx
+useEffect(() => {
+  // local variable for useEffect's run
+  let isActive = true;
+  // do fetch here
+  return () => {
+    // local variable from above
+    isActive = false;
+  };
+}, [url]);
+```
+
+我们引入一个局部布尔变量 isActive，并在 useEffect 运行时将其设置为 true，在清理时将其设置为 false。useEffect 中的函数在每次重新渲染时都会重新创建，因此最新的 useEffect 运行的 isActive 始终会重置为 true。但！运行在它之前的“清理”函数仍然可以访问之前函数的作用域，并将其重置为 false。这就是 JavaScript 闭包的工作原理。
+
+fetch Promise 虽然是异步的，但仍然只存在于该闭包内，并且仅访问启动它的 useEffect 运行的局部变量。因此，当我们在 .then 回调中检查 isActive 布尔值时，只有最新运行的、尚未被清理的那个会将变量设置为 true。因此，我们现在需要做的就是检查我们是否在活动闭包中，如果是，则设置状态。如果不是，则什么也不做。数据将再次简单地消失在虚空中。
+
+```jsx
+useEffect(() => {
+  // set this closure to "active"
+  let isActive = true;
+  fetch(`/some-data-url/${id}`)
+    .then((r) => r.json())
+    .then((r) => {
+      // if the closure is active - update state
+      if (isActive) {
+        setData(r);
+      }
+    });
+  return () => {
+    // set this closure to not active before next re-render
+    isActive = false;
+  };
+}, [id]);
+```
+
+### 修复竞态条件：取消所有先前的请求
+
+觉得在 React 生命周期的上下文中处理 JavaScript 闭包让你感到头疼？我理解。有时候，考虑这些会让我感到头痛。但别担心，还有另一种解决问题的选项。
+
+我们可以简单地取消所有先前的请求，而不是进行清理或比较结果。如果它们从未完成，使用过时数据的状态更新将不会发生，而问题也将不存在。我们可以使用 AbortController 接口来做到这一点。
+
+这非常简单，只需在 useEffect 中创建一个 AbortController，并在清理函数中调用 .abort()。
+
+```jsx
+useEffect(() => {
+  // create controller here
+  const controller = new AbortController();
+  // pass controller as signal to fetch
+  fetch(url, { signal: controller.signal })
+    .then((r) => r.json())
+    .then((r) => {
+      setData(r);
+    });
+  return () => {
+    // abort the request here
+    controller.abort();
+  };
+}, [url]);
+```
+
+因此，在每次重新渲染时，正在进行的请求将被取消，而新的请求将是唯一允许解决并设置状态的请求。
+
+在进行中的请求被取消将导致 promise 被拒绝，因此你需要捕获错误以去除控制台中的可怕警告。但正确处理 Promise 拒绝无论如何都是个好主意，因此这是你希望在任何策略中做的。由于 AbortController 拒绝将给出一种特定类型的错误，使得将其从常规错误处理排除变得容易。
+
+```js
+fetch(url, { signal: controller.signal })
+  .then((r) => r.json())
+  .then((r) => {
+    setData(r);
+  })
+  .catch((error) => {
+    // error because of AbortController
+    if (error.name === "AbortError") {
+      // do nothing
+    } else {
+      // do something, it's a real error!
+    }
+  });
+```
+
+互动示例和完整代码 https://advanced-react.com/examples/15/07
+
+### Async/await 会改变什么吗？
+
+不会，实际上不会。Async/await 只是更优雅地编写完全相同的 promises。它只是从执行流程的角度将它们转换为“同步”函数，但并不改变它们的异步性质。
+
+```js
+fetch("/some-url")
+  .then((r) => r.json())
+  .then((r) => setData(r));
+```
+
+我们将写成：
+
+```jsx
+const response = await fetch("/some-url");
+const result = await response.json();
+setData(result);
+```
+
+用 async/await 实现的完全相同的应用与“传统” promises 将具有完全相同的竞态条件。
+
+互动示例和完整代码 https://advanced-react.com/examples/15/08
+
+以上的所有解决方案和原因仍然适用，只是语法略有不同。
+
+### 关键要点
+
+希望你对看似无辜的竞态条件有了更深的理解，并能轻松检测和避免它们。在最后一章中，我们将结束关于高级 React 模式的讨论，主题是“如果发生严重错误该怎么办？”但在此之前，有一些关于 Promises 和竞态条件的要点需要记住：
+
+- 当我们在同一个 React 组件中多次更新状态后，竞态条件可能会发生。
+
+  ```jsx
+  useEffect(() => {
+    fetch(url)
+      .then((r) => r.json())
+      .then((r) => {
+        // this is vulnerable to the race conditions
+        setData(r);
+      });
+  }, [url]);
+  ```
+
+- 我们可以通过以下方式修复它：
+
+  - 强制重新挂载不需要的“旧”数据组件。
+  - 将返回的结果与触发 promise 的变量进行比较，如果不匹配则不设置状态。
+  - 通过 useEffect 中的清理函数跟踪最新的 promise，并丢弃所有“旧” promise 的结果。
+  - 使用 AbortController 取消所有先前的请求。

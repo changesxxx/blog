@@ -1,0 +1,866 @@
+---
+title: "深入探讨差异和协调"
+description: "在之前的章节中，我们介绍了 React 的协调和差异算法的基础知识。我们现在知道，当我们创建 React 元素时，例如 const a = <Child />，实际上是在创建对象。类似 HTML 的语法（JSX）只是语法糖，它被转换为 React.createElement 函数。该函数返回一个描述对象，其中的 type 属性指向组件、记忆化组件或带有 HTML 标签的字符串。
+
+此外，我们知道，如果该对象本身在重新渲染之间的引用发生变化，那么如果其类型保持不变，并且类型中的组件没有使用 React.memo 进行记忆化，则 React 将重新渲染该元素。
+
+但这仅仅是开始。这里有更多的变量和动态元素，详细理解这个过程非常重要。这将使我们能够修复一些非常不明显的错误，实现最具性能的列表，在需要时重置状态，并避免 React 中最大的性能杀手之一。所有这些似乎在初看时没有关联，但它们都是同一个故事的一部分：React 如何判断哪些组件需要重新渲染，哪些组件需要被移除，以及哪些组件需要被添加到屏幕上。"
+
+name: "diffing-reconciliation"
+---
+
+在本章中，我们将探讨一些非常有趣的错误，深入了解底层的工作原理，并在此过程中学习：
+
+- React 的差异和协调算法是如何工作的。
+
+- 当状态更新被触发并且 React 需要重新渲染组件时会发生什么。
+
+- 为什么我们不应该在其他组件内部创建组件。
+
+- 如何解决两个不同组件共享相同状态的问题。
+
+- react 如何渲染数组以及我们如何影响这一点。
+
+- “key”属性的目的是什么。
+
+- 如何编写尽可能高效的列表。
+
+- 为什么我们会在动态列表之外使用“key”属性。
+
+---
+
+### 神秘的错误
+
+让我们从一个小谜团开始，以保持趣味。
+
+想象一下，你有一个条件渲染的组件。如果“某个东西”是真的，就显示这个组件。否则，显示其他内容。例如，我正在为我的网站开发一个“注册”表单，这个表单的一部分是注册的人是否是公司，还是普通人，为了一些疯狂的税务目的。因此，我希望仅在用户点击“是的，我是作为公司注册”的复选框后，才显示“公司税号”输入字段。而对于个人，显示一段文本“你不需要给我们你的税号，幸运的人类。”
+
+此应用程序的代码将如下所示：
+
+```jsx
+const Form = () => {
+ const [isCompany, setIsCompany] = useState(false);
+ return (
+ <>
+ {/* checkbox somewhere here */}
+ {isCompany ? (
+ <Input id="company-tax-id-number" placeholder="Enter you
+company ID" ... />) : (
+ <TextPlaceholder />
+ )}
+ </>
+ )
+}
+```
+
+如果用户声称他们是公司，并且值 isCompany 从默认的 false 变为 true，从重新渲染和挂载的角度来看，会发生什么？
+
+没有惊喜，答案非常直观：Form 组件将重新渲染，TextPlaceholder 组件将被卸载，而 Input 组件将被挂载。如果我将复选框反转，Input 也将再次被卸载，而 TextPlaceholder 将被挂载。
+
+从行为的角度来看，这一切意味着如果我在 Input 中输入了一些内容，翻转复选框，然后再翻转回来，之前输入的内容将会丢失。Input 有自己的内部状态来保存文本，当它卸载时，这个状态将被销毁，重新挂载时会从头开始重新创建。
+
+但是如果我确实需要从人们那里收集税号，并且该字段的外观和行为完全相同，但有不同的 id、不同的 onChange 回调和其他不同的设置，自然我会这样做：
+
+```jsx
+const Form = () => {
+ const [isCompany, setIsCompany] = useState(false);
+ return (
+ <>
+ {/* checkbox somewhere here */}
+ {isCompany ? (
+ <Input id="company-tax-id-number" placeholder="Enter you
+company Tax ID" ... />) : (
+ <Input id="person-tax-id-number" placeholder="Enter you
+personal Tax ID" ... />
+ )}
+ </>
+ )
+}
+
+```
+
+那么现在会发生什么？
+
+答案同样非常直观，正如任何理智的人所期望的那样…… 卸载不再发生！如果我在字段中输入一些内容，然后翻转复选框，文本仍然存在！React 认为这两个输入实际上是同一个东西，而不是卸载第一个并挂载第二个，它只是用第二个的新数据重新渲染第一个。
+
+互动示例和完整代码 https://advanced-react.com/examples/06/01
+
+如果你对此毫不惊讶，并能毫不犹豫地说：“啊，是因为[某个原因]”，那么哇，我能要你的签名吗？
+
+对于我们这些因这种行为而感到眼睛抽搐和轻微头痛的人，是时候深入了解 React 的协调过程以获得答案。
+
+差异和协调
+
+这一切都与 DOM 有关。或者更准确地说，是因为在编写 React 代码时我们不需要直接处理它。这对我们来说非常方便：我们不需要手动执行 appendChild 或比较属性，而只需编写组件。然后 React 将我们提供的内容转换为屏幕上的 DOM 元素，带有适当的数据。当我们写出这样的代码时：
+
+```jsx
+const Input = ({ placeholder }) => {
+  return <input type="text" id="input-id" placeholder={placeholder} />;
+};
+// somewhere else
+<Input placeholder="Input something here" />;
+```
+
+我们期望 React 在 DOM 结构中的适当位置添加带有占位符的正常 HTML 输入标签。如果我们在 React 组件中更改占位符值，我们期望 React 用新值更新我们的 DOM 元素，并在屏幕上看到该值。理想情况下，应该是瞬时的。因此，React 不能仅仅移除先前的输入并附加一个新的带有新数据的输入。这将非常缓慢。相反，它需要识别已经存在的输入 DOM 元素并仅更新其属性。如果没有 React，我们必须做类似的事情。
+
+```jsx
+const input = document.getElementById("input-id");
+input.placeholder = "new data";
+```
+
+在 React 中，我们不需要这样做；它为我们处理这一切。它通过创建和修改我们有时称之为“虚拟 DOM”的东西来实现这一点。这个虚拟 DOM 只是一个巨大的对象，包含所有应该渲染的组件、它们的 props 以及它们的子组件——这些子组件也是相同形状的对象。只不过是一个树结构。上述示例中的 Input 组件渲染的内容将表示为类似这样的结构：
+
+```jsx
+{
+ type: "input", // type of element that we need to render
+ props: {...}, // input's props like id or placeholder
+ ... // bunch of other internal stuff
+}
+
+
+```
+
+如果我们的 Input 组件渲染更多内容：
+
+```jsx
+const Input = () => {
+  return (
+    <>
+      <label htmlFor="input-id">{label}</label>
+      <input type="text" id="input-id" />
+    </>
+  );
+};
+```
+
+那么从 React 的角度来看，label 和 input 将仅仅是这些对象的数组：
+
+```jsx
+[
+ {
+ type: 'label',
+ ... // other stuff
+ },
+ {
+ type: 'input',
+ ... // other stuff
+ }
+]
+
+```
+
+像 input 或 label 这样的 DOM 元素将其“类型”设为字符串，React 会知道将其直接转换为 DOM 元素。但如果我们渲染的是 React 组件，它们与 DOM 元素没有直接关联，因此 React 需要以某种方式处理这一点。
+
+```jsx
+const Component = () => {
+  return <Input />;
+};
+```
+
+在这种情况下，它将组件的函数作为“类型”。它只是抓取我们知道的 Input 组件的整个函数并将其放在这里：
+
+```jsx
+{
+ type: Input, // reference to that Input function we declared
+earlier
+ ... // other stuff
+}
+```
+
+然后，当 React 收到挂载应用程序（初始渲染）的命令时，它会遍历该树并执行以下操作：
+
+如果“类型”是字符串，它将生成该类型的 HTML 元素。
+
+如果“类型”是函数（即我们的组件），它将调用该函数并遍历该函数返回的树。
+
+直到最终得到一整棵准备显示的 DOM 节点树。像这样的一个组件
+
+```jsx
+const Component = () => {
+  return (
+    <div>
+      <Input placeholder="Text1" id="1" />
+      <Input placeholder="Text2" id="2" />
+    </div>
+  );
+};
+```
+
+将表示为：
+
+```jsx
+{
+ type: 'div',
+ props: {
+ // children are props!
+ children: [
+ {
+ type: Input,
+ props: { id: "1", placeholder: "Text1" }
+ },
+ {
+ type: Input,
+ props: { id: "2", placeholder: "Text2" }
+ }
+ ]
+ }
+}
+```
+
+在挂载时将解析为如下 HTML：
+
+```jsx
+<div>
+  <input placeholder="Text1" id="1" />
+  <input placeholder="Text2" id="2" />
+</div>
+```
+
+最后，当一切准备就绪时，React 将这些 DOM 元素附加到实际文档中，使用 JavaScript 的 appendChild 命令。
+
+协调和状态更新
+
+在此之后，乐趣开始了。假设树中的某个组件有状态，并且触发了更新（重新渲染被触发）。React 需要用来自状态更新的新数据更新屏幕上的所有元素，或者可能添加或移除一些新元素。
+
+因此，它再次开始通过该树进行遍历，从状态更新被触发的地方开始。如果我们有这样的代码：
+
+```jsx
+const Component = () => {
+  // return just one element
+  return <Input />;
+};
+```
+
+React 将理解该组件在渲染时返回这个对象：
+
+```jsx
+{
+ type: Input,
+ ... // other internal stuff
+}
+
+```
+
+它将比较状态更新前后该对象的“类型”字段。如果类型相同，则 Input 组件将被标记为“需要更新”，并触发其重新渲染。如果类型发生变化，则 React 在重新渲染周期中将移除（卸载）“先前”的组件并添加（挂载）“下一个”组件。在我们的例子中，类型将相同，因为它只是对一个函数的引用，而该引用没有变化。
+
+如果我对那个 Input 做一些条件处理，比如返回另一个组件：
+
+```jsx
+const Component = () => {
+  if (isCompany) return <Input />;
+  return <TextPlaceholder />;
+};
+```
+
+那么，假设更新是由于 isCompany 值从 true 翻转到 false 触发的，React 将比较的对象将是：
+
+```jsx
+// Before update, isCompany was "true"
+{
+ type: Input,
+ ...
+}
+// After update, isCompany is "false"
+{
+ type: TextPlaceholder,
+ ...
+}
+```
+
+你猜到了结果，对吧？“类型”从 Input 变为 TextPlaceholder 的引用，因此 React 将卸载 Input，并从 DOM 中移除与其相关的所有内容。它将挂载新的 TextPlaceholder 组件，并第一次将其附加到 DOM。与 Input 字段相关的所有内容，包括其状态和你在其中输入的所有内容，都将被销毁。
+
+为什么我们不能在其他组件内部定义组件
+
+现在这一行为清晰了，我们可以回答一个非常重要的问题：为什么我们不应该在其他组件内部创建组件？为什么这样的代码通常被视为反模式？
+
+```jsx
+const Component = () => {
+  const Input = () => <input />;
+  return <Input />;
+};
+```
+
+从协调和定义对象的角度来看，我们的组件返回的就是这样一个对象：
+
+```jsx
+{
+ type: Input,
+}
+
+```
+
+它只是一个具有指向函数的“类型”属性的对象。然而，这个函数是在组件内部创建的。它是局部的，并且会在每次重新渲染时被重新创建。因此，当 React 尝试比较这些类型时，它将比较两个不同的函数：一个是在重新渲染之前，另一个是在重新渲染之后。正如我们在第五章中讨论的，使用 useMemo、useCallback 和 React.memo 进行记忆化时，我们不能以这种方式比较 JavaScript 中的函数。
+
+```jsx
+const a = () => {};
+const b = () => {};
+a === b; // will always be false
+```
+
+结果是，那个子组件的“类型”在每次重新渲染时都会不同，因此 React 将移除“之前”的组件并挂载“下一个”组件。
+
+如果组件足够复杂，我们甚至会在屏幕上看到“闪烁”效果：它会短暂消失，然后重新出现。这通常被称为重新挂载。通常这并非故意，且对性能极其不利——重新挂载至少需要比正常重新渲染多两倍的时间。此外，由于“之前”的组件及其所有相关内容被销毁，我们将看到相当奇怪且难以追踪的错误。例如，如果该组件应该保持状态或焦点，这些状态将在每次重新渲染时消失。
+
+互动示例和完整代码 https://advanced-react.com/examples/06/02
+
+在上面的示例代码中，你可以看到它如何表现：输入组件在每次击键时触发重新渲染，而“ComponentWithState”被重新挂载。因此，如果你点击该组件以将其状态更改为“活动”，然后开始输入，该状态将消失。
+
+在其他组件内部声明组件可能是 React 中最大的性能杀手之一。
+
+神秘代码的答案
+
+现在让我们回到开头的神秘代码并解决这个错误：
+
+```jsx
+const Form = () => {
+ const [isCompany, setIsCompany] = useState(false);
+ return (
+ <>
+ {/*checkbox somewhere here*/}
+ {isCompany ? (
+ <Input id="company-tax-id-number" placeholder="Enter you
+company Tax ID" ... />
+ ) : (
+ <Input id="person-tax-id-number" placeholder="Enter you
+personal Tax ID" ... />
+ )}
+ </>
+ )
+}
+```
+
+如果 isCompany 变量从 true 变为 false，那么将比较哪些对象？
+
+之前，isCompany 为 true：
+
+```jsx
+{
+ type: Input,
+ ... // the rest of the stuff, including props like id="companytax-id-number"
+}
+```
+
+之后，isCompany 为 false：
+
+```jsx
+{
+ type: Input,
+ ... // the rest of the stuff, including props like id="persontax-id-number"
+}
+
+```
+
+从 React 的角度来看，“类型”没有变化。两者都引用完全相同的函数：Input 组件。React 认为唯一改变的是 props：id 从“company-tax-id-number”变为“person-tax-id-number”，占位符也改变，等等。
+
+因此，在这种情况下，React 做了它被教导的事情：它简单地取现有的 Input 组件并用新数据更新它。也就是说，重新渲染它。与现有 Input 相关的所有内容，如其 DOM 元素或状态，仍然存在。没有任何东西被销毁。这导致了我们看到的行为：我在输入框中输入一些文字，翻转复选框，文本仍然存在。
+
+这种行为不一定是坏的。我可以想象一种情况，其中重新渲染而不是重新挂载正是我想要的。但在这种情况下，我可能希望修复它，并确保每次我在它们之间切换时输入框被重置和重新挂载：从业务逻辑的角度来看，它们是不同的实体，因此我不想重用它们。
+
+有至少两种简单方法可以修复它：数组和键。
+
+协调和数组
+
+到现在为止，我只提到了数据树中数组的事实。但几乎不可能有人编写一个 React 应用，其中每个组件仅返回一个元素。我们现在需要更详细地讨论元素的数组及其在重新渲染中的行为。
+
+即使我们的简单表单实际上也有一个数组：
+
+```jsx
+const Form = () => {
+ const [isCompany, setIsCompany] = useState(false);
+ return (
+ <>
+ {/*checkbox somewhere here*/}
+ {isCompany ? (
+ <Input id="company-tax-id-number" ... />
+ ) : (
+ <Input id="person-tax-id-number" ... />
+ )}
+ </>
+ )
+}
+
+```
+
+它返回一个片段（<>...</>），其中包含一个子元素数组：其中有一个复选框。实际代码更像这样：
+
+```jsx
+const Form = () => {
+ const [isCompany, setIsCompany] = useState(false);
+     return (
+ <>
+ <Checkbox onChange={() => setIsCompany(!isCompany)} />
+ {isCompany ? (
+ <Input id="company-tax-id-number" ... />
+ ) : (
+ <Input id="person-tax-id-number" ... />
+ )}
+ </>
+ )
+}
+
+```
+
+在重新渲染时，当 React 看到一个子元素数组而不是单个项时，它会遍历它，然后根据数组中元素的位置比较“之前”和“之后”的元素及其“类型”。基本上，如果我翻转复选框并触发表单重新渲染，React 会看到这个元素数组：
+
+```jsx
+[
+  {
+    type: Checkbox,
+  },
+  {
+    type: Input, // our conditional input
+  },
+];
+```
+
+并会逐个检查它们。第一个元素。“类型”之前：Checkbox，“类型”之后：同样是 Checkbox。复用并重新渲染。第二个元素。同样的过程。依此类推。
+
+即使其中一些元素像这样有条件地渲染：
+
+```jsx
+isCompany ? <Input /> : null;
+```
+
+React 仍然会在该数组中保持稳定的项数。只是在某些时候，这些项将是 null。如果我将表单重写成这样：
+
+```jsx
+const Form = () => {
+ const [isCompany, setIsCompany] = useState(false);
+ return (
+ <>
+ <Checkbox onChange={() => setIsCompany(!isCompany)} />
+ {isCompany ? <Input id="company-tax-id-number" ... /> : null}
+ {!isCompany ? <Input id="person-tax-id-number" ... /> : null}
+ </>
+ )
+}
+```
+
+它将始终是一个包含三个项的数组：Checkbox、Input 或 null，以及 Input 或 null。
+
+那么，当状态改变并且重新渲染在整个表单中运行时，会发生什么？
+
+之前，isCompany 为 false：
+
+```jsx
+[{ type: Checkbox }, null, { type: Input }];
+```
+
+之后，isCompany 为 true：
+
+```jsx
+[{ type: Checkbox }, { type: Input }, null];
+```
+
+当 React 开始逐项比较它们时，将是：
+
+第一个项，Checkbox 之前和之后 → 重新渲染 Checkbox
+
+第二个项，null 之前和 Input 之后 → 挂载 Input
+
+第三个项，Input 之前，null 之后 → 卸载 Input
+
+瞧！神奇地，通过在渲染输出中更改输入框的位置，而不更改逻辑中的任何其他内容，错误得以修复，输入框的行为正如我所期望的那样！
+
+互动示例和完整代码 https://advanced-react.com/examples/06/03
+
+协调和“key”
+
+还有另一种修复相同错误的方法：借助“key”属性。
+
+“key”对于任何写过 React 列表的人来说都应该很熟悉。当我们迭代数组数据时，React 强制我们添加它：
+
+```jsx
+const data = ["1", "2"];
+const Component = () => {
+  // "key" is mandatory here!
+  return data.map((value) => <Input key={value} />);
+};
+```
+
+该组件的输出现在应该清晰：仅一个包含“类型”Input 的对象数组：
+
+```jsx
+[
+  { type: Input }, // "1" data item
+  { type: Input }, // "2" data item
+];
+```
+
+但动态列表的问题在于它们是动态的。我们可以重新排序它们，在开头或结尾添加新项，并通常对其进行操作。
+
+现在，React 面临一个有趣的任务：该数组中的所有组件都是相同类型的。如何识别每个组件？如果这些项的顺序发生变化：
+
+```jsx
+[
+ { type: Input }, // "2" data item now, but React doesn't know
+that
+ { type: Input }, // "1" data item now, but React doesn't know
+that
+];
+```
+
+如何确保正确的现有元素被重用？因为如果它仅依赖于数组中元素的顺序，它将会将第一个元素的实例用于第二个元素的数据，反之亦然。如果这些项具有状态，这将导致奇怪的行为：它将保持在第一个项上。如果你在第一个输入框中输入了一些内容并重新排序数组，输入的文本将保留在第一个输入框中。
+
+![image-20240913173910126](/assets/images/books/advanced-react/key.png)
+
+这就是我们需要“key”的原因：它基本上是 React 在子元素数组中用于在重新渲染之间的唯一标识符。如果一个元素在与“类型”同时具有“key”，那么在重新渲染期间，React 将重用现有元素，连同它们所有的状态和 DOM，只要“key”和“类型”在“之前”和“之后”匹配。与其在数组中的位置无关。
+
+在这个数组中，数据看起来是这样的。重新排序之前：
+
+```jsx
+[
+  { type: Input, key: "1" }, // "1" data item
+  { type: Input, key: "2" }, // "2" data item
+];
+```
+
+重新排序之后：
+
+现在，随着 key 的存在，React 将知道在重新渲染后需要重用曾经位于第一位置的已创建元素。因此，它只会交换输入 DOM 节点。我们在第一个元素中输入的文本将随其一起移动到第二个位置。
+
+![image-20240913174146459](/assets/images/books/advanced-react/key1.png)
+
+互动示例和完整代码 https://advanced-react.com/examples/06/04
+
+“key”属性和记忆化列表
+
+关于“key”属性和列表的一个常见误解是，key 是出于性能原因而需要的。添加 key 到动态数组可以防止数组项重新渲染。如上所述，这并不是 key 的工作方式。key 帮助 React 确定在重新渲染这些项时应该重用哪个已有实例。重新渲染仍然会发生，就像在另一个组件中渲染的任何组件一样。
+
+如果我们想防止项的重新渲染，我们需要使用 React.memo。对于静态数组（那些元素或位置不变的数组），这非常简单：只需将项元素包裹在 React.memo 中，并在 key 中使用某种 id 属性或数组的索引。任何在重新渲染之间保持稳定的东西都可以。
+
+```js
+const data = [
+  { id: "business", placeholder: "Business Tax" },
+  { id: "person", placeholder: "Person Tax" },
+];
+const InputMemo = React.memo(Input);
+const Component = () => {
+  // array's index is fine here, the array is static
+  return data.map((value, index) => (
+    <InputMemo key={index} placeholder={value.placeholder} />
+  ));
+};
+```
+
+如果触发父组件的重新渲染，则 InputMemo 组件不会重新渲染：它们被包裹在 React.memo 中，任何项的 key 没有改变。
+
+对于动态数组，情况就有趣了，这时 key 扮演了关键角色。如果触发重新渲染的是该数组的重新排序，会发生什么？
+
+```jsx
+// array before re-render
+[
+ { id: 'business', placeholder: 'Business Tax' },
+ { id: 'person', placeholder: 'Person Tax' },
+]
+// array after re-render
+[
+ { id: 'person', placeholder: 'Person Tax' },
+ { id: 'business', placeholder: 'Business Tax' },
+]
+```
+
+如果我们再次使用数组的索引作为 key，那么从 React 的角度来看，key="0" 的项在重新渲染之前和之后将是数组中的第一个项。但 prop placeholder 将会改变：它将从“Business Tax”过渡到“Person Tax”。因此，即使这个项是记忆化的，从 React 的角度来看，其 prop 发生了变化，所以它会重新渲染，就像记忆化不存在一样！
+
+![image-20240913175330824](/assets/images/books/advanced-react/key2.png)
+
+解决这个问题的方法很简单：我们需要确保 key 匹配它标识的项。在我们的例子中，我们可以将 id 放在那里。如果数据没有唯一的东西，比如 id，那么我们需要在重新渲染的组件外部遍历该数组，并手动添加 id。
+
+```jsx
+const Parent = () => {
+ // if array can be sorted, or number of its items can change,
+then "index" as "key" is not a good idea
+ // we need to use something that identifies an array item instead
+ return sortedData.map((value, index) => (
+ <InputMemo
+ key={value.id}
+ placeholder={value.placeholder}
+ />
+ ));
+};
+
+```
+
+在我们的输入情况下，如果我们将 id 用作 key，那么 key="business" 的项仍将拥有 prop placeholder="BusinessTax"，只是位置在数组中不同。因此，React 将仅交换相关的 DOM 节点，但实际组件不会重新渲染。
+
+![image-20240913175457971](/assets/images/books/advanced-react/key3.png)
+
+同样的故事也发生在我们在数组开头添加另一个输入的情况下。如果我们使用数组的索引作为 key，那么从 React 的角度来看，key="0" 的项将仅将其 placeholder prop 从“Business Tax”更改为“New tax”；key="1" 的项将从“Person Tax”过渡到“Business Tax”。因此，它们都会重新渲染。而 key="2" 的新项和文本“Person Tax”将从头开始挂载。
+
+![image-20240913175516106](/assets/images/books/advanced-react/key4.png)
+
+如果我们改为使用 id 作为 key，那么“Business Tax”和“Person Tax”将保持其 keys，并且由于它们是记忆化的，它们将不会重新渲染。而新的项，key 为“New tax”，将从头开始挂载。
+
+![image-20240913175516106](/assets/images/books/advanced-react/key5.png)
+
+互动示例和完整代码 https://advanced-react.com/examples/06/05
+
+状态重置技术
+
+那么，所有这些关于 key 的逻辑为什么对我们的 Form 组件及其最开始的错误很重要呢？有趣的是：“key”只是一个元素的属性，并不局限于动态数组。在任何子元素数组中，它的行为都是完全相同的。正如我们已经发现的，我们的 Form 的对象定义中存在错误：
+
+```jsx
+const Form = () => {
+ const [isCompany, setIsCompany] = useState(false);
+     return (
+ <>
+ <Checkbox onChange={() => setIsCompany(!isCompany)} />
+ {isCompany ? (
+ <Input id="company-tax-id-number" ... />
+ ) : (
+ <Input id="person-tax-id-number" ... />
+ )}
+ </>
+ )
+}
+
+```
+
+它有一个子元素数组：
+
+```jsx
+[
+  { type: Checkbox },
+  { type: Input }, // react thinks it's the same input between rerenders
+];
+```
+
+我们需要做的就是让 React 认识到这些 Input 组件在重新渲染之间实际上是不同的组件，且不应该被重用。如果我们给这些输入添加一个“key”，我们就能实现这一点。
+
+```jsx
+{isCompany ? (
+ <Input id="company-tax-id-number" key="company-tax-id-number" ...
+/>
+) : (
+ <Input id="person-tax-id-number" key="person-tax-id-number" ...
+/>
+)}
+
+```
+
+现在，重新渲染之前和之后的子元素数组将会改变。
+
+之前，isCompany 为 false：
+
+```jsx
+[
+  { type: Checkbox },
+  {
+    type: Input,
+    key: "person-tax-id-number",
+  },
+];
+```
+
+之后，isCompany 为 true：
+
+```jsx
+[
+  { type: Checkbox },
+  {
+    type: Input,
+    key: "company-tax-id-number",
+  },
+];
+```
+
+瞧，keys 不同了！React 将丢弃第一个 Input，并从头开始挂载第二个。状态在我们在输入之间切换时现在重置为空。
+
+互动示例和完整代码 https://advanced-react.com/examples/06/06
+
+这个技术被称为“状态重置”。它与状态本身没有关系，但有时在需要将无控制组件（如输入字段）的状态重置为默认值时使用。你甚至不需要像上面那样有两个组件。一个就够了。任何根据你的条件变化的唯一值都可以作为 key 使用。如果你想在 URL 变化时强制状态重置，例如，这可以简单得多：
+
+```jsx
+const Component = () => {
+  // grab the current url from our router solution
+  const { url } = useRouter();
+  // I want to reset that input field when the page URL changes
+  return <Input id="some-id" key={url} />;
+};
+```
+
+但在这里要小心。这不仅仅是“状态重置”，正如你所看到的。它强制 React 完全卸载一个组件并从头开始挂载一个新组件。对于较大的组件，这可能导致性能问题。状态重置只是这种完全销毁的副产品。
+
+使用“key”强制重用现有元素
+
+另一个有趣的事实是，如果我们确实需要重用现有元素，key 也可以帮助实现。记住这段代码，我们通过在子元素数组中以不同位置渲染 Input 元素来修复错误吗？
+
+```jsx
+const Form = () => {
+ const [isCompany, setIsCompany] = useState(false);
+ return (
+ <>
+ <Checkbox onChange={() => setIsCompany(!isCompany)} />
+ {isCompany ? <Input id="company-tax-id-number" ... /> : null}
+ {!isCompany ? <Input id="person-tax-id-number" ... /> : null}
+ </>
+ )
+}
+```
+
+当 isCompany 状态变量变化时，Input 组件将卸载并挂载，因为它们在数组中的位置不同。但！如果我给这两个输入添加相同值的“key”属性，魔法就发生了。
+
+```jsx
+<>
+ <Checkbox onChange={() => setIsCompany(!isCompany)} />
+ {isCompany ? <Input id="company-tax-id-number" key="tax-input"
+... /> : null}
+ {!isCompany ? <Input id="person-tax-id-number" key="tax-input"
+... /> : null}
+</>
+```
+
+从数据和重新渲染的角度来看，现在将是这样。
+
+之前，isCompany 为 false：
+
+```jsx
+[
+  { type: Checkbox },
+  null,
+  {
+    type: Input,
+    key: "tax-input",
+  },
+];
+```
+
+之后，isCompany 为 true：
+
+```jsx
+[
+ { type: Checkbox },
+ { type: Input, key: "tax-input" }
+ null
+]
+```
+
+React 看到一个子元素数组，并看到在重新渲染之前和之后，有一个 Input 类型的元素和相同的“key”。因此，它将认为 Input 组件只是更改了数组中的位置，并将重用已有的实例。如果我们输入一些内容，状态将被保留，即使这些 Input 在技术上是不同的。
+
+互动示例和完整代码https://advanced-react.com/examples/06/07
+
+对于这个特定的例子，这当然只是一个有趣的行为，而在实践中并不十分有用。但我可以想象它被用于微调组件性能，如手风琴、标签内容或某些画廊。
+
+为什么在数组之外不需要 keys？
+
+现在既然谜团已经解开，算法也或多或少清楚了，让我们在协调中再玩得开心一点。那里还有一些小问题和谜团。例如，你有没有注意到 React 从未强制你在任何内容上添加 keys，除非你在迭代数组时？
+
+```jsx
+const data = ["1", "2"];
+const Component = () => {
+  // "key" is mandatory here!
+  return (
+    <>
+      {data.map((value) => (
+        <Input key={value} />
+      ))}
+    </>
+  );
+};
+```
+
+和这个：
+
+```jsx
+const Component = () => {
+  // no-one cares about "key" here
+  return (
+    <>
+      <Input />
+      <Input />
+    </>
+  );
+};
+```
+
+将会完全相同，只是一个包含两个输入的子元素数组的片段：
+
+```jsx
+[{ type: Input }, { type: Input }];
+```
+
+那么，为什么在一种情况下我们需要“key”来让 React 正常工作，而在另一种情况下则不需要呢？
+区别在于第一个例子是一个动态数组。React 不知道你在下次重新渲染时会对这个数组做什么：移除、添加、重新排列项，或者可能保持不变。因此，它强制你添加“key”作为预防措施，以防你在动态更改数组。
+
+你可能会问，这有什么有趣的地方？有趣的地方在于：尝试以相同的“key”条件性地渲染那些不在数组中的输入：
+
+```jsx
+const Component = () => {
+  const [isReverse, setIsReverse] = useState(false);
+  // no-one cares about "key" here
+  return (
+    <>
+      <Input key={isReverse ? "some-key" : null} />
+      <Input key={!isReverse ? "some-key" : null} />
+    </>
+  );
+};
+```
+
+尝试预测如果我在这些输入中输入一些内容并切换布尔值开关，会发生什么。
+
+互动示例和完整代码 https://advanced-react.com/examples/06/08
+
+动态数组和普通元素一起
+
+如果你仔细阅读了整章，可能会有一些小心脏病发作。我在调查这一切时确实有过这样的感觉。因为……
+
+如果动态项被转换为一个与普通元素没有区别的子元素数组，并且我将普通项放在动态数组之后，添加或移除该数组中的项，这是否意味着数组之后的项将始终重新挂载？基本上，这段代码是一个性能灾难吗？
+
+```jsx
+const data = ["1", "2"];
+const Component = () => {
+  return (
+    <>
+      {data.map((i) => (
+        <Input key={i} id={i} />
+      ))}
+      {/* will this input re-mount if I add a new item in the
+array above? */}
+      <Input id="3" />
+    </>
+  );
+};
+```
+
+因为如果这被转换为一个包含三个子元素的数组——前两个是动态的，最后一个是静态的——那么它将是。如果是这样，那么定义对象将是这样的：
+
+```jsx
+[
+  { type: Input, key: 1 }, // input from the array
+  { type: Input, key: 2 }, // input from the array
+  { type: Input }, // input after the array
+];
+```
+
+如果我在数据数组中添加另一个项，第三个位置将是来自数组的 key="3" 的 Input 元素，而“手动”输入将移动到第四个位置，这将意味着从 React 的角度来看，这是一个需要挂载的新项。
+
+幸运的是，这并不是情况。呼…… React 比这更聪明。当我们混合动态和静态元素时，如上面的代码，React 只是创建那些动态元素的数组，并使整个数组成为子元素数组中的第一个子元素。这将是该代码的定义对象：
+
+```jsx
+[
+ // the entire dynamic array is the first position in the
+children's array
+     [
+ { type: Input, key: 1 },
+ { type: Input, key: 2 },
+ ],
+ {
+ type: Input, // this is our manual Input after the array
+ },
+];
+
+```
+
+我们的手动 Input 将始终在这里的第二个位置。不会有重新挂载。没有性能灾难。心脏病发作是多余的。
+
+重要要点
+
+哇，这一章真长！希望你在调查和解谜中玩得开心，并在此过程中学到了一些有趣的东西。从这一切中记住几件事：
+
+React 会在任何层次结构的返回数组中的相同位置之间比较元素的重新渲染。第一个与第一个，第二个与第二个，依此类推。
+如果元素的类型和在数组中的位置相同，React 将重新渲染该元素。如果该位置的类型发生变化，则 React 将卸载之前的组件并挂载新的组件。
+子元素的数组总是会有相同数量的子元素（如果它不是动态的）。条件元素`（isSomething ? <A /> : <B />）`将在同一个位置占据一个位置，即使其中一个是 null。
+如果数组是动态的，则 React 无法可靠地在重新渲染之间识别这些元素。因此，我们使用 key 属性来帮助它。这在数组可能在重新渲染之间改变其项的数量或位置（重新排序、添加、移除）时尤其重要，特别是如果这些元素被包裹在 React.memo 中。
+我们也可以在动态数组之外使用 key，以强制 React 将数组中相同位置且相同类型的元素识别为不同的，或者将不同位置但相同类型的元素识别为相同。
+我们还可以通过改变在重新渲染之间基于某些信息（如路由）而变化的 key，强制卸载一个组件。这有时被称为“状态重置”。

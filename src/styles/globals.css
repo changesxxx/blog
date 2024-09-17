@@ -53,6 +53,13 @@
     --code-error-text: rgb(127 29 29 / var(--code-error-opacity));
     --code-error-bg: rgb(254 226 226 / var(--code-error-opacity));
 
+
+    --code-warning-opacity: 1;
+    --code-warning-text: rgb(154 52 18 / var(--code-warning-opacity));
+    --code-warning-bg: rgb(255 237 213 / var(--code-warning-opacity));
+
+
+
     --code-highlighted: hsl(0, 0%, 25%);
 
   
@@ -109,6 +116,11 @@ hsl(205, 88%, 40%) */
 
     --code-error-text: rgb(254 202 202 / var(--code-error-opacity));
     --code-error-bg: rgb(127 29 29 / var(--code-error-opacity));
+
+     --code-warning-text: rgb(253 186 116 / var(--code-warning-opacity));
+    --code-warning-bg: rgba(251, 146, 60, 0.2);
+
+
     --code-highlighted: hsl(0, 0%, 43%);
 
     --vp-c-green-soft: rgba(16, 185, 129, .14);
@@ -143,6 +155,11 @@ hsl(205, 88%, 40%) */
 .code-error {
   color: var(--code-error-text);
   background: var(--code-error-bg);
+}
+
+.code-warning {
+  color: var(--code-warning-text);
+  background: var(--code-warning-bg);
 }
 
 @layer base {

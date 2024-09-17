@@ -1,0 +1,387 @@
+---
+title: "重新渲染简介"
+description: " 在上一章中，我们探讨了状态变化如何触发我们应用中的下游重新渲染，以及如何使用“向下移动状态”模式来处理这些问题。然而，那里给出的例子相对简单，状态也相对孤立。因此，将其移动到组件中是容易的。当情况变得更复杂时，我们有哪些选择呢？"
+
+name: "elements-children-props-re-renders"
+---
+
+是时候继续探索重新渲染的工作原理，进行另一次性能调查，深入细节。在本章中，你将学习：
+
+- 如何将组件作为 props 传递可以改善我们应用的性能。
+- React 如何触发重新渲染的具体机制。
+- 为什么作为 props 的组件不会受到重新渲染的影响。
+- 什么是元素，它与组件有何不同，以及了解这种区别的重要性。
+- React 协调和差异比较的基础知识。
+- 什么是“子组件作为 props”模式，以及它如何防止重新渲染。
+
+---
+
+### 问题
+
+想象一下，你继承了一个大型、复杂且对性能要求极高的应用程序。这个应用程序有一个可滚动的内容区域。
+
+可能有一些花哨的布局，包括一个粘性头部、一个可折叠的侧边栏，以及中间的其他功能。
+
+该可滚动区域的代码看起来像这样：
+
+```jsx
+const App = () => {
+  return (
+    <div className="scrollable-block">
+      <VerySlowComponent />
+      <BunchOfStuff />
+      <OtherStuffAlsoComplicated />
+    </div>
+  );
+};
+```
+
+仅仅是一个带有类名的 div，下面使用 CSS 的 overflow: auto。而且，在这个 div 内部有许多非常慢的组件。在你上班的第一天，你被要求实现一个非常创意的功能：当用户向下滚动一段时间时，一个块会出现在区域的底部，并随着用户继续向下滚动而慢慢移动到顶部。如果用户向上滚动，它则会慢慢向下移动并消失。类似于一个包含一些有用链接的次级导航块。当然，滚动和与之相关的所有内容应该是平滑且无延迟的。
+
+实现这些需求的最简单方法是将 onScroll 处理程序附加到可滚动的 div，捕获滚动的值，并根据该值计算浮动 div 的位置：
+
+```jsx
+const MainScrollableArea = () => {
+  const [position, setPosition] = useState(300);
+  const onScroll = (e) => {
+    // 根据滚动值计算位置
+    const calculated = getPosition(e.target.scrollTop);
+    // 将其保存到状态
+    setPosition(calculated);
+  };
+  return (
+    <div className="scrollable-block" onScroll={onScroll}>
+      {/* 将 Position 值传递给新的 Movable Component */}
+      <MovingBlock position={position} />
+      <VerySlowComponent />
+      <BunchOfStuff />
+      <OtherStuffAlsoComplicated />
+    </div>
+  );
+};
+```
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/02/01)
+</Callout>
+
+然而，从性能和重新渲染的角度来看，这远非最佳选择。每次滚动都会触发状态更新，而我们已经知道，状态更新会触发 App 组件及其内部所有嵌套组件的重新渲染。因此，那些非常慢的组件将重新渲染，滚动体验将变得缓慢且滞后。
+
+与我们需要的完全相反。而且，正如你所看到的，我们不能轻易地将状态提取到组件中。因为 setPosition 在 onScroll 函数中使用，而这个函数附加在包裹所有内容的 div 上。
+
+那么，在这种情况下该怎么做呢？记忆化或传递 Ref？不一定！就像之前一样，我们可以将状态及其工作所需的所有内容提取到一个组件中：
+
+```jsx
+const ScrollableWithMovingBlock = () => {
+  const [position, setPosition] = useState(300);
+  const onScroll = (e) => {
+    const calculated = getPosition(e.target.scrollTop);
+    setPosition(calculated);
+  };
+  return (
+    <div className="scrollable-block" onScroll={onScroll}>
+      <MovingBlock position={position} />
+      {/* 慢点的一堆东西 曾经在这里，但现在不是了 */}
+    </div>
+  );
+};
+```
+
+然后将那堆慢的东西作为 props 传递给该组件。就像这样：
+
+```jsx
+const App = () => {
+  const slowComponents = (
+    <>
+      <VerySlowComponent />
+      <BunchOfStuff />
+      <OtherStuffAlsoComplicated />
+    </>
+  );
+  return <ScrollableWithMovingBlock content={slowComponents} />;
+};
+```
+
+只需在 ScrollableWithMovingBlock 组件中创建一个“content”属性，接受 React 元素（稍后会详细介绍）。然后，在 ScrollableWithMovingBlock 中，接受该 props 并放置在应该渲染的位置：
+
+```jsx
+// 将 “content” 属性添加到组件
+const ScrollableWithMovingBlock = ({ content }) => {
+  const [position, setPosition] = useState(0);
+  const onScroll = () => {...} //同上
+
+  return (
+    <div className="scrollable-block" onScroll={onScroll}>
+      <MovingBlock position={position} />
+      {content}
+    </div>
+  );
+};
+```
+
+接下来，关于状态更新和重新渲染的情况。如果触发了状态更新，我们将再次触发组件的重新渲染，照常。然而，在这种情况下，它将是 ScrollableWithMovingBlock 组件——仅仅是一个带有可移动块的 div。其余慢速组件通过 props 传递，它们位于父组件之外。记住吗？React 在重新渲染组件时不会“向上”遍历树。因此，当状态更新时，我们的慢速组件将不会重新渲染，滚动体验将是流畅且无延迟的。
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/02/02)
+</Callout>
+
+等一下，有人可能会想，这听起来不太合理。是的，这些组件在父组件中声明，但它们仍然在状态组件中渲染。那么，为什么它们不重新渲染呢？这是一个非常合理的问题。
+
+要理解这一切，我们需要了解几个关键点：我们在 <mark>React中实际所指的“重新渲染”是什么，元素和组件之间的区别，以及基本的协调和差异算法。</mark >
+
+---
+
+### 元素、组件和重新渲染
+
+首先，组件是什么？这里是最简单的一个：
+
+```jsx
+const Parent = () => {
+  return <Child />;
+};
+```
+
+如你所见，它只是一个函数。一个组件与任何其他函数的不同之处在于，它返回元素，React 然后将这些元素转换为 DOM 元素并发送到浏览器以显示在屏幕上。如果它有 props，那么这些将是该函数的第一个参数：
+
+```jsx
+const Parent = (props) => {
+  return <Child />;
+};
+```
+
+这个函数返回 `<Child />`，这是一个 Child 组件的元素。每次我们使用这些括号来调用一个组件时，我们都会创建一个元素。父组件的元素将是 `<Parent />`。
+
+元素仅仅是一个对象，定义了需要在屏幕上渲染的组件。实际上，漂亮的类 HTML 语法只是 React.createElement 函数的语法糖。
+
+我们甚至可以用这个替换那个元素：React.createElement(Child, null, null)，一切都会按预期工作。
+
+我们 `<Child />`元素的对象定义看起来像这样：
+
+```js
+{
+ type: Child,
+ props: {}, // 如果 Child 有 props
+ ... // 许多其他 React 内部的东西
+}
+
+```
+
+这告诉我们，返回该定义的 Parent 组件希望我们渲染 Child 组件而不带任何 props。Child 组件的返回将有其自己的定义，依此类推，直到我们到达组件链的末端。
+
+元素不仅限于组件；它们可以是普通的 DOM 元素。我们的 Child 可能返回一个 h1 标签，例如：
+
+```jsx
+const Child = () => {
+  return <h1>Some title</h1>;
+};
+```
+
+在这种情况下，定义对象将完全相同并且行为相同，只是类型将是一个字符串：
+
+```js
+{
+ type: "h1",
+ ... // props 和内部 React 的东西
+}
+```
+
+现在谈谈重新渲染。<mark>我们通常所指的“重新渲染”是 React 调用这些函数并执行需要在过程中执行的所有内容（例如 hooks）。从这些函数的返回中，React 构建一个对象树。我们现在称之为 Fiber Tree，或有时称为虚拟 DOM。实际上，它甚至是两棵树：重新渲染前和重新渲染后。通过比较（“差异”）这些，React 将提取出信息以发送到浏览器：哪些 DOM 元素需要更新、删除或添加。这被称为“协调”算法。</mark>
+
+对本章问题重要的部分是：<mark>如果重新渲染前后的对象（元素）完全相同，则 React 会跳过该元素所表示的组件及其嵌套组件的重新渲染。而“完全相同”是指 Object.is(ElementBeforeRerender, ElementAfterRerender) 返回 true。React 不会进行深度比较对象。如果这个比较的结果为 true，那么 React 会保持那个组件的状态不变，继续处理下一个组件。</mark>
+
+&zwj;<mark>如果比较返回 false，这将向 React 发出信号，表明某些内容已更改。它将查看类型。如果类型相同，则 React 会重新渲染该组件。如果类型发生变化，则它会移除“旧”的组件并挂载“新”的组件。</mark>我们将在第六章中更详细地讨论这一点，深入探讨差异和协调。
+
+让我们再次看看 Parent/Child 示例，假设我们的 Parent 有状态：
+
+```jsx
+const Parent = (props) => {
+  const [state, setState] = useState();
+  return <Child />;
+};
+```
+
+当调用 setState 时，React 会知道重新渲染 Parent 组件。因此，它将调用 Parent 函数并比较状态变化前后的返回结果。它返回一个在 Parent 函数中局部定义的对象。因此，在每次函数调用（即重新渲染）时，这个对象将被重新创建，而 "before" 和 "after" 的 `<Child />` 对象的 Object.is 结果将为 false。因此，每次 Parent 重新渲染时，Child 也会重新渲染。这一点我们已经知道，但有证据支持这一点不是很好吗？
+
+现在，想象一下，如果我不是直接渲染 Child 组件，而是将其作为 prop 传递，会发生什么？
+
+```jsx
+const Parent = ({ child }) => {
+  const [state, setState] = useState();
+  return child;
+};
+// 某人在某个地方渲染了 Parent 组件，如下所示
+<Parent child={<Child />} />;
+```
+
+在 Parent 组件被渲染的某个地方，`<Child />` 定义对象被创建并作为 child prop 传递给它。当 Parent 中的状态更新被触发时，React 将比较 Parent 函数在状态变化前后返回的内容。在这种情况下，它将是对 child 的引用：一个在 Parent 函数作用域之外创建的对象，因此在调用时不会改变。因此，child “before” 和 “after” 的比较将返回 true，React 将跳过该组件的重新渲染。
+
+而这正是我们为滚动组件所做的！
+
+```jsx
+const ScrollableWithMovingBlock = ({ content }) => {
+  const [position, setPosition] = useState(300);
+  const onScroll = () => {...} // 同上
+  return (
+    <div className="scrollable-block" onScroll={onScroll}>
+      <MovingBlock position={position} />
+      {content}
+    </div>
+  );
+};
+```
+
+当 ScrollableWithMovingBlock 中的 setPosition 被触发，并且发生重新渲染时，React 将比较函数返回的所有对象定义，将看到 content 对象在前后完全相同，因此将跳过这些内容的重新渲染。在我们的案例中，即一堆非常慢的组件。
+
+然而，`<MovingBlock ... />` 将会重新渲染：它是在 ScrollableWithMovingBlock 内部创建的。该对象将在每次重新渲染时被重新创建，而 “before” 和 “after” 的比较将返回 false。
+
+---
+
+### 作为 props 的 children
+
+虽然这种模式很酷且完全有效，但它有一个小问题：看起来有些奇怪。将整个页面内容传递到某个随机的 props 中，总觉得……不太对劲。因此，让我们改进一下。
+
+首先，让我们谈谈 props 的本质。Props 只是一个对象，我们将其作为第一个参数传递给我们的组件函数。我们从中提取的所有内容都是一个 prop。所有的。在我们的 Parent/Child 代码中，如果我将 child prop 重命名为 children，结果不会改变：它将继续工作。
+
+```jsx
+// 以前
+const Parent = ({ child }) => {
+  return child;
+};
+// 以后
+const Parent = ({ children }) => {
+  return children;
+};
+```
+
+在消费者一侧，同样的情况：没有变化。
+
+```jsx
+// 以前
+<Parent child={<Child />} />
+// 以后
+<Parent children={<Child />} />
+
+```
+
+然而，对于 children props，我们在 JSX 中有一种特殊语法。我们使用 HTML 标签时的那种漂亮的嵌套组合，我们只是从未考虑过并注意到它：
+
+```jsx
+<Parent>
+  <Child />
+</Parent>
+```
+
+这将以与显式传递 children prop 完全相同的方式工作：
+
+```jsx
+<Parent children={<Child />} />
+// 同上
+<Parent>
+ <Child />
+</Parent>
+
+```
+
+它将表示为这个对象：
+
+```js
+{
+ type: Parent,
+ props: {
+ // 元素在这里为 Child
+ children: {
+      type: Child,
+ ...
+ },
+ }
+}
+
+```
+
+它将具有与将元素作为 props 传递相同的性能优势！通过 props 传递的任何内容都不会受到接收这些 props 的组件状态变化的影响。
+
+因此，我们可以将我们的 App 从这个：
+
+```jsx
+const App = () => {
+  const slowComponents = (
+    <>
+      <VerySlowComponent />
+      <BunchOfStuff />
+      <OtherStuffAlsoComplicated />
+    </>
+  );
+  return <ScrollableWithMovingBlock content={slowComponents} />;
+};
+```
+
+重写为更美观且更易于理解的形式：
+
+```jsx
+const App = () => {
+  return (
+    <ScrollableWithMovingBlock>
+      <VerySlowComponent />
+      <BunchOfStuff />
+      <OtherStuffAlsoComplicated />
+    </ScrollableWithMovingBlock>
+  );
+};
+```
+
+在 ScrollableWithMovingBlock 组件中，我们需要做的就是将 content prop 重命名为 children，其他无须改变！之前：
+
+```jsx
+const ScrollableWithMovingBlock = ({ content }) => {
+ //  ..代码的其余部分
+ return (
+ <div ...>
+ ...
+ {content}
+ </div>
+ )
+}
+
+```
+
+之后：
+
+```jsx
+const ScrollableWithMovingBlock = ({ children }) => {
+ // .. 码的其余部分
+ return (
+ <div ...>
+ ...
+ {children}
+ </div>
+ )
+}
+
+```
+
+这样，我们就实现了一个在非常慢的应用中具有高性能的可滚动块，仅使用了一个小的组合技巧。
+
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/02/03)
+</Callout>
+
+---
+
+### 关键要点
+
+希望这有道理，且你现在对“组件作为 props”和“children 作为 props”模式感到自信。在下一章中，我们将探讨组件作为 props 如何在性能之外有用。与此同时，以下是一些需要记住的事项：
+
+- 组件只是一个接受参数（props）并返回在屏幕上渲染的元素的函数。 `const A = () => <B />` 是一个组件。
+- 元素是一个描述需要在屏幕上渲染的对象，其类型可以是 DOM 元素的字符串或组件的引用。 `const b = <B />` 是一个元素。
+- 重新渲染只是 React 调用组件的函数。
+- 当元素对象发生变化时，组件会重新渲染，这取决于它在重新渲染前后的 Object.is 比较结果。
+- 当元素作为 props 传递给组件时，如果该组件通过状态更新触发重新渲染，作为 props 传递的元素不会重新渲染。
+- "children" 只是 props，当通过 JSX 嵌套语法传递时，行为与其他任何 prop 相同。
+
+```jsx
+<Parent>
+ <Child />
+</Parent>
+// 和......一样的:
+<Parent children={<Child />} />
+```
