@@ -11,7 +11,10 @@ name: "closures-in-react"
 - 什么是过时闭包，为什么会发生。
 - React 中导致过时闭包的常见场景，以及如何应对。
 
-**警告**：如果你从未在 React 中处理过闭包，这一章可能会让你的大脑爆炸。确保你手边有足够的巧克力，以刺激脑细胞。
+<Callout icon="⚠️" type="warning">
+  **警告**：如果你从未在 React
+  中处理过闭包，这一章可能会让你的大脑爆炸。确保你手边有足够的巧克力，以刺激脑细胞。
+</Callout>
 
 ---
 
@@ -44,7 +47,7 @@ const HeavyComponentMemo = React.memo(HeavyComponent);
 const Form = () => {
   const [value, setValue] = useState();
   const onClick = () => {
-    // submit our form data here
+    // 在此提交我们的表单数据
     console.log(value);
   };
   return (
@@ -64,7 +67,7 @@ const Form = () => {
 
 ```jsx
 const onClick = useCallback(() => {
-  // submit data here
+  // 在此提交数据
 }, []);
 ```
 
@@ -72,9 +75,9 @@ const onClick = useCallback(() => {
 
 ```jsx
 const onClick = useCallback(() => {
-  // submit data here
+  // 在此提交数据
   console.log(value);
-  // adding value to the dependency
+  //增加依赖项
 }, [value]);
 ```
 
@@ -93,30 +96,25 @@ const HeavyComponentMemo = React.memo(HeavyComponent, (before, after) => {
 整个表单的代码看起来大概是这样的：
 
 ```jsx
- HeavyComponent,
- (before, after) => {
- return before.title === after.title;
- },
-);
+const HeavyComponentMemo = React.memo(HeavyComponent, (before, after) => {
+  return before.title === after.title;
+});
 const Form = () => {
- const [value, setValue] = useState();
- const onClick = () => {
- // submit our form data here
- console.log(value);
- };
- return (
- <>
- <input
- type="text
-          value={value}
- onChange={(e) => setValue(e.target.value)}
- />
- <HeavyComponentMemo
- title="Welcome to the form"
- onClick={onClick}
- />
- </>
- );
+  const [value, setValue] = useState();
+  const onClick = () => {
+    // 在此处提交我们的表单数据
+    console.log(value);
+  };
+  return (
+    <>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+      <HeavyComponentMemo title="Welcome to the form" onClick={onClick} />
+    </>
+  );
 };
 ```
 
@@ -125,19 +123,23 @@ const Form = () => {
 除了一个小问题：它实际上并不能工作。如果你在输入中键入一些内容，然后按下该按钮，我们在 `onClick` 中记录的值是 `undefined`。但它不可能是 `undefined`，输入功能正常，如果我在 `onClick` 之外添加 `console.log`，它就能正确记录。只是在 `onClick` 内部不行。
 
 ```jsx
-// those one logs it correctly
+// 那些正确记录的
 console.log(value);
 const onClick = () => {
-  // this is always undefined
+  // 这始终是 undefined
   console.log(value);
 };
 ```
 
-互动示例和完整代码 https://advanced-react.com/examples/10/01
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/10/01)
+</Callout>
 
-**发生了什么？**
+发生了什么？
 
 这被称为“过时闭包”问题。为了修复它，我们首先需要深入探讨 JavaScript 中最令人生畏的话题之一：闭包及其工作原理。
+
+---
 
 ### JavaScript、作用域与闭包
 
@@ -156,7 +158,7 @@ const something = () => {};
 const something = () => {
  const value = 'text';
 };
-console.log(value); // not going to work, "value" is local to
+console.log(value); //不起作用，“value” 是本地的
 "something" function
 ```
 
@@ -167,7 +169,7 @@ const something = () => {
   const inside = () => {
     const value = "text";
   };
-  console.log(value); // not going to work, "value" is local to "inside" function
+  console.log(value); //不起作用，“value” 是 “inside” 函数的本地函数
 };
 ```
 
@@ -177,7 +179,7 @@ const something = () => {
 const something = () => {
   const value = "text";
   const inside = () => {
-    // perfectly fine, value is available here
+    // 非常好，值在这里可用
     console.log(value);
   };
 };
@@ -190,7 +192,7 @@ const something = () => {
 ```jsx
 const something = (value) => {
   const inside = () => {
-    // perfectly fine, value is available here
+    // 非常好，值在这里可用
     console.log(value);
   };
   return inside;
@@ -222,8 +224,8 @@ const something = (value) => {
 };
 const first = something("first");
 const second = something("second");
-first(); // logs random number
-second(); // logs another random number
+first(); // 记录随机数
+second(); //记录另一个随机数
 ```
 
 这就像拍摄动态场景的照片：一旦按下快门，整个场景就会“冻结”在照片中，永远保持不变。下一次按下快门不会改变之前拍摄的照片。
@@ -235,7 +237,7 @@ second(); // logs another random number
 ```jsx
 const Component = () => {
   const onClick = () => {
-    // closure!
+    // 闭包!
   };
   return <button onClick={onClick} />;
 };
@@ -246,10 +248,10 @@ useEffect 或 useCallback 钩子中的所有内容都是闭包：
 ```jsx
 const Component = () => {
   const onClick = useCallback(() => {
-    // closure!
+    // 闭包!
   });
   useEffect(() => {
-    // closure!
+    // 闭包!
   });
 };
 ```
@@ -260,11 +262,11 @@ const Component = () => {
 const Component = () => {
   const [state, setState] = useState();
   const onClick = useCallback(() => {
-    // perfectly fine
+    //完全没问题
     console.log(state);
   });
   useEffect(() => {
-    // perfectly fine
+    //完全没问题
     console.log(state);
   });
 };
@@ -272,7 +274,9 @@ const Component = () => {
 
 组件内部的每个函数都是一个闭包，因为组件本身只是一个函数。
 
-## 过时闭包问题
+---
+
+### 过时闭包问题
 
 但上述所有内容，尽管对于来自没有闭包语言的人来说略显不寻常，仍然相对简单。你创建几个函数几次，这变得很自然。实际上，编写 React 应用多年也不需要理解“闭包”的概念。
 
@@ -328,13 +332,13 @@ third(); // logs "first"
 const cache = {};
 let prevValue;
 const something = (value) => {
-  // check whether the value has changed
+  // 检查该值是否已更改
   if (!cache.current || value !== prevValue) {
     cache.current = () => {
       console.log(value);
     };
   }
-  // refresh it
+  //刷新它
   prevValue = value;
   return cache.current;
 };
@@ -350,17 +354,21 @@ const anotherFirst = something('first');
 const second = something('second');
 first(); // logs "first"
 second(); // logs "second"
-console.log(first === anotherFirst); // will be true
+console.log(first === anotherFirst); // 将为 true
 ```
 
-互动示例和完整代码 https://advanced-react.com/examples/10/02
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/10/02)
+</Callout>
 
-在 React 中的过时闭包：useCallback
+---
+
+### 在 React 中的过时闭包：useCallback
 
 如果你还记得 Memoization 章节中的 useMemo、useCallback 和 React.memo，这段代码应该显得熟悉。确实，我们正是实现了 useCallback 钩子为我们做的事情。每次使用 useCallback 时，我们都会创建一个闭包，而我们传递给它的函数被缓存：
 
 ```jsx
-// that inline function is cached exactly as in the section before
+// 该内联函数的缓存与前面的部分完全相同
 const onClick = useCallback(() => {}, []);
 ```
 
@@ -370,9 +378,9 @@ const onClick = useCallback(() => {}, []);
 const Component = () => {
   const [state, setState] = useState();
   const onClick = useCallback(() => {
-    // access to state inside
+    // 访问 State Inside
     console.log(state);
-    // need to add this to the dependencies array
+    //需要将此添加到 dependencies 数组中
   }, [state]);
 };
 ```
@@ -383,17 +391,21 @@ const Component = () => {
 const Component = () => {
   const [state, setState] = useState();
   const onClick = useCallback(() => {
-    // state will always be the initial state value here
-    // the closure is never refreshed
+    // state 将始终是此处的初始 state 值
+    // 闭包永远不会刷新
     console.log(state);
-    // forgot about dependencies
+    // 忘记了依赖项
   }, []);
 };
 ```
 
 每次触发那个回调时，记录的只有`undefined`。
 
-互动示例和完整代码 :https://advanced-react.com/examples/10/03
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/10/03)
+</Callout>
+
+---
 
 ### 在 React 中的过时闭包：Refs
 
@@ -402,9 +414,9 @@ const Component = () => {
 ```jsx
 const Component = () => {
   const ref = useRef(() => {
-    // click handler
+    // Click 处理
   });
-  // ref.current stores the function and is stable between rerenders
+  // ref.current 存储函数，并且在重新渲染之间保持稳定
   return <HeavyComponent onClick={ref.current} />;
 };
 ```
@@ -427,7 +439,7 @@ const useRef = (callback) => {
 const Component = ({ someProp }) => {
   const [state, setState] = useState();
   const ref = useRef(() => {
-    // both of them will be stale and will never change
+    //它们都将过时且永远不会改变
     console.log(someProp);
     console.log(state);
   });
@@ -438,14 +450,14 @@ const Component = ({ someProp }) => {
 
 ```jsx
 const Component = ({ someProp }) => {
-  // initialize ref - creates closure!
+  // initialize ref - 创建闭包！
   const ref = useRef(() => {
-    // both of them will be stale and will never change
+    // 它们都将过时且永远不会改变
     console.log(someProp);
     console.log(state);
   });
   useEffect(() => {
-    // update the closure when state or props change
+    // 当 state 或 props 发生变化时更新 闭包
     ref.current = () => {
       console.log(someProp);
       console.log(state);
@@ -454,11 +466,14 @@ const Component = ({ someProp }) => {
 };
 ```
 
-互动示例和完整代码 https://advanced-react.com/examples/10/04
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/10/04)
+</Callout>
 
-### 在 React 中的过时闭包：
+---
 
-React.memo
+### 在 React 中的过时闭包：React.memo
+
 最后，我们回到了本章的开头和引发所有这一切的谜团。再看看有问题的代码：
 
 ```jsx
@@ -468,7 +483,7 @@ const HeavyComponentMemo = React.memo(HeavyComponent, (before, after) => {
 const Form = () => {
   const [value, setValue] = useState();
   const onClick = () => {
-    // submit our form data here
+    // 在此处提交我们的表单数据
     console.log(value);
   };
   return (
@@ -504,6 +519,8 @@ const Form = () => {
 
 我们可以尝试其他许多方法。但我们不需要进行任何重大的重构来摆脱那个闭包陷阱。有一个很酷的技巧可以帮助我们。
 
+---
+
 ### 用 Refs 逃避闭包陷阱
 
 这个技巧绝对令人震惊：它非常简单，但可以永远改变我们在 React 中记忆函数的方式。或者也可能不会……无论如何，这对下一章将至关重要，所以让我们深入探讨。
@@ -513,16 +530,22 @@ const Form = () => {
 ```jsx
 const HeavyComponentMemo = React.memo(HeavyComponent);
 const Form = () => {
- const [value, setValue] = useState();
- return (
- <>
- <input type="text" value={value} onChange={(e) =>
-setValue(e.target.value)} />
- <HeavyComponentMemo title="Welcome to the form" onClick=
+  const [value, setValue] = useState();
+  return (
+    <>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+      <HeavyComponentMemo title="Welcome to the form"  onClick=
 {...} />
- </>
- );
-}
+    </>
+  );
+};
+const test = memo(() => {
+  return <div>test</div>;
+});
 ```
 
 现在我们需要添加一个在重新渲染之间稳定的 onClick 函数，但同时又能访问最新的状态，而不需要重新创建自己。
@@ -532,7 +555,7 @@ setValue(e.target.value)} />
 ```jsx
 const Form = () => {
   const [value, setValue] = useState();
-  // adding an empty ref
+  // 添加空 ref
   const ref = useRef();
 };
 ```
@@ -542,15 +565,15 @@ const Form = () => {
 ```jsx
 const Form = () => {
   const [value, setValue] = useState();
-  // adding an empty ref
+  // 添加空 ref
   const ref = useRef();
   useEffect(() => {
-    // our callback that we want to trigger
-    // with state
+    // 我们想要触发的回调
+    // 带状态
     ref.current = () => {
       console.log(value);
     };
-    // no dependencies array!
+    // 无依赖关系 array!
   });
 };
 ```
@@ -569,7 +592,7 @@ const Form = () => {
   });
   return (
     <>
-      {/* Can't do that, will break memoization */}
+      {/* 不能这样做，会破坏记忆 */}
       <HeavyComponentMemo onClick={ref.current} />
     </>
   );
@@ -587,11 +610,11 @@ const Form = () => {
     };
   });
   const onClick = useCallback(() => {
-    // empty dependency! will never change
+    // 空依赖！永远不会改变
   }, []);
   return (
     <>
-      {/* Now memoization will work, onClick never changes */}
+      {/* 现在记忆会起作用，单击永远不会改变 */}
       <HeavyComponentMemo onClick={onClick} />
     </>
   );
@@ -609,9 +632,9 @@ useEffect(() => {
   };
 });
 const onClick = useCallback(() => {
-  // call the ref here
+  // 在此处调用 ref
   ref.current();
-  // still empty dependencies array!
+  // 仍然为空的依赖数组
 }, []);
 ```
 
@@ -621,7 +644,7 @@ const onClick = useCallback(() => {
 
 ```jsx
 const a = { value: "one" };
-// b is a different variable that references the same object
+// b 是引用同一对象的不同变量
 const b = a;
 ```
 
@@ -629,7 +652,7 @@ const b = a;
 
 ```jsx
 a.value = "two";
-console.log(b.value); // will be "two"
+console.log(b.value); // 将为 “two”
 ```
 
 在我们的案例中，甚至没有发生这种情况：我们在 useCallback 和 useEffect 内部都有完全相同的引用。因此，当我们在 useEffect 内部修改 ref 对象的 current 属性时，我们可以在 useCallback 内部访问那个确切的属性。这个属性恰好是一个捕获了最新状态数据的闭包。
@@ -642,12 +665,12 @@ const Form = () => {
   const ref = useRef();
   useEffect(() => {
     ref.current = () => {
-      // will be latest
+      // 将是最新的
       console.log(value);
     };
   });
   const onClick = useCallback(() => {
-    // will be latest
+    // 将是最新的
     ref.current?.();
   }, []);
   return (
@@ -665,22 +688,26 @@ const Form = () => {
 
 现在，我们得到了两全其美的结果：重型组件得到了正确的记忆，并且不会在每次状态变化时重新渲染。而其上的 onClick 回调能够访问组件中的最新数据，而不会破坏记忆化。我们现在可以安全地将所需的一切发送到后端了！
 
-互动示例和完整代码 https://advanced-react.com/examples/10/05
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/10/05)
+</Callout>
 
-关键要点
+---
+
+### 关键要点
 
 希望这一切都能让你明白，闭包现在对你来说变得简单易懂。在下一章中，我们将探讨另一个非常有用的逃避闭包陷阱的用例：去抖和节流回调。但在此之前，让我们记住：
 
-闭包每次在另一个函数内部创建时都会形成。
+- 闭包每次在另一个函数内部创建时都会形成。
 
-由于 React 组件本质上就是函数，因此内部创建的每个函数都形成一个闭包，包括 useCallback 和 useRef 等钩子。
+- 由于 React 组件本质上就是函数，因此内部创建的每个函数都形成一个闭包，包括 useCallback 和 useRef 等钩子。
 
-当形成闭包的函数被调用时，周围的所有数据都“冻结”，就像快照一样。
+- 当形成闭包的函数被调用时，周围的所有数据都“冻结”，就像快照一样。
 
-要更新该数据，我们需要重新创建“关闭”的函数。
+- 要更新该数据，我们需要重新创建“关闭”的函数。
 
-这就是像 useCallback 这样的钩子的依赖项所允许我们做的。
+- 这就是像 useCallback 这样的钩子的依赖项所允许我们做的。
 
-如果我们遗漏了某个依赖项，或者没有刷新分配给 ref.current 的闭包，闭包就会变得“过时”。
+- 如果我们遗漏了某个依赖项，或者没有刷新分配给 ref.current 的闭包，闭包就会变得“过时”。
 
-我们可以利用 Ref 是可变对象这一事实，在 React 中逃避“过时闭包”陷阱。我们可以在过时闭包外部修改 ref.current，然后在内部访问它。这样就能获取到最新的数据。
+- 我们可以利用 Ref 是可变对象这一事实，在 React 中逃避“过时闭包”陷阱。我们可以在过时闭包外部修改 ref.current，然后在内部访问它。这样就能获取到最新的数据。

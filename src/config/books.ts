@@ -19,7 +19,7 @@ interface BooksConfig {
 interface BookItems { 
   title: string
   href: string
-  name:string
+  id:string
 }
 
 interface Book { 
@@ -87,32 +87,32 @@ export const books:BookList[] = [
           {
             title: "什么是 JavaScript？",
             href: "/read-together/details/dont-know-js/get-started-ch1", //真实的地址
-            name: "get-started-ch1", //用于寻找对应的doc 和拼接动态路径所需
+            id: "get-started-ch1", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "测量 JS",
             href: "/read-together/details/dont-know-js/get-started-ch2",
-            name: "get-started-ch2",
+            id: "get-started-ch2",
           },
           {
             title: "挖掘 JS 的根源",
             href: "/read-together/details/dont-know-js/get-started-ch3",
-            name: "get-started-ch3",
+            id: "get-started-ch3",
           },
           {
             title: "宏观视角",
             href: "/read-together/details/dont-know-js/get-started-ch4",
-            name: "get-started-ch4",
+            id: "get-started-ch4",
           },
           {
             title: "附录 A",
             href: "/read-together/details/dont-know-js/get-started-apA",
-            name: "get-started-apA",
+            id: "get-started-apA",
           },
           {
             title: "附录 B",
             href: "/read-together/details/dont-know-js/get-started-apB",
-            name: "get-started-apB",
+            id: "get-started-apB",
           },
         ],
       },
@@ -126,52 +126,52 @@ export const books:BookList[] = [
           {
             title: "什么是作用域?",
             href: "/read-together/details/dont-know-js/scope-closures-ch1", //真实的地址
-            name: "scope-closures-ch1", //用于寻找对应的doc 和拼接动态路径所需
+            id: "scope-closures-ch1", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "阐明词法作用域",
             href: "/read-together/details/dont-know-js/scope-closures-ch2", //真实的地址
-            name: "scope-closures-ch2", //用于寻找对应的doc 和拼接动态路径所需
+            id: "scope-closures-ch2", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "作用域链",
             href: "/read-together/details/dont-know-js/scope-closures-ch3", //真实的地址
-            name: "scope-closures-ch3", //用于寻找对应的doc 和拼接动态路径所需
+            id: "scope-closures-ch3", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "全局作用域",
             href: "/read-together/details/dont-know-js/scope-closures-ch4", //真实的地址
-            name: "scope-closures-ch4", //用于寻找对应的doc 和拼接动态路径所需
+            id: "scope-closures-ch4", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "变量的（不那么）隐秘生命周期",
             href: "/read-together/details/dont-know-js/scope-closures-ch5", //真实的地址
-            name: "scope-closures-ch5", //用于寻找对应的doc 和拼接动态路径所需
+            id: "scope-closures-ch5", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "限制作用域暴露",
             href: "/read-together/details/dont-know-js/scope-closures-ch6", //真实的地址
-            name: "scope-closures-ch6", //用于寻找对应的doc 和拼接动态路径所需
+            id: "scope-closures-ch6", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "使用闭包",
             href: "/read-together/details/dont-know-js/scope-closures-ch7", //真实的地址
-            name: "scope-closures-ch7", //用于寻找对应的doc 和拼接动态路径所需
+            id: "scope-closures-ch7", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "模块模式",
             href: "/read-together/details/dont-know-js/scope-closures-ch8", //真实的地址
-            name: "scope-closures-ch8", //用于寻找对应的doc 和拼接动态路径所需
+            id: "scope-closures-ch8", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "附录A:深入探索",
             href: "/read-together/details/dont-know-js/scope-closures-apA", //真实的地址
-            name: "scope-closures-apA", //用于寻找对应的doc 和拼接动态路径所需
+            id: "scope-closures-apA", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "附录B:练习",
             href: "/read-together/details/dont-know-js/scope-closures-apB", //真实的地址
-            name: "scope-closures-apB", //用于寻找对应的doc 和拼接动态路径所需
+            id: "scope-closures-apB", //用于寻找对应的doc 和拼接动态路径所需
           },
         ],
       },
@@ -185,27 +185,27 @@ export const books:BookList[] = [
           {
             title: "对象基础",
             href: "/read-together/details/dont-know-js/objects-classes-ch1", //真实的地址
-            name: "objects-classes-ch1", //用于寻找对应的doc 和拼接动态路径所需
+            id: "objects-classes-ch1", //用于寻找对应的doc 和拼接动态路径所需
           },
             {
             title: "对象的工作原理",
             href: "/read-together/details/dont-know-js/objects-classes-ch2", //真实的地址
-            name: "objects-classes-ch2", //用于寻找对应的doc 和拼接动态路径所需
+            id: "objects-classes-ch2", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "类对象",
             href: "/read-together/details/dont-know-js/objects-classes-ch3", //真实的地址
-            name: "objects-classes-ch3", //用于寻找对应的doc 和拼接动态路径所需
+            id: "objects-classes-ch3", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "this工作原理",
             href: "/read-together/details/dont-know-js/objects-classes-ch4", //真实的地址
-            name: "objects-classes-ch4", //用于寻找对应的doc 和拼接动态路径所需
+            id: "objects-classes-ch4", //用于寻找对应的doc 和拼接动态路径所需
           },
           {
             title: "委托",
             href: "/read-together/details/dont-know-js/objects-classes-ch5", //真实的地址
-            name: "objects-classes-ch5", //用于寻找对应的doc 和拼接动态路径所需
+            id: "objects-classes-ch5", //用于寻找对应的doc 和拼接动态路径所需
           }
         ]
       },
@@ -225,22 +225,22 @@ export const books:BookList[] = [
           {
             title: "变体",
             href: "/read-together/details/dont-know-js/types-grammar-ch1",
-            name: "types-grammar-ch1", 
+            id: "types-grammar-ch1", 
           },
           {
             title: "原始值的行为",
             href: "/read-together/details/dont-know-js/types-grammar-ch2",
-            name: "types-grammar-ch2", 
+            id: "types-grammar-ch2", 
           },
           {
             title: "对象值",
             href: "/read-together/details/dont-know-js/types-grammar-ch3",
-            name: "types-grammar-ch3", 
+            id: "types-grammar-ch3", 
           },
           {
             title: "强制转换值",
             href: "/read-together/details/dont-know-js/types-grammar-ch4",
-            name: "types-grammar-ch4", 
+            id: "types-grammar-ch4", 
           },
         ]
       },

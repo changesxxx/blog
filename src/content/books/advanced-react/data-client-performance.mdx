@@ -47,7 +47,7 @@ name: "data-client-performance"
 const Component = () => {
  const [data, setData] = useState();
  useEffect(() => {
- // fetch data
+// 获取数据
  const dataFetch = async () => {
  const data = await (
  await fetch(
@@ -55,7 +55,7 @@ const Component = () => {
 0062c85be6f9',
  )
  ).json();
- // set state when the data received
+// 接收数据时设置状态
  setData(data);
  };
  dataFetch();

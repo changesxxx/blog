@@ -25,3 +25,4 @@ pnpm-debug.log*
 .history
 test.html
 pnpm-lock.yaml
+test.jsx

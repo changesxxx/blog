@@ -60,28 +60,29 @@ const Component = ({ items }) => {
 
 ```jsx
 const Component = ({ items }) => {
- useEffect(() => {
- const div = ref.current;
- const { width } = div.getBoundingClientRect();
- }, [ref]);
- return ...
-}
+  useEffect(() => {
+    const div = ref.current;
+    const { width } = div.getBoundingClientRect();
+  }, [ref]);
+  return ...;
+};
 ```
 
 第三，遍历 div 的子元素并将它们的宽度提取到一个数组中。
 
 ```jsx
 const Component = ({ items }) => {
- useEffect(() => {
- // same code as before
- // convert div's children into an array
- const children = [...div.childNodes];
- // all the widths
- const childrenWidths = children.map(child =>
-child.getBoundingClientRect().width)
- }, [ref]);
- return ...
-}
+  useEffect(() => {
+    // 与之前相同的代码
+    // 将 div 的子级转换为数组
+    const children = [...div.childNodes];
+    // 所有宽度
+    const childrenWidths = children.map(
+      (child) => child.getBoundingClientRect().width,
+    );
+  }, [ref]);
+  return ...;
+};
 ```
 
 现在，我们只需要遍历该数组，求和子项的宽度，与父 div 进行比较，最终找到最后一个可见项的索引。
@@ -99,7 +100,7 @@ const Component = ({ items }) => {
       {items.map((item) => (
         <a href={item.href}>{item.name}</a>
       ))}
-      {/* add the "more" button after the links explicitly */}
+      {/* 在链接后明确添加“更多”按钮 */}
       <button id="more">...</button>
     </div>
   );
@@ -120,15 +121,13 @@ useEffect(() => {
 
 ```jsx
 const Component = ({ items }) => {
- // set the initial value to -1, to indicate that we haven't run
-the calculations yet
- const [lastVisibleMenuItem, setLastVisibleMenuItem] =
- useState(-1);
- useEffect(() => {
- const itemIndex = getLastVisibleItem(ref.current);
- // update state with the actual number
- setLastVisibleMenuItem(itemIndex);
- }, [ref]);
+  // 将初始值设置为 -1，表示我们尚未运行计算
+  const [lastVisibleMenuItem, setLastVisibleMenuItem] = useState(-1);
+  useEffect(() => {
+    const itemIndex = getLastVisibleItem(ref.current);
+    // 使用实际数字更新状态
+    setLastVisibleMenuItem(itemIndex);
+  }, [ref]);
 };
 ```
 
@@ -136,38 +135,42 @@ the calculations yet
 
 ```jsx
 const Component = ({ items }) => {
- // render everything if it's the first pass and the value is
-still the default
- if (lastVisibleMenuItem === -1) {
- // render all of them here, same as before
- return ...
- }
- // show "more" button if the last visible item is not the last
-one in the array
- const isMoreVisible = lastVisibleMenuItem < items.length - 1;
- // filter out those items which index is more than the last
-visible
- const filteredItems = items.filter((item, index) => index <=
-lastVisibleMenuItem);
- return (
- <div className="navigation">
- {/*render only visible items*/}
- {filteredItems.map(item => <a href={item.href}>{item.name}
-</a>)}
-          {/*render "more" conditionally*/}
- {isMoreVisible && <button id="more">...</button>}
- </div>
- )
-}
+  // 如果这是第一遍并且值仍然是默认值，则渲染所有内容
+
+  if (lastVisibleMenuItem === -1) {
+    // 与之前一样，在此处渲染所有内容
+    return ...
+  }
+  // 如果最后一个可见项不是数组中的最后一个，则显示“更多”按钮
+  const isMoreVisible = lastVisibleMenuItem < items.length - 1;
+  //过滤掉索引大于最后一个可见项
+  const filteredItems = items.filter(
+    (item, index) => index <= lastVisibleMenuItem,
+  );
+  return (
+    <div className="navigation">
+      {/*仅渲染可见项目*/}
+      {filteredItems.map((item) => (
+        <a href={item.href}>{item.name}</a>
+      ))}
+      {/*有条件地渲染“更多”*/}
+      {isMoreVisible && <button id="more">...</button>}
+    </div>
+  );
+};
 ```
 
 就这样！现在，在状态根据实际数字更新之后，它将触发导航的重新渲染，而 React 将重新渲染项并移除那些不该出现的项。为了获得“适当”的响应体验，我们还需要监听调整大小事件并重新计算这个数字，但我将留给你来实现。
 
 完整的工作示例可以在下面的链接中找到。带有调整大小的。不过，不要太兴奋：用户体验有一个主要缺陷。
 
-互动示例和完整代码 https://advanced-react.com/examples/12/01
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/12/01)
+</Callout>
 
 尝试刷新几次，特别是在 CPU 降速的情况下。不幸的是，应该能明显看到初始渲染——当菜单中的所有项目和“更多”按钮都是可见的。在投入生产之前，我们一定需要解决这个问题。
+
+---
 
 ### 用 useLayoutEffect 修复
 
@@ -177,21 +180,24 @@ lastVisibleMenuItem);
 
 ```jsx
 const Component = ({ items }) => {
-  // everything is exactly the same, only the hook name is
-  different;
+  // 一切都一模一样，只有钩子名称不同；
   useLayoutEffect(() => {
-    // the code is still the same
+    // 代码仍然相同
   }, [ref]);
 };
 ```
 
 这是纯魔法，再也没有初始闪烁。
 
-互动示例和完整代码 https://advanced-react.com/examples/12/02
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/12/02)
+</Callout>
 
 这样做安全吗？我们为什么不在所有地方都使用它而不是 useEffect？文档明确指出 useLayoutEffect 可能会影响性能[15]，应避免使用。为什么会这样？它也说它在浏览器重绘屏幕之前被触发，这意味着 useEffect 在之后被触发。但在实际意义上，这意味着什么？我需要在编写简单下拉菜单时考虑浏览器绘制等低级概念吗？
 
 要回答这些问题，我们需要暂时离开 React，谈谈浏览器和古老的 JavaScript。
+
+---
 
 ### 为什么这个解决方案有效：渲染、绘制和浏览器
 
@@ -241,7 +247,9 @@ waitSync(1000);
 
 我们仍然无法看到“中间”的结果。我们将只是盯着空白屏幕，直到浏览器处理完毕，享受最后的黑色边框。这就是我们所称的“阻塞渲染”或“阻塞绘制”代码。
 
-只需要翻译 不要举例 https://advanced-react.com/examples/12/03
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/12/03)
+</Callout>
 
 虽然 React 只是 JavaScript，但它并不是作为一个单一的任务执行的。互联网如果是这样，那将是无法忍受的。我们都将被迫出去玩，进行面对面的互动，谁愿意呢？将像渲染整个应用程序这样的大任务“拆分”为更小的任务的方法是使用各种“异步”方法：回调、事件处理程序、Promise 等等。
 
@@ -264,9 +272,13 @@ setTimeout(() => {
 
 那么每一个定时器都会被视为一个新的“任务”。因此，浏览器将在完成一个任务后重新绘制屏幕，然后再开始下一个任务。我们将能够看到从红色到绿色的缓慢而华丽的过渡，而不是在白屏上冥想三秒钟。
 
-互动示例和完整代码 https://advanced-react.com/examples/12/04
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/12/04)
+</Callout>
 
 这就是 React 为我们做的。它本质上是一个复杂而高效的引擎，将我们庞大的 npm 依赖与自己的代码结合，拆分成浏览器能够在 13 毫秒内处理的最小块（理想情况下）。
+
+---
 
 ### 回到 useEffect 与 useLayoutEffect。
 
@@ -276,11 +288,11 @@ useLayoutEffect 是 React 在组件更新期间同步运行的。在这个代码
 
 ```jsx
 const Component = () => {
- useLayoutEffect(() => {
- // do something
- })
- return ...
-}
+  useLayoutEffect(() => {
+   // 做一些事情
+  });
+  return...
+};
 ```
 
 无论我们在组件中渲染什么，都将与 useLayoutEffect 一起作为同一个“任务”运行。React 确保这一点。即使我们在 useLayoutEffect 中更新状态，虽然我们通常认为这是一项异步任务，但 React 仍然会确保整个流程是同步运行的。
@@ -301,6 +313,8 @@ const Component = () => {
 
 仅在你需要消除由于根据真实元素大小调整 UI 而导致的视觉“故障”时，才使用 useLayoutEffect。对于其他所有情况，useEffect 是最佳选择。你可能甚至不需要使用它。
 
+---
+
 ### 关于 useEffect 的更多信息
 
 虽然将 useEffect 的执行模型视为在 setTimeout 中运行是理解差异的便利方式，但这并不完全正确。首先，为了使实现细节明确，React 使用 postMessage 与 requestAnimationFrame 的组合。
@@ -308,6 +322,8 @@ const Component = () => {
 其次，它并不保证异步运行。虽然 React 会尽量优化，但在某些情况下，它可能会在浏览器绘制之前运行，并因此阻塞它。其中一种情况是当你在更新链中已有 useLayoutEffect。
 
 这是因为，React 在“快照”或周期中运行重新渲染。每次重新渲染周期将按以下顺序进行：“状态更新触发 -> useLayoutEffect 触发 -> useEffect 触发”。如果任何一个触发了状态更新，它将启动另一个重新渲染周期。但在此之前，React 需要完成触发状态更新的周期。因此，useEffect 必须在新周期开始之前运行。因此，如果状态更新是在 useLayoutEffect 中触发的（而这是同步的），React 则别无选择，只能同步运行 useEffect。
+
+---
 
 ### useLayoutEffect 在 Next.js 和其他 SSR 框架中的应用
 
@@ -354,7 +370,7 @@ useEffect 只会在客户端运行，因此初始的 SSR 渲染将向我们展�
 
 ```jsx
 const Component = () => {
-  // Detectign SSR by checking whether window is there
+  // 通过检查窗口是否存在来检测 SSR
   if (typeof window === undefined) return <SomeNavigationSubstitude />;
   return <Navigation />;
 };
@@ -364,18 +380,20 @@ const Component = () => {
 
 否则，你的应用就像醉酒一样：样式会破损，块会错位，内容会出现在奇怪的地方。
 
+---
+
 ### 关键要点
 
 关于“闪烁”问题就这些。下一章，我们将继续讨论 UI，并学习如何处理 Portals 及其原因。在此期间，请记住几点：
 
-当我们在 useEffect 钩子中计算元素的尺寸并然后隐藏或调整它们的大小时，可能会看到视觉上的“故障”。
+- 当我们在 useEffect 钩子中计算元素的尺寸并然后隐藏或调整它们的大小时，可能会看到视觉上的“故障”。
 
-这种情况发生是因为通常 useEffect 是异步执行的。从浏览器的角度来看，异步代码是一个单独的任务。因此，它有机会在变更前后绘制状态，导致故障。
+- 这种情况发生是因为通常 useEffect 是异步执行的。从浏览器的角度来看，异步代码是一个单独的任务。因此，它有机会在变更前后绘制状态，导致故障。
 
-我们可以通过使用 useLayoutEffect 钩子来防止这种行为。
+- 我们可以通过使用 useLayoutEffect 钩子来防止这种行为。
 
-这个钩子是同步执行的。从浏览器的角度来看，它将是一个大的、不可分割的任务。因此，浏览器会等待，并且不会在任务完成和最终尺寸计算之前绘制任何内容。
+- 这个钩子是同步执行的。从浏览器的角度来看，它将是一个大的、不可分割的任务。因此，浏览器会等待，并且不会在任务完成和最终尺寸计算之前绘制任何内容。
 
-在 SSR 环境中，useLayoutEffect 将无法工作，因为 React 不会在 SSR 模式下运行 useLayoutEffect，因此“故障”将再次显现。
+- 在 SSR 环境中，useLayoutEffect 将无法工作，因为 React 不会在 SSR 模式下运行 useLayoutEffect，因此“故障”将再次显现。
 
-可以通过选择不在特定功能中使用 SSR 来修复这个问题。
+- 可以通过选择不在特定功能中使用 SSR 来修复这个问题。

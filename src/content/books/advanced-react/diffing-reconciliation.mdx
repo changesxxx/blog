@@ -92,7 +92,7 @@ const Form = () => {
 答案同样非常直观，正如任何理智的人所期望的那样…… 卸载不再发生！如果我在字段中输入一些内容，然后翻转复选框，文本仍然存在！<mark>React 认为这两个输入实际上是同一个东西，而不是卸载第一个并挂载第二个，它只是用第二个的新数据重新渲染第一个。</mark>
 
 <Callout icon="🔍">
-[互动示例和完整代码](https://advanced-react.com/examples/06/01)
+  [互动示例和完整代码](https://advanced-react.com/examples/06/01)
 </Callout>
 
 如果你对此毫不惊讶，并能毫不犹豫地说：“啊，是因为[某个原因]”，那么哇，我能要你的签名吗？
@@ -158,7 +158,7 @@ const Input = () => {
 ]
 ```
 
-像 input 或 label 这样的 DOM 元素将其“类型”设为字符串，React 会知道将其直接转换为 DOM 元素。但如果我们渲染的是 React 组件，它们与 DOM 元素没有直接关联，因此 React 需要以某种方式处理这一点。
+像 input 或 label 这样的 DOM 元素将其“type”设为字符串，React 会知道将其直接转换为 DOM 元素。但如果我们渲染的是 React 组件，它们与 DOM 元素没有直接关联，因此 React 需要以某种方式处理这一点。
 
 ```jsx
 const Component = () => {
@@ -166,21 +166,20 @@ const Component = () => {
 };
 ```
 
-在这种情况下，它将组件的函数作为“类型”。它只是抓取我们知道的 Input 组件的整个函数并将其放在这里：
+在这种情况下，它将组件的函数作为“type”。它只是抓取我们知道的 Input 组件的整个函数并将其放在这里：
 
 ```jsx
 {
- type: Input, // 引用我们声明的 Input 函数
-earlier
+ type: Input, // 引用我们之前声明的 Input 函数
  ... // 其他东西
 }
 ```
 
 然后，当 React 收到挂载应用程序（初始渲染）的命令时，它会遍历该树并执行以下操作：
 
-&zwj;<mark>如果“类型”是字符串，它将生成该类型的 HTML 元素。</mark>
+&zwj;<mark>如果“type”是字符串，它将生成该类型的 HTML 元素。</mark>
 
-&zwj;<mark>如果“类型”是函数（即我们的组件），它将调用该函数并遍历该函数返回的树。</mark>
+&zwj;<mark>如果“type”是函数（即我们的组件），它将调用该函数并遍历该函数返回的树。</mark>
 
 直到最终得到一整棵准备显示的 DOM 节点树。像这样的一个组件
 
@@ -199,20 +198,20 @@ const Component = () => {
 
 ```jsx
 {
- type: 'div',
- props: {
- // children 是 props!
- children: [
- {
- type: Input,
- props: { id: "1", placeholder: "Text1" }
- },
- {
- type: Input,
- props: { id: "2", placeholder: "Text2" }
- }
- ]
- }
+  type: "div",
+  props: {
+    // children 是 props!
+    children: [
+      {
+        type: Input,
+        props: { id: "1", placeholder: "Text1" },
+      },
+      {
+        type: Input,
+        props: { id: "2", placeholder: "Text2" },
+      },
+    ],
+  },
 }
 ```
 
@@ -251,7 +250,7 @@ React 将理解该组件在渲染时返回这个对象：
 }
 ```
 
-&zwj;<mark>它将比较状态更新前后该对象的“类型”字段。如果类型相同，则 Input 组件将被标记为“需要更新”，并触发其重新渲染。如果类型发生变化，则 React 在重新渲染周期中将移除（卸载）“先前”的组件并添加（挂载）“下一个”组件。在我们的例子中，类型将相同，因为它只是对一个函数的引用，而该引用没有变化。</mark>
+&zwj;<mark>它将比较状态更新前后该对象的“type”字段。如果type相同，则 Input 组件将被标记为“需要更新”，并触发其重新渲染。如果type发生变化，则 React 在重新渲染周期中将移除（卸载）“先前”的组件并添加（挂载）“下一个”组件。在我们的例子中，type将相同，因为它只是对一个函数的引用，而该引用没有变化。</mark>
 
 如果我对那个 Input 做一些条件处理，比如返回另一个组件：
 
@@ -277,7 +276,7 @@ const Component = () => {
 }
 ```
 
-你猜到了结果，对吧？<mark>“类型”从 Input 变为 TextPlaceholder 的引用，因此 React 将卸载 Input，并从 DOM 中移除与其相关的所有内容。它将挂载新的 TextPlaceholder 组件，并第一次将其附加到 DOM。与 Input 字段相关的所有内容，包括其状态和你在其中输入的所有内容，都将被销毁。</mark>
+你猜到了结果，对吧？<mark>“type”从 Input 变为 TextPlaceholder 的引用，因此 React 将卸载 Input，并从 DOM 中移除与其相关的所有内容。它将挂载新的 TextPlaceholder 组件，并第一次将其附加到 DOM。与 Input 字段相关的所有内容，包括其状态和你在其中输入的所有内容，都将被销毁。</mark>
 
 ---
 
@@ -300,7 +299,7 @@ const Component = () => {
 }
 ```
 
-&zwj;<mark>它只是一个具有指向函数的“类型”属性的对象。然而，这个函数是在组件内部创建的。它是局部的，并且会在每次重新渲染时被重新创建。因此，当 React 尝试比较这些类型时，它将比较两个不同的函数：一个是在重新渲染之前，另一个是在重新渲染之后。正如我们在第五章中讨论的，使用 useMemo、useCallback 和 React.memo 进行记忆化时，我们不能以这种方式比较 JavaScript 中的函数。</mark>
+&zwj;<mark>它只是一个具有指向函数的“type”属性的对象。然而，这个函数是在组件内部创建的。它是局部的，并且会在每次重新渲染时被重新创建。因此，当 React 尝试比较这些type时，它将比较两个不同的函数：一个是在重新渲染之前，另一个是在重新渲染之后。正如我们在第五章中讨论的，使用 useMemo、useCallback 和 React.memo 进行记忆化时，我们不能以这种方式比较 JavaScript 中的函数。</mark>
 
 ```jsx
 const a = () => {};
@@ -308,14 +307,13 @@ const b = () => {};
 a === b; // 将始终为 false
 ```
 
-结果是，那个子组件的“类型”在每次重新渲染时都会不同，因此 React 将移除“之前”的组件并挂载“下一个”组件。
+结果是，那个子组件的“type”在每次重新渲染时都会不同，因此 React 将移除“之前”的组件并挂载“下一个”组件。
 
 如果组件足够复杂，我们甚至会在屏幕上看到“闪烁”效果：它会短暂消失，然后重新出现。这通常被称为重新挂载。通常这并非故意，且对性能极其不利——重新挂载至少需要比正常重新渲染多两倍的时间。此外，由于“之前”的组件及其所有相关内容被销毁，我们将看到相当奇怪且难以追踪的错误。例如，如果该组件应该保持状态或焦点，这些状态将在每次重新渲染时消失。
 
 <Callout icon="🔍">
-[互动示例和完整代码](https://advanced-react.com/examples/06/02)
+  [互动示例和完整代码](https://advanced-react.com/examples/06/02)
 </Callout>
-
 
 在上面的示例代码中，你可以看到它如何表现：输入组件在每次击键时触发重新渲染，而“ComponentWithState”被重新挂载。因此，如果你点击该组件以将其状态更改为“活动”，然后开始输入，该状态将消失。
 
@@ -372,7 +370,7 @@ const Form = () => {
 
 ```
 
-从 React 的角度来看，“类型”没有变化。两者都引用完全相同的函数：Input 组件。React 认为唯一改变的是 props：id 从“company-tax-id-number”变为“person-tax-id-number”，占位符也改变，等等。
+从 React 的角度来看，“type”没有变化。两者都引用完全相同的函数：Input 组件。React 认为唯一改变的是 props：id 从“company-tax-id-number”变为“person-tax-id-number”，占位符也改变，等等。
 
 因此，在这种情况下，React 做了它被教导的事情：<mark>它简单地取现有的 Input 组件并用新数据更新它。也就是说，重新渲染它。与现有 Input 相关的所有内容，如其 DOM 元素或状态，仍然存在。没有任何东西被销毁。</mark>这导致了我们看到的行为：我在输入框中输入一些文字，翻转复选框，文本仍然存在。
 
@@ -422,7 +420,7 @@ const Form = () => {
 }
 ```
 
-在重新渲染时，当 React 看到一个子元素数组而不是单个项时，它会遍历它，然后根据数组中元素的位置比较“之前”和“之后”的元素及其“类型”。基本上，如果我翻转复选框并触发表单重新渲染，React 会看到这个元素数组：
+在重新渲染时，当 React 看到一个子元素数组而不是单个项时，它会遍历它，然后根据数组中元素的位置比较“之前”和“之后”的元素及其“type”。基本上，如果我翻转复选框并触发表单重新渲染，React 会看到这个元素数组：
 
 ```jsx
 [
@@ -435,7 +433,7 @@ const Form = () => {
 ];
 ```
 
-并会逐个检查它们。第一个元素。“类型”之前：Checkbox，“类型”之后：同样是 Checkbox。复用并重新渲染。第二个元素。同样的过程。依此类推。
+并会逐个检查它们。第一个元素。“type”之前：Checkbox，“type”之后：同样是 Checkbox。复用并重新渲染。第二个元素。同样的过程。依此类推。
 
 即使其中一些元素像这样有条件地渲染：
 
@@ -485,7 +483,7 @@ const Form = () => {
 瞧！神奇地，通过在渲染输出中更改输入框的位置，而不更改逻辑中的任何其他内容，错误得以修复，输入框的行为正如我所期望的那样！
 
 <Callout icon="🔍">
-[互动示例和完整代码](https://advanced-react.com/examples/06/03)
+  [互动示例和完整代码](https://advanced-react.com/examples/06/03)
 </Callout>
 
 ---
@@ -504,7 +502,7 @@ const Component = () => {
 };
 ```
 
-该组件的输出现在应该清晰：仅一个包含“类型”Input 的对象数组：
+该组件的输出现在应该清晰：仅一个包含“type”Input 的对象数组：
 
 ```jsx
 [
@@ -515,12 +513,12 @@ const Component = () => {
 
 但动态列表的问题在于它们是动态的。我们可以重新排序它们，在开头或结尾添加新项，并通常对其进行操作。
 
-现在，React 面临一个有趣的任务：该数组中的所有组件都是相同类型的。如何识别每个组件？如果这些项的顺序发生变化：
+现在，React 面临一个有趣的任务：该数组中的所有组件都是相同type的。如何识别每个组件？如果这些项的顺序发生变化：
 
 ```jsx
 [
- { type: Input }, // “2” 数据项，但 React 不知道
- { type: Input }, // "1" 数据项，但 React 不知道
+  { type: Input }, // “2” 数据项，但 React 不知道
+  { type: Input }, // "1" 数据项，但 React 不知道
 ];
 ```
 
@@ -546,7 +544,7 @@ const Component = () => {
 ![image-20240913174146459](/assets/images/books/advanced-react/key1.png)
 
 <Callout icon="🔍">
-[互动示例和完整代码](https://advanced-react.com/examples/06/04)
+  [互动示例和完整代码](https://advanced-react.com/examples/06/04)
 </Callout>
 
 ---
@@ -554,7 +552,6 @@ const Component = () => {
 ### “key”属性和记忆化列表
 
 &zwj;<mark>关于“key”属性和列表的一个常见误解是，key 是出于性能原因而需要的。添加 key 到动态数组可以防止数组项重新渲染。</mark>如上所述，这并不是 key 的工作方式。<mark>key 帮助 React 确定在重新渲染这些项时应该重用哪个已有实例。重新渲染仍然会发生，就像在另一个组件中渲染的任何组件一样。</mark>
-
 
 如果我们想防止项的重新渲染，我们需要使用 React.memo。对于静态数组（那些元素或位置不变的数组），这非常简单：只需将项元素包裹在 React.memo 中，并在 key 中使用某种 id 属性或数组的索引。任何在重新渲染之间保持稳定的东西都可以。
 
@@ -597,17 +594,13 @@ const Component = () => {
 
 ```jsx
 const Parent = () => {
- // 如果数组可以排序，或者其项数可以更改，
- //那么 “index” 作为 “key” 就不是一个好主意
- // 我们需要使用标识数组项的东西
- return sortedData.map((value, index) => (
- <InputMemo
- key={value.id}
- placeholder={value.placeholder}
- />
- ));
+  // 如果数组可以排序，或者其项数可以更改，
+  //那么 “index” 作为 “key” 就不是一个好主意
+  // 我们需要使用标识数组项的东西
+  return sortedData.map((value, index) => (
+    <InputMemo key={value.id} placeholder={value.placeholder} />
+  ));
 };
-
 ```
 
 在我们的输入情况下，如果我们将 id 用作 key，那么 key="business" 的项仍将拥有 prop placeholder="BusinessTax"，只是位置在数组中不同。因此，React 将仅交换相关的 DOM 节点，但实际组件不会重新渲染。
@@ -623,7 +616,7 @@ const Parent = () => {
 ![image-20240913175516106](/assets/images/books/advanced-react/key5.png)
 
 <Callout icon="🔍">
-[互动示例和完整代码](https://advanced-react.com/examples/06/05)
+  [互动示例和完整代码](https://advanced-react.com/examples/06/05)
 </Callout>
 
 ---
@@ -634,7 +627,7 @@ const Parent = () => {
 
 ```jsx
 const Form = () => {
-  const [isCompany, setIsCompany] = useState(false)
+  const [isCompany, setIsCompany] = useState(false);
   return (
     <>
       <Checkbox onChange={() => setIsCompany(!isCompany)} />
@@ -644,8 +637,8 @@ const Form = () => {
         <Input id="person-tax-id-number" />
       )}
     </>
-  )
-}
+  );
+};
 ```
 
 它有一个子元素数组：
@@ -698,7 +691,7 @@ const Form = () => {
 瞧，<mark>keys 不同了！React 将丢弃第一个 Input，并从头开始挂载第二个。</mark>状态在我们在输入之间切换时现在重置为空。
 
 <Callout icon="🔍">
-[互动示例和完整代码](https://advanced-react.com/examples/06/06)
+  [互动示例和完整代码](https://advanced-react.com/examples/06/06)
 </Callout>
 
 &zwj;<mark>这个技术被称为“状态重置”。它与状态本身没有关系</mark>，但有时在需要将无控制组件（如输入字段）的状态重置为默认值时使用。你甚至不需要像上面那样有两个组件。一个就够了。<mark>任何根据你的条件变化的唯一值都可以作为 key 使用。</mark>如果你想在 URL 变化时强制状态重置，例如，这可以简单得多：
@@ -771,7 +764,7 @@ const Form = () => {
 &zwj;<mark>React 看到一个子元素数组，并看到在重新渲染之前和之后，有一个 Input 类型的元素和相同的“key”。因此，它将认为 Input 组件只是更改了数组中的位置，并将重用已有的实例。如果我们输入一些内容，状态将被保留，即使这些 Input 在技术上是不同的。</mark>
 
 <Callout icon="🔍">
-[互动示例和完整代码](https://advanced-react.com/examples/06/07)
+  [互动示例和完整代码](https://advanced-react.com/examples/06/07)
 </Callout>
 
 对于这个特定的例子，这当然只是一个有趣的行为，而在实践中并不十分有用。但我可以想象它被用于微调组件性能，如手风琴、标签内容或某些画廊。
@@ -817,7 +810,11 @@ const Component = () => {
 ```
 
 那么，为什么在一种情况下我们需要“key”来让 React 正常工作，而在另一种情况下则不需要呢？
-<mark>区别在于第一个例子是一个动态数组。React 不知道你在下次重新渲染时会对这个数组做什么：移除、添加、重新排列项，或者可能保持不变。因此，它强制你添加“key”作为预防措施，以防你在动态更改数组。</mark>
+
+<mark>
+  区别在于第一个例子是一个动态数组。React
+  不知道你在下次重新渲染时会对这个数组做什么：移除、添加、重新排列项，或者可能保持不变。因此，它强制你添加“key”作为预防措施，以防你在动态更改数组。
+</mark>
 
 你可能会问，这有什么有趣的地方？有趣的地方在于：尝试以相同的“key”条件性地渲染那些不在数组中的输入：
 
@@ -837,7 +834,7 @@ const Component = () => {
 尝试预测如果我在这些输入中输入一些内容并切换布尔值开关，会发生什么。
 
 <Callout icon="🔍">
-[互动示例和完整代码](https://advanced-react.com/examples/06/08)
+  [互动示例和完整代码](https://advanced-react.com/examples/06/08)
 </Callout>
 
 ---
@@ -862,7 +859,7 @@ const Component = () => {
       {data.map((i) => (
         <Input key={i} id={i} />
       ))}
-     {/* 如果我在上面的数组中添加一个新项,这个输入会重新挂载吗?  */}
+      {/* 如果我在上面的数组中添加一个新项,这个输入会重新挂载吗?  */}
       <Input id="3" />
     </>
   );
@@ -893,8 +890,7 @@ const Component = () => {
   {
     type: Input, //这是我们在数组后的手动输入
   },
-]
-
+];
 ```
 
 &zwj;<mark>我们的手动 Input 将始终在这里的第二个位置。不会有重新挂载。没有性能灾难。</mark>心脏病发作是多余的。
@@ -904,7 +900,6 @@ const Component = () => {
 ### 关键要点
 
 哇，这一章真长！希望你在调查和解谜中玩得开心，并在此过程中学到了一些有趣的东西。<mark>从这一切中记住几件事：</mark>
-
 
 - React 会在重新渲染时比较返回数组中相同位置的元素，无论它们在层级结构的哪个层级。也就是说，第一个元素会与第一个元素比较，第二个元素会与第二个元素比较，以此类推。
 

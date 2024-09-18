@@ -21,11 +21,10 @@ name: "higher-order-components"
 简单来说，它是一个接受组件作为其参数之一的函数，执行某些逻辑，然后返回一个渲染参数中组件的另一个组件。最简单的变体是什么都不做：
 
 ```jsx
-// accept a Component as an argument
+// 接受 Component 作为参数
 const withSomeLogic = (Component) => {
-  // do something
-  // return a component that renders the component from the
-  argument;
+  // 做点什么
+  // 返回一个根据参数渲染组件的组件;
   return (props) => <Component {...props} />;
 };
 ```
@@ -35,9 +34,9 @@ const withSomeLogic = (Component) => {
 然后，当需要使用它时，它看起来是这样的：
 
 ```jsx
-// just a button
+// 只是一个按钮
 const Button = ({ onClick }) => <button onClick={onClick}>Button</button>;
-// same button, but with enhanced functionality
+// 相同的按钮，但功能增强
 const ButtonWithSomeLogic = withSomeLogic(Button);
 ```
 
@@ -58,10 +57,10 @@ const SomePage = () => {
 
 ```jsx
 const withTheme = (Component) => {
-  // isDark will come from something like context
+  // isDark 将来自类似 context 的内容
   const theme = isDark ? "dark" : "light";
-  // making sure that we pass all props to the component back
-  // and also inject the new one: theme
+  // 确保我们将所有 props 都传递给组件
+  // 同时注入新的主题
   return (props) => <Component {...props} theme={theme} />;
 };
 ```
@@ -70,14 +69,15 @@ const withTheme = (Component) => {
 
 ```jsx
 const Button = ({ theme }) => {
- // theme prop here will come from withTheme HOC below
+ // theme prop 将来自下面的 withTheme HOC
  return <button className={theme} ...>Button</button>
 }
 const ButtonWithTheme = withTheme(Button);
-
 ```
 
-互动示例和完整代码 https://advanced-react.com/examples/07/01
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/07/01)
+</Callout>
 
 在 hooks 出现之前，高阶组件被广泛用于访问上下文和任何外部数据订阅。 Redux 的旧 connect 或 React Router 的 withRouter 函数都是高阶组件：它们接受一个组件，向其注入一些 props，然后返回它。
 
@@ -87,7 +87,7 @@ const ButtonWithTheme = withTheme(Button);
 
 ```jsx
 const Button = () => {
- // we see immediately where the theme is coming from
+ // 我们立即看到主题的来源
  const { theme } = useTheme();
  return <button appearance={theme} ...>Button</button>
 };
@@ -99,7 +99,9 @@ const Button = () => {
 
 让我们来看看它们。
 
-增强回调
+---
+
+### 增强回调
 
 想象一下，你需要在某些回调中发送一些高级日志。例如，当你点击一个按钮时，你想发送一些带有数据的日志事件。你会如何用 hooks 完成它？你可能会有一个带有 onClick 回调的 Button 组件：
 
@@ -174,17 +176,17 @@ const ListItem = ({ onClick, loggingData }) => {
 它看起来像这样：
 
 ```jsx
-// just a function that accepts Component as an argument
+// 只是一个接受 Component 作为参数的函数
 export const withLoggingOnClick = (Component) => {
   return (props) => {
     const onClick = () => {
       console.log("Log on click something");
-      // don't forget to call onClick that is coming from props!
-      // we're overriding it below
+      // 不要忘记调用来自 props 的 onClick！
+      // 我们在下面覆盖它
       props.onClick();
     };
-    // return original component with all the props
-    // and overriding onClick with our own callback
+    // return 原始组件和所有 props
+    // 并使用我们自己的回调覆盖 onClick
     return <Component {...props} onClick={onClick} />;
   };
 };
@@ -204,7 +206,11 @@ export const ListItemWithLoggingOnClick = withLoggingOnClick(ListItem);
 
 或在任何其他我想跟踪的具有 `onClick` 回调的组件中。甚至不需要在 `Button` 或 `ListItem` 组件中更改一行代码！
 
-互动示例和完整代码 https://advanced-react.com/examples/07/02
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/07/02)
+</Callout>
+
+---
 
 ### 向高阶组件添加数据
 
@@ -213,13 +219,13 @@ export const ListItemWithLoggingOnClick = withLoggingOnClick(ListItem);
 ```jsx
 export const withLoggingOnClickWithParams = (
   Component,
-  // adding some params as a second argument to the function
+  // 添加一些参数作为函数的第二个参数
   params,
 ) => {
   return (props) => {
     const onClick = () => {
-      // accessing params that we passed as an argument here
-      // everything else stays the same
+      //访问我们在此处作为参数传递的参数
+      // 其他一切都保持不变
       console.log("Log on click: ", params.text);
       props.onClick();
     };
@@ -268,10 +274,10 @@ const Page = () => {
 
 ```jsx
 export const withLoggingOnClickWithProps = (Component) => {
-  // it will be in the props here, just extract it
+  // 它会在这里的 props 中，解压出来就行了
   return ({ logText, ...props }) => {
     const onClick = () => {
-      // and then just use it here
+      //然后就在这里使用它
       console.log("Log on click: ", logText);
       props.onClick();
     };
@@ -280,7 +286,11 @@ export const withLoggingOnClickWithProps = (Component) => {
 };
 ```
 
-互动示例和完整代码 https://advanced-react.com/examples/07/03
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/07/03)
+</Callout>
+
+---
 
 ### 增强 React 生命周期事件
 
@@ -289,12 +299,12 @@ export const withLoggingOnClickWithProps = (Component) => {
 ```jsx
 export const withLoggingOnMount = (Component) => {
   return (props) => {
-    // no more overriding onClick
-    // use normal useEffect - it's just a component!
+    // 不再重写 onClick
+    // 使用普通的 useEffect - 它只是一个组件!
     useEffect(() => {
       console.log("log on mount");
     }, []);
-    // and pass back props intact
+    // 并完整地传回 props
     return <Component {...props} />;
   };
 };
@@ -305,17 +315,21 @@ export const withLoggingOnMount = (Component) => {
 ```jsx
 export const withLoggingOnReRender = (Component) => {
   return ({ id, ...props }) => {
-    // fire logging every time "id" prop changes
+    // 每次 “id” 属性更改时触发日志记录
     useEffect(() => {
       console.log("log on id change");
     }, [id]);
-    // and pass back props intact
+    // 并完整地传回 props
     return <Component {...props} />;
   };
 };
 ```
 
-互动示例和完整代码 https://advanced-react.com/examples/07/04
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/07/04)
+</Callout>
+
+---
 
 ### 拦截 DOM 事件
 
@@ -324,7 +338,7 @@ export const withLoggingOnReRender = (Component) => {
 ```jsx
 useEffect(() => {
   const keyPressListener = (event) => {
-    // do stuff
+    // 做事
   };
   window.addEventListener("keypress", keyPressListener);
   return () => window.removeEventListener("keypress", keyPressListener);
@@ -364,7 +378,7 @@ export const withSuppressKeyPress = (Component) => {
 ```jsx
 const ModalWithSuppressedKeyPress = withSuppressKeyPress(Modal);
 const DropdownWithSuppressedKeyPress = withSuppressKeyPress(Dropdown);
-// etc
+// 等
 ```
 
 并在任何地方使用它：
@@ -379,7 +393,11 @@ const Component = () => {
 
 任务完成，开发人员实现模态组件时甚至不需要知道或关心这一点。
 
-互动示例和完整代码 https://advanced-react.com/examples/07/05
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/07/05)
+</Callout>
+
+---
 
 ### 关键要点
 
@@ -390,15 +408,14 @@ const Component = () => {
 - 我们可以将 props 或附加逻辑注入到被高阶组件包装的组件中。
 
   ```jsx
-  // accept a Component as an argument
+  //接受 Component 作为参数
   const withSomeLogic = (Component) => {
-    // inject some logic here
-    // return a component that renders the component from the
-    argument;
-    // inject some prop to it
+    // 在这里注入一些逻辑
+    // 返回一个根据参数渲染组件的组件;
+    // 向其注入一些 prop
     return (props) => {
-      // or inject some logic here
-      // can use React hooks here, it's just a component
+      // 或者在这里注入一些逻辑
+      // 这里可以使用 React hooks，它只是一个组件
       return <Component {...props} some="data" />;
     };
   };

@@ -34,8 +34,8 @@ name: "debouncing-throttling-with-refs"
 ```jsx
 const Input = () => {
   const onChange = (e) => {
-    // send data from input field to the backend here
-    // will be triggered on every keystroke
+    // 在此处将数据从输入字段发送到后端
+    // 将在每次击键时触发
   };
   return <input onChange={onChange} />;
 };
@@ -50,8 +50,8 @@ interval hasn't passed yet, it will drop the previous call and restart the
 "waiting" clock.
 const Input = () => {
  const onChange = (e) => {
- // send data from input field to the backend here
- // will be triggered 500 ms after the user stopped typing
+ // 在此处将数据从输入字段发送到后端
+ //  将在用户停止键入 500 毫秒后触发
  };
  const debouncedOnChange = debounce(onChange, 500);
  return <input onChange={debouncedOnChange} />;
@@ -64,16 +64,16 @@ const Input = () => {
 
 ```jsx
 const debounce = (callback, wait) => {
-  // initialize the timer
+  // 初始化计时器
   let timer;
-  // lots of code here involving the actual implementation of timer
-  // to track the time passed since the last callback call
+  // 这里有很多代码涉及 timer 的实际实现
+  // 跟踪自上次回调调用以来经过的时间
   const debouncedFunc = () => {
-    // checking whether the waiting time has passed
+    // 检查等待时间是否已过去
     if (shouldCallCallback(Date.now())) {
       callback();
     } else {
-      // if time hasn't passed yet, restart the timer
+      // 如果时间尚未过去，请重新启动计时器
       timer = startTimer(callback);
     }
   };
@@ -87,7 +87,11 @@ const debounce = (callback, wait) => {
 
 如果我们使用的是一个带有自动保存功能的编辑字段，而不是异步搜索示例，差异将会非常明显：如果用户在字段中键入内容，我们希望发送请求到后端，以“动态”保存他们所输入的内容，而无需用户明确按下“保存”按钮。如果用户在这样的字段中非常快速地写诗，去抖的 onChange 回调只会被触发一次。如果在输入时出现问题，整首诗将会丢失。而节流的回调将会定期被触发，诗歌将会定期保存，如果发生灾难，只有最后几毫秒的内容会丢失。这是一种更安全的方法。
 
-互动示例和完整代码https://advanced-react.com/examples/11/01
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/11/01)
+</Callout>
+
+---
 
 ### 在 React 中的去抖回调：处理重新渲染。
 
@@ -98,7 +102,7 @@ const debounce = (callback, wait) => {
 ```jsx
 const Input = () => {
   const onChange = (e) => {
-    // send data from input to the backend here
+    // 在此处将数据从输入发送到后端
   };
   const debouncedOnChange = debounce(onChange, 500);
   return <input onChange={debouncedOnChange} />;
@@ -111,15 +115,12 @@ const Input = () => {
 
 ```jsx
 const Input = () => {
- // adding state for the value
- const [value, setValue] = useState();
- const onChange = (e) => {};
- const debouncedOnChange = debounce(onChange, 500);
- // turning input into controlled component by passing value from
-state there
- return (
- <input onChange={debouncedOnChange} value={value} />
- );
+  // 为 value 添加 state
+  const [value, setValue] = useState();
+  const onChange = (e) => {};
+  const debouncedOnChange = debounce(onChange, 500);
+  // 通过从状态传递值将输入转变为受控组件
+  return <input onChange={debouncedOnChange} value={value} />;
 };
 ```
 
@@ -129,7 +130,7 @@ state there
 const Input = () => {
   const [value, setValue] = useState();
   const onChange = (e) => {
-    // set state value from onChange event
+    //从 onChange 事件设置状态值
     setValue(e.target.value);
   };
   return <input onChange={onChange} value={value} />;
@@ -142,7 +143,7 @@ const Input = () => {
 const Input = () => {
   const [value, setValue] = useState();
   const onChange = (e) => {
-    // just won't work, this callback is debounced
+    //根本不起作用，这个回调是去抖动的
     setValue(e.target.value);
   };
   const debouncedOnChange = debounce(onChange, 500);
@@ -156,22 +157,30 @@ const Input = () => {
 
 ```jsx
 const Input = () => {
- const [value, setValue] = useState();
- const sendRequest = (value) => {
- // send value to the backend
- };
- // now send request is debounced
- const debouncedSendRequest = debounce(sendRequest, 500);
- // onChange is not debounced anymore, it just calls debounced
-function
- const onChange = (e) => {
- const value = e.target.value;
- // state is updated on every value change, so input will work
+  const [value, setValue] = useState();
+  const sendRequest = (value) => {
+    // 发送值到后端
+  };
+  // 现在发送请求已防抖
+  const debouncedSendRequest = debounce(sendRequest, 500);
+  //onChange 不再防抖，它只是调用防抖函数
+
+  const onChange = (e) => {
+    const value = e.target.value;
+    // 每次值改变时状态都会更新，因此输入将起作用
+    setValue(value);
+    // 在此处调用去抖动请求
+    debouncedSendRequest(value);
+  };
+  return <input onChange={onChange} value={value} />;
+};
 ```
 
 只是……它也不工作！现在请求根本没有去抖，只是稍微延迟了一下。如果我在这个字段中输入“React”，我仍然会发送所有的“R”、“Re”、“Rea”、“Reac”、“React”请求，而不是像正确的去抖函数那样只发送一次“React”，只延迟半秒。
 
-互动示例和完整代码 https://advanced-react.com/examples/11/02
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/11/02)
+</Callout>
 
 答案当然是重新渲染（通常在 React 中是这样）。正如我们在第一章中所了解的，状态变化将导致组件重新渲染。通过引入状态来管理值后，我们现在在每次按键时重新渲染整个 Input 组件。因此，在每次按键时，我们现在调用的是实际的去抖函数，而不仅仅是去抖的回调。正如我们刚才讨论的，去抖函数在被调用时：
 
@@ -189,7 +198,7 @@ function
 
 ```jsx
 const sendRequest = (value) => {
-  // send value to the backend
+  // 发送值到后端
 };
 const debouncedSendRequest = debounce(sendRequest, 500);
 const Input = () => {
@@ -197,7 +206,7 @@ const Input = () => {
   const onChange = (e) => {
     const value = e.target.value;
     setValue(value);
-    // debouncedSendRequest is created once, so state caused rerenders won't affect it anymore
+    // debouncedSendRequest 只创建一次，因此状态导致的重新渲染不会再影响它
     debouncedSendRequest(value);
   };
   return <input onChange={onChange} value={value} />;
@@ -206,40 +215,44 @@ const Input = () => {
 
 然而，如果这些函数依赖于组件生命周期内发生的某些事情，即状态或属性，这将无效。不过没关系，我们可以使用记忆化钩子来实现完全相同的结果：
 
-```jsx
+```tsx
 const Input = () => {
-     const [value, setValue] = useState('initial');
- // memoize the callback with useCallback
- // we need it since it's a dependency in useMemo below
- const sendRequest = useCallback((value: string) => {
- console.log('Changed value:', value);
- }, []);
- // memoize the debounce call with useMemo
- const debouncedSendRequest = useMemo(() => {
- return debounce(sendRequest, 1000);
- }, [sendRequest]);
- const onChange = (e) => {
- const value = e.target.value;
- setValue(value);
- debouncedSendRequest(value);
- };
- return <input onChange={onChange} value={value} />;
+  const [value, setValue] = useState("initial");
+  // 使用 useCallback 记忆回调
+  // 我们需要它，因为它是下面 useMemo 中的一个依赖项
+  const sendRequest = useCallback((value: string) => {
+    console.log("Changed value:", value);
+  }, []);
+  // 使用 useMemo 记忆防抖调用
+  const debouncedSendRequest = useMemo(() => {
+    return debounce(sendRequest, 1000);
+  }, [sendRequest]);
+  const onChange = (e) => {
+    const value = e.target.value;
+    setValue(value);
+    debouncedSendRequest(value);
+  };
+  return <input onChange={onChange} value={value} />;
 };
 ```
 
-互动示例和完整代码https://advanced-react.com/examples/11/03
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/11/03)
+</Callout>
 
 现在一切都按预期工作！Input 组件具有状态，onChange 中的后端调用被去抖，并且去抖实际上表现得很正常。
 
 直到它不再正常……
 
+---
+
 ### 在 React 中的去抖回调：处理内部状态
 
 现在来解决这个复杂的拼图的最后一块。让我们看看这段代码：
 
-```jsx
+```tsx
 const sendRequest = useCallback((value: string) => {
- console.log('Changed value:', value);
+  console.log("Changed value:", value);
 }, []);
 ```
 
@@ -249,7 +262,7 @@ const sendRequest = useCallback((value: string) => {
 const onChange = (e) => {
   const value = e.target.value;
   setValue(value);
-  // value is coming from input change event directly
+  // 值直接来自输入改变事件
   debouncedSendRequest(value);
 };
 ```
@@ -262,9 +275,9 @@ const onChange = (e) => {
 const Input = () => {
   const [value, setValue] = useState("initial");
   const sendRequest = useCallback(() => {
-    // value is now coming from state
+    // 值现在来自状态
     console.log("Changed value:", value);
-    // adding it to dependencies
+    // 将其添加到依赖项
   }, [value]);
 };
 ```
@@ -272,14 +285,16 @@ const Input = () => {
 因此，sendRequest 函数将随着每次值的变化而变化。这就是记忆化的工作原理。该值在重新渲染过程中保持不变，直到依赖项发生变化。这意味着我们的记忆化去抖调用现在也会不断变化：它将 sendRequest 作为依赖项，而 sendRequest 每次状态更新时都会变化。
 
 ```jsx
-// this will now change on every state update
-// because sendRequest has dependency on state
+// 现在每次状态更新时都会改变
+// 因为 sendRequest 依赖于状态
 const debouncedSendRequest = useMemo(() => {
   return debounce(sendRequest, 1000);
 }, [sendRequest]);
 ```
 
-互动示例和完整代码 https://advanced-react.com/examples/11/04
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/11/04)
+</Callout>
 
 我们又回到了引入状态到 Input 组件时的情况：去抖变成了简单的延迟。
 
@@ -289,16 +304,16 @@ const debouncedSendRequest = useMemo(() => {
 
 ```jsx
 const Input = () => {
-  // creating ref and initializing it with the debounced backend
+  // 创建 ref 并使用去抖动后端对其进行初始化
   call;
   const ref = useRef(
     debounce(() => {
-      // this is our old "debouncedSendRequest" function
+      // 这是我们以前的“debouncedSendRequest”函数
     }, 500),
   );
   const onChange = (e) => {
     const value = e.target.value;
-    // calling the debounced function
+    // 调用去抖动函数
     ref.current();
   };
 };
@@ -313,22 +328,21 @@ const Input = () => {
 ```jsx
 const Input = () => {
   const [value, setValue] = useState();
-  // creating ref and initializing it with the debounced backend
-  call;
+  // 创建 ref 并使用去抖动的 backendcall 初始化它
   const ref = useRef(
     debounce(() => {
-      // send request to the backend here
+      // 在这里向后端发送请求
     }, 500),
   );
   useEffect(() => {
-    // updating ref when state changes
+    // 当状态改变时更新 ref
     ref.current = debounce(() => {
-      // send request to the backend here
+      // 在这里向后端发送请求
     }, 500);
   }, [value]);
   const onChange = (e) => {
     const value = e.target.value;
-    // calling the debounced function
+    // 调用去抖动函数
     ref.current();
   };
 };
@@ -336,15 +350,17 @@ const Input = () => {
 
 但不幸的是，这与 useCallback 的依赖解决方案没有什么不同：每次都会重新创建去抖动的函数，定时器每次也会重新创建，去抖动不过是一个重命名的延迟。
 
-互动示例和完整代码 https://advanced-react.com/examples/11/05
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/11/05)
+</Callout>
 
 解决这个问题的一种方法是在 useEffect 中使用清理函数（我们将在第 15 章讨论这些内容：数据获取和竞争条件），并在重新分配之前重置去抖动的回调。类似这样的：
 
 ```jsx
 useEffect(() => {
-  // updating ref when state changes
+  // 当状态改变时更新 ref
   ref.current = debounce(() => {}, 500);
-  // cancel the debounce callback before
+  // 取消防抖回调
   return () => ref.current.cancel();
 }, [value]);
 ```
@@ -357,38 +373,36 @@ useEffect(() => {
 
 ```jsx
 const Input = () => {
- const [value, setValue] = useState();
- const sendRequest = () => {
- // send request to the backend here
- // value is coming from state
- console.log(value);
- };
- // creating ref and initializing it with the sendRequest function
- const ref = useRef(sendRequest);
- useEffect(() => {
- // updating ref when state changes
-      // now, ref.current will have the latest sendRequest with
-access to the latest state
- ref.current = sendRequest;
- }, [value]);
- // creating debounced callback only once - on mount
- const debouncedCallback = useMemo(() => {
- // func will be created only once - on mount
- const func = () => {
- // ref is mutable! ref.current is a reference to the latest
-sendRequest
- ref.current?.();
- };
- // debounce the func that was created once, but has access to
-the latest sendRequest
- return debounce(func, 1000);
- // no dependencies! never gets updated
- }, []);
- const onChange = (e) => {
- const value = e.target.value;
- // calling the debounced function
- debouncedCallback();
- };
+  const [value, setValue] = useState();
+  const sendRequest = () => {
+    // 在这里向后端发送请求
+    // 值来自状态
+    console.log(value);
+  };
+  // 创建 ref 并使用 sendRequest 函数初始化它
+  const ref = useRef(sendRequest);
+  useEffect(() => {
+    // 当状态改变时更新 ref
+    // 现在，ref.current 将拥有最新的 sendRequest，并可以访问最新状态
+    ref.current = sendRequest;
+  }, [value]);
+  // 仅创建一次去抖动回调 - 在挂载时
+  const debouncedCallback = useMemo(() => {
+    // func will be created only once - on mount
+    const func = () => {
+      // ref 是可变的！ref.current 是对最新值的引用
+      sendRequest;
+      ref.current?.();
+    };
+    // 取消创建一次的函数的抖动，但可以访问最新的 sendRequest
+    return debounce(func, 1000);
+    // 没有依赖项！永远不会更新
+  }, []);
+  const onChange = (e) => {
+    const value = e.target.value;
+    // 调用去抖动函数
+    debouncedCallback();
+  };
 };
 ```
 
@@ -416,8 +430,8 @@ const useDebounce = (callback) => {
 const Input = () => {
   const [value, setValue] = useState();
   const debouncedRequest = useDebounce(() => {
-    // send request to the backend
-    // access to the latest state here
+    // 向后端发送请求
+    // 在此处访问最新状态
     console.log(value);
   });
   const onChange = (e) => {
@@ -429,17 +443,26 @@ const Input = () => {
 };
 ```
 
-互动示例和完整代码 https://advanced-react.com/examples/11/06
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/11/06)
+</Callout>
 
 闭包和 JavaScript 中可变性的力量是无穷无尽的！
+
+---
 
 ### 关键要点
 
 这很有趣，不是吗？JavaScript 的闭包可能是互联网上最受欢迎的特性。下一章，我们将尝试从处理它们中恢复过来，并玩弄一些 UI 改进。更具体地说，我们将学习如何消除定位元素的“闪烁”效果。但在此之前，让我们快速回顾一下本章内容：
 
-我们在希望跳过一些执行过于频繁的函数时使用去抖动和节流。
-为了使这些函数正常工作，它们应该在组件的生命周期中只调用一次，通常是在挂载时。
-如果我们直接在组件的渲染函数中调用它们，内部的定时器将会在每次重新渲染时重新创建，函数将无法按预期工作。
-为了解决这个问题，我们可以使用 useMemo 或通过使用 Refs 进行记忆。
-如果我们简单地记忆它们或“天真”使用 Refs，我们将无法访问组件的最新数据，例如状态或道具。这是因为在初始化 Ref 时会创建一个闭包，这会冻结创建时的值。
-为了逃避闭包陷阱，我们可以利用 Ref 对象的可变性质，通过在 useEffect 中不断更新 ref.current 内的“封闭”函数来获取最新数据。
+- 我们在希望跳过一些执行过于频繁的函数时使用去抖动和节流。
+
+- 为了使这些函数正常工作，它们应该在组件的生命周期中只调用一次，通常是在挂载时。
+
+- 如果我们直接在组件的渲染函数中调用它们，内部的定时器将会在每次重新渲染时重新创建，函数将无法按预期工作。
+
+- 为了解决这个问题，我们可以使用 useMemo 或通过使用 Refs 进行记忆。
+
+- 如果我们简单地记忆它们或“天真”使用 Refs，我们将无法访问组件的最新数据，例如状态或道具。这是因为在初始化 Ref 时会创建一个闭包，这会冻结创建时的值。
+
+- 为了逃避闭包陷阱，我们可以利用 Ref 对象的可变性质，通过在 useEffect 中不断更新 ref.current 内的“封闭”函数来获取最新数据。

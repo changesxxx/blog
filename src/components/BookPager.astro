@@ -1,0 +1,58 @@
+---
+import { buttonVariants } from '@/components/ui/button'
+import { books } from '@/config/books'
+import { cn } from '@/lib/utils'
+
+export function getPagerForBook(bookId: string, slug: string) {
+  var book = books.find((book) => book.id == bookId)
+
+  var chapterList: any[] = []
+
+  book!.chapter.forEach((c) => {
+    if (c.items != null) {
+      chapterList = [...chapterList,...c.items]
+    } else {
+      chapterList.push(c)
+    }
+  })
+
+  // console.log('chapterList:', chapterList)
+
+  var currentChapterIndex = chapterList.findIndex((c) => c.id === slug)
+
+  return {
+    prev: chapterList[currentChapterIndex - 1] ?? null,
+    next: chapterList[currentChapterIndex + 1] ?? null,
+  }
+}
+
+const { bookId, slug } = Astro.props
+const pager = getPagerForBook(bookId, slug)
+
+if (!pager) {
+  return null
+}
+---
+
+<div class="flex flex-row items-center justify-between">
+  {
+    pager?.prev && (
+      <a
+        href={pager.prev.href}
+        class={cn(buttonVariants({ variant: 'outline' }))}
+      >
+        上一篇: {pager.prev.title}
+      </a>
+    )
+  }
+  {
+    pager?.next && (
+      <a
+        href={pager.next.href}
+        class={cn(buttonVariants({ variant: 'outline' }), 'ml-auto')}
+      >
+        下一篇: {pager.next.title}
+      </a>
+    )
+  }
+</div>

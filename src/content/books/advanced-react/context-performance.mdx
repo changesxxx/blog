@@ -15,6 +15,8 @@ name: "context-performance"
 - 使用上下文时的注意事项。
 - 如何充分利用上下文，防止因上下文造成的不必要的重新渲染。
 
+---
+
 ### 问题
 
 想象一下，你正在实现一个具有两列布局的页面：左侧是侧边栏，右侧是“主要”部分。左侧的侧边栏需要可折叠：它应该有一个按钮，点击该按钮将侧边栏折叠为“窄”视图，或展开回“宽”视图。结果，主要部分也可以变得更大或更小。在主要部分的底部，你有一个块，在侧边栏折叠时希望以三列显示某些内容，或在展开时以两列显示。可能是一个图像库或一些广告块。
@@ -38,15 +40,15 @@ const Page = () => {
 
 ```jsx
 const Sidebar = () => {
- return (
- <div className="sidebar">
- {/* this one will control the expand/collapse */}
- <ExpandButton />
- {/* ... other sidebar stuff */}
- <Link ... />
- <Plugin ... />
- </div>
- )
+  return (
+    <div className="sidebar">
+      {/* 这个将控制 展开/收起 */}
+      <ExpandButton />
+      {/* ... 其他侧边栏内容 */}
+      <Link .../>
+      <Plugin .../>
+    </div>
+  )
 }
 ```
 
@@ -59,10 +61,8 @@ const MainPart = () => {
     <>
       <VerySlowComponent />
       <AnotherVerySlowComponent />
-      {/* this one needs to know whether the sidebar is expanded
-or collapsed */}
-      {/* it will render two or three columns, depending on this
-information */}
+      {/* 这个需要知道侧边栏是否展开或折叠 */}
+      {/*它将呈现两到三列，具体取决于此信息 */}
       <AdjustableColumnsBlock />
     </>
   );
@@ -73,9 +73,9 @@ information */}
 
 ```jsx
 const Page = () => {
- const [isNavExpanded, setIsNavExpanded] = useState();
- return ...
-}
+  const [isNavExpanded, setIsNavExpanded] = useState();
+  return ...
+};
 ```
 
 然后通过 props 将设置函数和状态本身传递给 `Sidebar` 和 `MainPart` 组件中的 `ExpandButton` 和 `AdjustableColumnsBlock`：
@@ -84,9 +84,9 @@ const Page = () => {
 const Sidebar = ({ isNavExpanded, toggleNav }) => {
   return (
     <div className="sidebar">
-      {/* pass the props here */}
+      {/* 在此处传递 props */}
       <ExpandButton isExpanded={isNavExpanded} onClick={toggleNav} />
-      {/* ... // the rest of the stuff */}
+      {/* ... // 其余的东西 */}
     </div>
   );
 };
@@ -127,13 +127,17 @@ const Page = () => {
 
 其次，性能会很糟糕。从重新渲染的角度来看会发生什么？每当按钮被点击，导航展开/收起，`Page` 组件中的状态就会改变。我们知道，状态更新会导致该组件及其内部的每个组件，包括它们的子组件，重新渲染。因此，`Sidebar` 和 `MainPart` 有很多组件，其中一些是相当缓慢的。所以每次页面的重新渲染都会变得缓慢，从而导致导航的展开/收起变得迟缓和滞后。
 
-互动示例和完整代码 https://advanced-react.com/examples/08/01
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/08/01)
+</Callout>
 
 不幸的是，我们不能仅仅使用前几章中的任何组合技术来防止这种情况的发生：它们实际上都依赖于导致重新渲染的状态。我们可能会对那些不依赖于该状态的中间慢组件进行记忆化处理，但这样代码会变得更加臃肿：所有这些组件都必须被记忆化！
 
 还有一种更好的方法：上下文（Context）
 
-## 上下文如何帮助
+---
+
+### 上下文如何帮助
 
 在这种情况下，Context（或任何类似的状态管理库）非常强大。它们允许我们摆脱组件树，而不是通过 props 传递数据，我们可以直接从顶部组件传递给底部组件。
 
@@ -178,7 +182,7 @@ const Page = () => {
 最后，我们在 `NavigationController` 中引入上下文，它将持有导航状态和更改该状态的 API（即切换函数）：
 
 ```jsx
-// creating context with default values
+// 使用默认值创建上下文
 const Context = React.createContext({
   isNavExpanded: true,
   toggle: () => {},
@@ -211,7 +215,7 @@ const NavigationController = ({ children }) => {
 我们可以引入一个方便的 `useNavigation` 钩子：
 
 ```jsx
-// pass that Context to the useContext hook
+// 将该 Context 传递给 useContext 钩子
 const useNavigation = () => useContext(Context);
 ```
 
@@ -237,7 +241,9 @@ const AdjustableColumnsBlock = () => {
 
 再也不需要在任何地方传递 props 了！现在，当状态发生变化时，提供者上的 `value` 属性将发生变化，只有使用 `useNavigation` 钩子的组件会重新渲染。其他不使用该钩子的组件（如 `Sidebar` 或 `MainBlock`）将保持不变，不会重新渲染。就这样，通过简单使用上下文，我们显著提高了整个应用的性能。
 
-互动示例和完整代码 https://advanced-react.com/examples/08/02
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/08/02)
+</Callout>
 
 当然，在处理 Context 时，并不全是阳光和玫瑰。否则，它不会有这么坏的名声。你需要牢记引入上下文到应用中的三个主要点：
 
@@ -246,6 +252,8 @@ const AdjustableColumnsBlock = () => {
 这些重新渲染无法轻易通过记忆化来防止。
 
 让我们更仔细地看看这些问题以及如何缓解它们。
+
+---
 
 ### 上下文值变化
 
@@ -320,7 +328,9 @@ const Layout = ({ children }) => {
 
 如果该上下文在一个重型组件或有很多子组件的组件中使用，那就——哎呀，页面的一半在每次滚动时重新渲染，一切都会变得超级缓慢。
 
-互动示例和完整代码 https://advanced-react.com/examples/08/03
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/08/03)
+</Callout>
 
 幸运的是，所有这些都很容易预防。我们只需使用 `useMemo` 和 `useCallback` 来记忆化传递给提供者的值：
 
@@ -337,7 +347,9 @@ const NavigationController = ({ children }) => {
 };
 ```
 
-互动示例和完整代码https://advanced-react.com/examples/08/04
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/08/04)
+</Callout>
 
 这是一种少数情况下，默认进行记忆化实际上并不是过早的优化。它将防止将来几乎不可避免发生的更大问题。
 
@@ -347,24 +359,24 @@ const NavigationController = ({ children }) => {
 
 ```jsx
 const SomeComponent = () => {
- // no dependencies, open won't change
- const open = useCallback(() => setIsNavExpanded(true), []);
-     // no dependencies, close won't change
- const close = useCallback(() => setIsNavExpanded(false), []);
- const value = useMemo(() => {
- return { isNavExpanded, open, close };
- }, [isNavExpanded, open, close]);
- return ...
-}
+  // 无依赖项，Open 不会更改
+  const open = useCallback(() => setIsNavExpanded(true), []);
+  // 无依赖项，close 不会更改
+  const close = useCallback(() => setIsNavExpanded(false), []);
+  const value = useMemo(() => {
+    return { isNavExpanded, open, close };
+  }, [isNavExpanded, open, close]);
+  return...
+};
 ```
 
 并在某处尝试使用其中一个函数：
 
 ```jsx
 const SomeComponent = () => {
- const { open } = useNavigation();
- return ...
-}
+  const { open } = useNavigation();
+  return...
+};
 ```
 
 尽管打开函数实际上并没有改变，但 `SomeComponent` 在上下文提供者的值变化时仍会重新渲染。
@@ -383,11 +395,11 @@ const useNavOpen = () => {
 它的工作方式如下。我们可以创建两个上下文：一个保存变化的值，另一个保存不变化的值。
 
 ```jsx
-// store the state here
+// 在此处存储状态
 const ContextData = React.createContext({
   isNavExpanded: false,
 });
-// store the open/close functions here
+// 在此处存储 open/close 函数
 const ContextApi = React.createContext({
   open: () => {},
   close: () => {},
@@ -398,34 +410,30 @@ const ContextApi = React.createContext({
 
 ```jsx
 const NavigationController = ({ children }) => {
- ...
- return (
- <ContextData.Provider value={data}>
- <ContextApi.Provider value={api}>
- {children}
- </ContextApi.Provider>
- </ContextData.Provider>
- )
-}
+  ...
+  return (
+    <ContextData.Provider value={data}>
+      <ContextApi.Provider value={api}>{children}</ContextApi.Provider>
+    </ContextData.Provider>
+  );
+};
 ```
 
 我们传递给这些提供者的值将是具有状态的数据，以及仅持有打开和关闭函数引用的 API。
 
 ```jsx
 const NavigationController = ({ children }) => {
- ...
-  // that one has a dependency on state
- const data = useMemo(() => ({ isNavExpanded }), [isNavExpanded]);
- // that one never changes - no dependencies
- const api = useMemo(() => ({ open, close }), [close, open]);
- return (
- <ContextData.Provider value={data}>
- <ContextApi.Provider value={api}>
- {children}
- </ContextApi.Provider>
- </ContextData.Provider>
- )
-}
+   ...
+  // 该 API 依赖于 state
+  const data = useMemo(() => ({ isNavExpanded }), [isNavExpanded]);
+  // 那个永远不会改变 - 没有依赖关系
+  const api = useMemo(() => ({ open, close }), [close, open]);
+  return (
+    <ContextData.Provider value={data}>
+      <ContextApi.Provider value={api}>{children}</ContextApi.Provider>
+    </ContextData.Provider>
+  );
+};
 ```
 
 不幸的是，我们必须删除切换函数。它依赖于状态，因此我们不能将其放入 API 中，并且将其包含在数据中并没有实际意义。
@@ -441,9 +449,9 @@ const useNavigationApi = () => useContext(ContextApi);
 
 ```jsx
 const SomeComponent = () => {
- const { open } = useNavigationApi();
- return ...
-}
+  const { open } = useNavigationApi();
+  return...
+};
 ```
 
 我们之前使用 `useNavigation` 钩子获取 `isNavExpanded` 值，现在将使用 `useNavigationData`，而不改变其他任何内容：
@@ -455,9 +463,13 @@ const AdjustableColumnsBlock = () => {
 };
 ```
 
-互动示例和完整代码 https://advanced-react.com/examples/08/05
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/08/05)
+</Callout>
 
 当然，我们可以根据需要将这些提供者拆分得更细。它完全取决于对您的应用程序来说什么是合理的，以及上下文引起的重新渲染是否真的有害。
+
+---
 
 ### reducers 和拆分提供者
 
@@ -465,22 +477,21 @@ const AdjustableColumnsBlock = () => {
 
 ```jsx
 const NavigationController = ({ children }) => {
- ...
- // depends on isNavExpanded
- const toggle = useCallback(() =>
-setIsNavExpanded(!isNavExpanded), [isNavExpanded]);
- // with toggle it has to depend on isNavExpanded through toggle
-function
- // so will change with every state update
- const api = useMemo(() => ({ open, close, toggle }), [open,
-close, toggle]);
-     return (
- <ContextData.Provider value={data}>
- <ContextApi.Provider value={api}>
- {children}
- </ContextApi.Provider>
- </ContextData.Provider>
- )
+  ...
+  // 依赖于 isNavExpanded
+  const toggle = useCallback(
+    () => setIsNavExpanded(!isNavExpanded),
+    [isNavExpanded],
+  );
+  // 使用 toggle 时，它必须依赖于 isNavExpanded 通过 toggle 函数
+  // 因此，每次状态更新都会发生变化
+  const api = useMemo(() => ({ open, close, toggle }), [open, close, toggle]);
+  return (
+    <ContextData.Provider value={data}>
+      <ContextApi.Provider value={api}>{children}</ContextApi.Provider>
+    </ContextData.Provider>
+  );
+}
 ```
 
 这并不理想。现在，任何尝试使用该状态的人都必须自己实现切换功能：
@@ -546,8 +557,8 @@ const reducer = (state, action) => {
     case "close-sidebar":
       return { ...state, isNavExpanded: false };
     case "toggle-sidebar":
-      // we'll have access to the old value here - it's our "state"
-      // so just flip it around
+      //我们将在此处访问旧值 - 它是我们的 “state”
+      //所以就把它翻转过来
       return {
         ...state,
         isNavExpanded: !state.isNavExpanded,
@@ -560,7 +571,7 @@ const reducer = (state, action) => {
 
 ```jsx
 const NavigationController = () => {
- // state and dispatch are returned from the useReducer
+ // state 和 dispatch 是从 useReducer 返回的
  const [state, dispatch] = useReducer(reducer, { ... });
  const api = useMemo(() => {
  return {
@@ -568,16 +579,20 @@ const NavigationController = () => {
  close: () => dispatch({ type: 'close-sidebar' }),
  toggle: () => dispatch({ type: 'toggle-sidebar' }),
  }
- // don't depend on the state directly anymore!
+ //不要再直接依赖 state！
  }, []);
 }
 ```
 
 现在，当我们将该 API 值传递给提供者时，没有任何上下文消费者会在状态变化时重新渲染：值从未变化！我们可以安全地在各处使用切换函数，而不必担心在应用中引起性能问题。
 
-互动示例和完整代码https://advanced-react.com/examples/08/06
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/08/06)
+</Callout>
 
 这种 reducer 模式在您有多个状态变量和更复杂的操作时尤其强大，而不仅仅是将布尔值从 false 切换到 true。但从重新渲染的角度来看，它与 `useState` 是一样的：通过调度更新状态将强制组件重新渲染。
+
+---
 
 ### 上下文选择器
 
@@ -587,11 +602,10 @@ const NavigationController = () => {
 
 ```jsx
 const useOpen = () => {
- const { open } = useContext(Context);
- // even if we additionally memoize it here, it won't help
- // change in Context value will trigger re-render of the
-component that uses useOpen
- return useMemo(() => open, []);
+  const { open } = useContext(Context);
+  // 即使我们在这里额外记住它，也无济于事
+  // Context 值的变化将触发使用 useOpen 的组件
+  return useMemo(() => open, []);
 };
 ```
 
@@ -599,7 +613,7 @@ component that uses useOpen
 技巧是这样的。首先，我们将创建一个 `withNavigationOpen` 高阶组件：
 
 ```jsx
-// it's a HOC, so it accepts a component and returns another
+// 它是一个 HOC，因此它接受一个组件并返回另一个
 component;
 const withNavigationOpen = (AnyComponent) => {
   return (props) => <AnyComponent {...props} />;
@@ -611,7 +625,7 @@ const withNavigationOpen = (AnyComponent) => {
 ```jsx
 const withNavigationOpen = (AnyComponent) => {
   return (props) => {
-    // access Context here - it's just another component
+    // 在此处访问 Context - 它只是另一个组件
     const { open } = useContext(Context);
     return <AnyComponent {...props} openNav={open} />;
   };
@@ -621,7 +635,7 @@ const withNavigationOpen = (AnyComponent) => {
 现在，所有被该高阶组件包裹的组件都将拥有 `openNav` prop：
 
 ```jsx
-// openNav is coming from HOC
+// openNav 来自 HOC
 const SomeHeavyComponent = withNavigationOpen(({ openNav }) => {
   return <button onClick={openNav} />;
 });
@@ -631,16 +645,15 @@ const SomeHeavyComponent = withNavigationOpen(({ openNav }) => {
 
 ```jsx
 const withNavigationOpen = (AnyComponent) => {
- // wrap the component from the arguments in React.memo here
- const AnyComponentMemo = React.memo(AnyComponent);
- return (props) => {
- const { open } = useContext(Context);
- // return memoized component here
- // now it won't re-render because of Context changes
- // make sure that whatever is passed as props here don't
-change between re-renders!
- return <AnyComponentMemo {...props} openNav={open} />;
- };
+  // 从 React.memo 中的参数包装组件 这里
+  const AnyComponentMemo = React.memo(AnyComponent);
+  return (props) => {
+    const { open } = useContext(Context);
+    // 在此处返回 记忆组件
+    //  现在它不会因为 Context 更改而重新渲染
+    //  确保这里作为 props 传递的任何内容在重新渲染之间都不会改变！
+    return <AnyComponentMemo {...props} openNav={open} />;
+  };
 };
 ```
 
@@ -648,7 +661,11 @@ change between re-renders!
 
 我们的 `SomeHeavyComponent` 可以安全地使用 `openNav` 函数：在上下文值变化时它不会重新渲染。
 
-互动示例和完整代码 https://advanced-react.com/examples/08/07
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/08/07)
+</Callout>
+
+---
 
 ### 关键要点
 
@@ -656,14 +673,14 @@ change between re-renders!
 
 请不要忘记：
 
-通过上下文（或任何类似的状态管理库），我们可以直接将数据从一个组件传递到渲染树深处的另一个组件，而不必通过 props 连接它。
+- 通过上下文（或任何类似的状态管理库），我们可以直接将数据从一个组件传递到渲染树深处的另一个组件，而不必通过 props 连接它。
 
-以这种方式传递数据可以提高我们应用的性能，因为我们将避免重新渲染所有中间组件。
+- 以这种方式传递数据可以提高我们应用的性能，因为我们将避免重新渲染所有中间组件。
 
-然而，上下文可能是危险的：如果上下文提供者中的值变化，所有使用它的组件将重新渲染。此重新渲染无法通过标准的记忆化技术停止。
+- 然而，上下文可能是危险的：如果上下文提供者中的值变化，所有使用它的组件将重新渲染。此重新渲染无法通过标准的记忆化技术停止。
 
-为了最小化上下文重新渲染，我们应该始终记忆化传递给提供者的值。
+- 为了最小化上下文重新渲染，我们应该始终记忆化传递给提供者的值。
 
-我们可以将上下文提供者拆分为多个提供者，以进一步最小化重新渲染。将 `useState` 切换到 `useReducer` 可以帮助实现这一点。
+- 我们可以将上下文提供者拆分为多个提供者，以进一步最小化重新渲染。将 `useState` 切换到 `useReducer` 可以帮助实现这一点。
 
-即使我们没有适当的选择器用于上下文，我们也可以利用高阶组件和 `React.memo` 模仿它们的功能。
+- 即使我们没有适当的选择器用于上下文，我们也可以利用高阶组件和 `React.memo` 模仿它们的功能。
