@@ -25,7 +25,7 @@ name: "types-grammar-ch4"
 
 然而，以下是我多年来观察到的一个现象：公开谴责隐式强制转换的大多数人，实际上在自己的代码中使用隐式强制转换。嗯...
 
-Douglas Crockford 说要避免隐式强制转换的错误，但他的代码中使用了 if (..)  语句，并评估非布尔值。许多人过去对此表示不满，认为转换为布尔值并不算真正的强制转换。嗯...好吧？
+Douglas Crockford 说要避免隐式强制转换的错误，但他的代码中使用了 if (..) 语句，并评估非布尔值。许多人过去对此表示不满，认为转换为布尔值并不算真正的强制转换。嗯...好吧？
 
 Brendan Eich 说他后悔隐式强制转换，但他公开支持像 x + ""（以及其他！）这样的用法来强制将 x 的值转换为字符串（我们稍后会介绍）；这绝对是隐式强制转换。
 
@@ -51,33 +51,32 @@ Brendan Eich 说他后悔隐式强制转换，但他公开支持像 x + ""（以
 
 JavaScript 中的所有值都属于两个类别之一：真值（truthy）或假值（falsy）。真值通过 ToBoolean() 操作强制转换为 true，而假值则强制转换为 false：
 
-```js 
+```js
 // ToBoolean() 是抽象的
 
-ToBoolean(undefined);               // false
-ToBoolean(null);                    // false
-ToBoolean("");                      // false
-ToBoolean(0);                       // false
-ToBoolean(-0);                      // false
-ToBoolean(0n);                      // false
-ToBoolean(NaN);                     // false
+ToBoolean(undefined); // false
+ToBoolean(null); // false
+ToBoolean(""); // false
+ToBoolean(0); // false
+ToBoolean(-0); // false
+ToBoolean(0n); // false
+ToBoolean(NaN); // false
 ```
 
 简单规则：任何不在上述列表中的其他值都是真值，并通过 ToBoolean() 强制转换为 true：
 
-```js 
-ToBoolean("hello");                 // true
-ToBoolean(42);                      // true
-ToBoolean([ 1, 2, 3 ]);             // true
-ToBoolean({ a: 1 });                // true
+```js
+ToBoolean("hello"); // true
+ToBoolean(42); // true
+ToBoolean([1, 2, 3]); // true
+ToBoolean({ a: 1 }); // true
 ```
 
-即使是像 "   "（只包含空格的字符串）、[]（空数组）和 {}（空对象）这样的值，虽然看起来直观上更像是“假”的，但它们仍然强制转换为 true。
+即使是像 " "（只包含空格的字符串）、[]（空数组）和 {}（空对象）这样的值，虽然看起来直观上更像是“假”的，但它们仍然强制转换为 true。
 
 <Callout icon="⚠️" type="warning">
 对于这个真值规则，有一些狭窄而棘手的例外。例如，Web 平台已经弃用了长期存在的 document.all 集合/数组特性，尽管它无法完全移除——那样会破坏太多网站。即使在 document.all 仍然被定义的情况下，它也表现为一个“假对象”——未定义，然后强制转换为 false；这意味着像 if (document.all) `{ .. }` 这样的遗留条件检查不再通过。
 </Callout>
-
 
 ToBoolean() 强制转换操作基本上是一个查找表，而不是将非布尔值转换为布尔值的步骤算法。因此，一些开发者声称这并不算真正的强制转换，和其他抽象强制转换操作不一样。我认为这是无稽之谈。ToBoolean() 从非布尔值类型转换为布尔值，这明显是类型强制转换（即使这只是一个非常简单的查找，而不是一个算法）。
 
@@ -87,12 +86,12 @@ ToBoolean() 强制转换操作基本上是一个查找表，而不是将非布�
 
 任何不是已经是原始值的值都可以使用 ToPrimitive()（具体来说是 OrdinaryToPrimitive()）抽象操作减少为原始值。通常，ToPrimitive() 会给出一个提示，以告诉它是更喜欢数字还是字符串。
 
-```js 
+```js
 // ToPrimitive() 是抽象的
 
-ToPrimitive({ a: 1 },"string");          // "[object Object]"
+ToPrimitive({ a: 1 }, "string"); // "[object Object]"
 
-ToPrimitive({ a: 1 },"number");          // NaN
+ToPrimitive({ a: 1 }, "number"); // NaN
 ```
 
 该 ToPrimitive() 操作会查看提供的对象，寻找 toString() 方法或 valueOf() 方法；它查找这些方法的顺序由提示控制。“string”意味着首先检查 toString() / valueOf()，而“number”（或没有提示）则意味着首先检查 valueOf() / toString()。
@@ -105,58 +104,60 @@ ToPrimitive({ a: 1 },"number");          // NaN
 
 几乎任何不是字符串的值都可以通过 ToString() 强制转换为字符串表示。这通常相当直观，特别是对于原始值：
 
-```js 
+```js
 // ToString() 是抽象的
 
-ToString(42.0);                 // "42"
-ToString(-3);                   // "-3"
-ToString(Infinity);             // "Infinity"
-ToString(NaN);                  // "NaN"
-ToString(42n);                  // "42"
+ToString(42.0); // "42"
+ToString(-3); // "-3"
+ToString(Infinity); // "Infinity"
+ToString(NaN); // "NaN"
+ToString(42n); // "42"
 
-ToString(true);                 // "true"
-ToString(false);                // "false"
+ToString(true); // "true"
+ToString(false); // "false"
 
-ToString(null);                 // "null"
-ToString(undefined);            // "undefined"
+ToString(null); // "null"
+ToString(undefined); // "undefined"
 ```
 
 有一些结果可能与常识相悖。如第 2 章所述，非常大或非常小的数字将使用科学记数法表示：
 
-```js 
-ToString(Number.MAX_VALUE);     // "1.7976931348623157e+308"
-ToString(Math.EPSILON);         // "2.220446049250313e-16"
+```js
+ToString(Number.MAX_VALUE); // "1.7976931348623157e+308"
+ToString(Math.EPSILON); // "2.220446049250313e-16"
 ```
 
 另一个与直觉相悖的结果来自 -0：
 
-```js 
-ToString(-0);                   // "0" -- wtf?
+```js
+ToString(-0); // "0" -- wtf?
 ```
 
 这不是一个错误，而是 JavaScript 早期时代的一个故意行为，基于开发者通常不希望看到负零输出的假设。
 
 有一个原始值类型不允许被强制转换（至少是隐式地）为字符串，那就是 symbol。
 
-```js 
-ToString(Symbol("ok"));         // TypeError exception thrown
+```js
+ToString(Symbol("ok")); // TypeError exception thrown
 ```
 
 <Callout icon="⚠️" type="warning">
-调用 String() 具体函数（没有使用 new 操作符）通常被认为仅仅是调用 ToString() 抽象操作。虽然这在大多数情况下是正确的，但并不完全如此。String(Symbol("ok")) 可以正常工作，而抽象的 ToString(Symbol(..)) 本身会抛出异常。本章后面会详细讨论 String(..)。
+  调用 String() 具体函数（没有使用 new 操作符）通常被认为仅仅是调用 ToString()
+  抽象操作。虽然这在大多数情况下是正确的，但并不完全如此。String(Symbol("ok"))
+  可以正常工作，而抽象的 ToString(Symbol(..)) 本身会抛出异常。本章后面会详细讨论
+  String(..)。
 </Callout>
-
 
 **默认的 toString()**
 
 当 ToString() 在对象值类型上被激活时，它会委托给 ToPrimitive() 操作（如前所述），并将 "string" 作为其提示类型：
 
-```js 
-ToString(new String("abc"));        // "abc"
-ToString(new Number(42));           // "42"
+```js
+ToString(new String("abc")); // "abc"
+ToString(new Number(42)); // "42"
 
-ToString({ a: 1 });                 // "[object Object]"
-ToString([ 1, 2, 3 ]);              // "1,2,3"
+ToString({ a: 1 }); // "[object Object]"
+ToString([1, 2, 3]); // "1,2,3"
 ```
 
 由于 ToPrimitive(..,"string") 的委托，这些对象都会调用它们的默认 toString() 方法（通过 [[Prototype]] 继承）。
@@ -165,54 +166,55 @@ ToString([ 1, 2, 3 ]);              // "1,2,3"
 
 看起来像数字的非数字值，例如数字字符串，通常可以使用 ToNumber() 强制转换为数值表示：
 
-```js 
+```js
 // ToNumber() 是抽象
 
-ToNumber("42");                     // 42
-ToNumber("-3");                     // -3
-ToNumber("1.2300");                 // 1.23
-ToNumber("   8.0    ");             // 8
+ToNumber("42"); // 42
+ToNumber("-3"); // -3
+ToNumber("1.2300"); // 1.23
+ToNumber("   8.0    "); // 8
 ```
 
 如果完整的值不完全（除了空白）看起来像有效数字，结果将是 NaN：
 
-```js 
-ToNumber("123px");                  // NaN
-ToNumber("hello");                  // NaN
+```js
+ToNumber("123px"); // NaN
+ToNumber("hello"); // NaN
 ```
 
 其他原始值有某些指定的数字等价物：
 
-```js 
-ToNumber(true);                     // 1
-ToNumber(false);                    // 0
+```js
+ToNumber(true); // 1
+ToNumber(false); // 0
 
-ToNumber(null);                     // 0
-ToNumber(undefined);                // NaN
+ToNumber(null); // 0
+ToNumber(undefined); // NaN
 ```
 
 对于 ToNumber() 的一些设计ations相当惊人：
 
-```js 
-ToNumber("");                       // 0
-ToNumber("       ");                // 0
+```js
+ToNumber(""); // 0
+ToNumber("       "); // 0
 ```
 
 <Callout icon="💡" type="info">
-我称这些为“惊人”，因为我认为它们强制转换为 NaN 会更合理，就像 undefined 一样。
+  我称这些为“惊人”，因为我认为它们强制转换为 NaN 会更合理，就像 undefined 一样。
 </Callout>
 
 有些原始值不允许被强制转换为数字，并且会导致异常而不是 NaN：
 
-```js 
-ToNumber(42n);                      // TypeError exception thrown
-ToNumber(Symbol("42"));             // TypeError exception thrown
+```js
+ToNumber(42n); // TypeError exception thrown
+ToNumber(Symbol("42")); // TypeError exception thrown
 ```
 
 <Callout icon="⚠️" type="warning">
-调用 Number() 具体函数（没有使用 new 操作符）通常被认为仅仅是调用 ToNumber() 抽象操作以将值强制转换为数字。虽然这在大多数情况下是正确的，但并不完全如此。Number(42n) 可以正常工作，而抽象的 ToNumber(42n) 本身会抛出异常。
+  调用 Number() 具体函数（没有使用 new 操作符）通常被认为仅仅是调用 ToNumber()
+  抽象操作以将值强制转换为数字。虽然这在大多数情况下是正确的，但并不完全如此。Number(42n)
+  可以正常工作，而抽象的 ToNumber(42n) 本身会抛出异常。
 </Callout>
-
 
 **其他抽象数字转换**
 
@@ -242,13 +244,13 @@ ToNumber(Symbol("42"));             // TypeError exception thrown
 
 当 ToNumber() 在对象值类型上被激活时，它会委托给 ToPrimitive() 操作（如前所述），并将 "number" 作为其提示类型：
 
-```js 
-ToNumber(new String("abc"));        // NaN
-ToNumber(new Number(42));           // 42
+```js
+ToNumber(new String("abc")); // NaN
+ToNumber(new Number(42)); // 42
 
-ToNumber({ a: 1 });                 // NaN
-ToNumber([ 1, 2, 3 ]);              // NaN
-ToNumber([]);                       // 0
+ToNumber({ a: 1 }); // NaN
+ToNumber([1, 2, 3]); // NaN
+ToNumber([]); // 0
 ```
 
 由于 ToPrimitive(..,"number") 的委托，这些对象都会调用它们的默认 valueOf() 方法（通过 [[Prototype]] 继承）。
@@ -259,37 +261,37 @@ ToNumber([]);                       // 0
 
 这个操作非常严格，不会执行任何强制转换或其他特殊情况的例外。如果两个值完全相同，结果为 true，否则为 false：
 
-```js 
+```js
 // SameValue() 是抽象的
 
-SameValue("hello","\x68ello");          // true
-SameValue("\u{1F4F1}","\uD83D\uDCF1");  // true
-SameValue(42,42);                       // true
-SameValue(NaN,NaN);                     // true
+SameValue("hello", "\x68ello"); // true
+SameValue("\u{1F4F1}", "\uD83D\uDCF1"); // true
+SameValue(42, 42); // true
+SameValue(NaN, NaN); // true
 
-SameValue("\u00e9","\u0065\u0301");     // false
-SameValue(0,-0);                        // false
-SameValue([1,2,3],[1,2,3]);             // false
+SameValue("\u00e9", "\u0065\u0301"); // false
+SameValue(0, -0); // false
+SameValue([1, 2, 3], [1, 2, 3]); // false
 ```
 
 一个变体操作是 SameValueZero() 及其相关子操作。主要的区别是这些操作将 0 和 -0 视为不可区分。
 
-```js 
+```js
 // SameValueZero() 是抽象的
 
-SameValueZero(0,-0);                    // true
+SameValueZero(0, -0); // true
 ```
 
 如果值是数字（number 或 bigint），SameValue() 和 SameValueZero() 都将委托给具有相同名称的子操作，分别针对每种数字和 bigint 类型。
 
 否则，如果比较的值都是非数字，则委托给 SameValueNonNumeric() 子操作。
 
-```js 
+```js
 // SameValueNonNumeric() 是抽象的
 
-SameValueNonNumeric("hello","hello");   // true
+SameValueNonNumeric("hello", "hello"); // true
 
-SameValueNonNumeric([1,2,3],[1,2,3]);   // false
+SameValueNonNumeric([1, 2, 3], [1, 2, 3]); // false
 ```
 
 **更高抽象的相等比较**
@@ -305,23 +307,24 @@ IsStrictlyEqual() 操作在比较的值类型不同的情况下立即返回 fals
 
 Number:SameValue() 和 Number:equal() 之间的区别在于，后者定义了 0 和 -0 比较的边界情况：
 
-```js 
+```js
 // 所有这些都是抽象操作
 
-Number:SameValue(0,-0);             // false
-Number:SameValueZero(0,-0);         // true
-Number:equal(0,-0);                 // true
+Number: SameValue(0, -0); // false
+Number: SameValueZero(0, -0); // true
+Number: equal(0, -0); // true
 ```
 
 这些操作在 NaN 与 NaN 的比较上也有所不同：
 
-```js 
-Number:SameValue(NaN,NaN);          // true
-Number:equal(NaN,NaN);              // false
+```js
+Number: SameValue(NaN, NaN); // true
+Number: equal(NaN, NaN); // false
 ```
 
 <Callout icon="⚠️" type="warning">
-换句话说，尽管名字如此，IsStrictlyEqual() 在涉及 -0 或 NaN 的比较时并不如 SameValue() 那样“严格”。
+  换句话说，尽管名字如此，IsStrictlyEqual() 在涉及 -0 或 NaN 的比较时并不如
+  SameValue() 那样“严格”。
 </Callout>
 
 IsLooselyEqual() 操作也会检查被比较的值类型；如果相同，它会立即委托给 IsStrictlyEqual()。
@@ -348,21 +351,19 @@ IsLooselyEqual() 操作也会检查被比较的值类型；如果相同，它会
 
 当值进行关系比较时——即一个值是否“小于”另一个？——会激活一个特定的抽象操作：IsLessThan()。
 
-```js 
+```js
 // IsLessThan() i是抽象
 
-IsLessThan(1,2, /*LeftFirst=*/ true );            // true
+IsLessThan(1, 2, /*LeftFirst=*/ true); // true
 ```
 
 没有 IsGreaterThan() 操作；相反，IsLessThan() 的前两个参数可以反转，以实现“大于”比较。为了保持从左到右的评估语义（在存在细微副作用的情况下），IsLessThan() 还接受一个第三个参数（LeftFirst）；如果为 false，则表示比较被反转，第二个参数应在第一个之前进行评估。
 
-```js 
-
-IsLessThan(1,2, /*LeftFirst=*/ true );            // true
+```js
+IsLessThan(1, 2, /*LeftFirst=*/ true); // true
 
 // equivalent of a fictional "IsGreaterThan()"
-IsLessThan(2,1, /*LeftFirst=*/ false );          // false
-
+IsLessThan(2, 1, /*LeftFirst=*/ false); // false
 ```
 
 类似于 IsLooselyEqual()，IsLessThan() 操作是强制的，这意味着它首先确保两个值的值类型匹配，并优先进行数字比较。没有用于非强制关系比较的 IsStrictLessThan()。
@@ -377,22 +378,21 @@ IsLessThan(2,1, /*LeftFirst=*/ false );          // false
 
 一般来说，代码单元遵循直观的字典（即，字典）顺序：
 
-```js 
-IsLessThan("a","b", /*LeftFirst=*/ true );        // true
+```js
+IsLessThan("a", "b", /*LeftFirst=*/ true); // true
 ```
 
 即使是数字也被视为字符（而不是数字）：
 
-```js 
-IsLessThan("101","12", /*LeftFirst=*/ true );     // true
+```js
+IsLessThan("101", "12", /*LeftFirst=*/ true); // true
 ```
 
 至少现在我们回答了这个古老的问题：先有鸡还是先有蛋？！
 
-```js 
-IsLessThan("🐔","🥚", /*LeftFirst=*/ true );      // true
+```js
+IsLessThan("🐔", "🥚", /*LeftFirst=*/ true); // true
 ```
-
 
 **数字比较**
 
@@ -412,6 +412,7 @@ IsLessThan(41n,42n, /*LeftFirst=*/ true );       // true
 ---
 
 ### 具体强制转换
+
 现在我们已经覆盖了 JavaScript 定义的处理各种强制转换的所有抽象操作，接下来是时候关注我们可以在程序中使用的具体语句/表达式，这些语句/表达式会激活这些操作。
 
 **To Boolean**
@@ -424,28 +425,30 @@ IsLessThan(41n,42n, /*LeftFirst=*/ true );       // true
 
 有几种方法可以激活 ToBoolean()。也许最明确（显而易见）的是 Boolean(..) 函数：
 
-```js 
-Boolean("hello");               // true
-Boolean(42);                    // true
+```js
+Boolean("hello"); // true
+Boolean(42); // true
 
-Boolean("");                    // false
-Boolean(0);                     // false
+Boolean(""); // false
+Boolean(0); // false
 ```
 
 如第 3 章所提到的，请记住 Boolean(..) 是在没有 new 关键字的情况下被调用的，以激活 ToBoolean() 抽象操作。
 
 在 JavaScript 开发者中，看到使用 Boolean(..) 函数进行如此明确的强制转换并不常见。开发者更常使用双重 ! 习语：
 
-```js 
-!!"hello";                      // true
-!!42;                           // true
+```js
+!!"hello"; // true
+!!42; // true
 
-!!"";                           // false
-!!0;                            // false
+!!""; // false
+!!0; // false
 ```
 
 <Callout icon="💡" type="info">
-!! 并不是它自己的操作符，尽管看起来是这样。它实际上是两次使用一元 ! 操作符。这个操作符首先将任何非布尔值强制转换，然后取反。为了撤销取反，第二个 ! 将其翻转回来。
+  !! 并不是它自己的操作符，尽管看起来是这样。它实际上是两次使用一元 !
+  操作符。这个操作符首先将任何非布尔值强制转换，然后取反。为了撤销取反，第二个 !
+  将其翻转回来。
 </Callout>
 
 那么……在这两者中，Boolean(..) 或 !!，你认为哪个更像是明确的强制转换？
@@ -456,11 +459,11 @@ Boolean(0);                     // false
 
 在你思考这个问题的同时，让我们看看另一个在内部激活 ToBoolean() 的 JavaScript 机制：
 
-```js 
+```js
 specialNumber = 42;
 
 if (specialNumber) {
-    // ..
+  // ..
 }
 ```
 
@@ -470,16 +473,16 @@ if (specialNumber) {
 
 许多其他语句类型也会激活 ToBoolean() 强制转换，包括 ?: 三元条件运算符，以及 for / while 循环。我们还有 &&（逻辑与）和 ||（逻辑或）运算符。例如：
 
-```js 
+```js
 isLoggedIn = user.sessionID || req.cookie["Session-ID"];
 
-isAdmin = isLoggedIn && ("admin" in user.permissions);
+isAdmin = isLoggedIn && "admin" in user.permissions;
 ```
 
 对于这两个运算符，左侧表达式首先被评估；如果它不是布尔值，则会激活 ToBoolean() 强制转换以生成条件决策的值。
 
 <Callout icon="💡" type="info">
-简单解释这些运算符：
+  简单解释这些运算符：
 </Callout>
 
 在前面的代码片段中，尽管命名暗示如此，但 isLoggedIn 实际上不太可能是布尔值；如果它为真值，isAdmin 也不会是布尔值。这样的代码相当常见，但假设的布尔结果类型实际上并不存在，这显然是危险的。我们将在下一章重新审视这个例子以及这些运算符。
@@ -500,59 +503,59 @@ isAdmin = isLoggedIn && ("admin" in user.permissions);
 
 与 Boolean(..) 函数一样，String(..) 函数（没有新关键字）是激活显式 ToString() 强制转换的主要方式：
 
-```js 
-String(true);                   // "true"
-String(42);                     // "42"
-String(-0);                     // "0"
-String(Infinity);               // "Infinity"
+```js
+String(true); // "true"
+String(42); // "42"
+String(-0); // "0"
+String(Infinity); // "Infinity"
 
-String(null);                   // "null"
-String(undefined);              // "undefined"
+String(null); // "null"
+String(undefined); // "undefined"
 ```
 
 然而，String(..) 不仅仅是激活 ToString()。例如：
 
-```js 
-String(Symbol("ok"));           // "Symbol(ok)"
+```js
+String(Symbol("ok")); // "Symbol(ok)"
 ```
 
 这可以正常工作，因为对符号值的显式强制转换是允许的。但在符号被隐式强制转换为字符串的情况下（例如 Symbol("ok") + ""），底层的 ToString() 操作会抛出异常。这证明了 String(..) 不仅仅是激活 ToString()。稍后会详细讨论符号的隐式字符串强制转换。
 
 如果你用对象值（例如数组等）调用 String(..)，它会激活 ToPrimitive() 操作（通过 ToString() 操作），然后查找并调用该值的 toString() 方法：
 
-```js 
-String([1,2,3]);                // "1,2,3"
+```js
+String([1, 2, 3]); // "1,2,3"
 
-String(x => x + 1);             // "x => x + 1"
+String((x) => x + 1); // "x => x + 1"
 ```
 
 除了 String(..)，任何原始的、非空值（既不是 null 也不是 undefined）都可以在其各自的对象包装中自动装箱（参见第 3 章），提供一个可调用的 toString() 方法。
 
-```js 
-true.toString();                // "true"
-42..toString();                 // "42"
--0..toString();                 // "0"
-Infinity.toString();            // "Infinity"
-Symbol("ok").toString();        // "Symbol(ok)"
+```js
+true.toString(); // "true"
+(42).toString(); // "42"
+-(0).toString(); // "0"
+Infinity.toString(); // "Infinity"
+Symbol("ok").toString(); // "Symbol(ok)"
 ```
 
 <Callout icon="💡" type="info">
-请记住，这些 toString() 方法并不一定会激活 ToString() 操作，它们只是定义了如何以字符串形式表示值的规则。
+  请记住，这些 toString() 方法并不一定会激活 ToString()
+  操作，它们只是定义了如何以字符串形式表示值的规则。
 </Callout>
-
 
 如前面提到的 String(..)，各种对象子类型——如数组、函数、正则表达式、日期和错误实例等——都定义了自己的特定 toString() 方法，可以直接调用：
 
-```js 
-[1,2,3].toString();             // "1,2,3"
+```js
+[1, 2, 3].toString(); // "1,2,3"
 
-(x => x + 1).toString();        // "x => x + 1"
+((x) => x + 1).toString(); // "x => x + 1"
 ```
 
 此外，任何默认链接到 Object.prototype 的普通对象都有一个默认的 toString() 方法可用：
 
-```js 
-({ a : 1 }).toString();         // "[object Object]"
+```js
+({ a: 1 }).toString(); // "[object Object]"
 ```
 
 toString() 强制转换的方法是显式还是隐式？再次，这取决于情况。它显然是一种自描述机制，倾向于显式。但它通常依赖于自动装箱，这本身是一种相当隐式的强制转换。
@@ -561,28 +564,30 @@ toString() 强制转换的方法是显式还是隐式？再次，这取决于情
 
 考虑以下例子：
 
-```js 
-true + "";                      // "true"
-42 + "";                        // "42"
-null + "";                      // "null"
-undefined + "";                 // "undefined"
+```js
+true + ""; // "true"
+42 + ""; // "42"
+null + ""; // "null"
+undefined + ""; // "undefined"
 ```
 
-+ "" 的字符串强制转换习语利用了 + 的重载，而不改变最终强制转换的字符串值。顺便说一下，反转操作数时（即 "" + ..），所有这些都工作相同。
-
+- "" 的字符串强制转换习语利用了 + 的重载，而不改变最终强制转换的字符串值。顺便说一下，反转操作数时（即 "" + ..），所有这些都工作相同。
 
 <Callout icon="⚠️" type="warning">
-一个极为常见的误解是 String(x) 和 x + "" 基本上是等效的强制转换，分别只是形式上的显式与隐式。但，这并不完全正确！我们将在本章后面的“强制为原始值”部分重新审视这一点。
+  一个极为常见的误解是 String(x) 和 x + ""
+  基本上是等效的强制转换，分别只是形式上的显式与隐式。但，这并不完全正确！我们将在本章后面的“强制为原始值”部分重新审视这一点。
 </Callout>
 
 有些人觉得这是显式强制，但我认为这显然更隐式，因为它利用了 + 的重载；此外，"" 间接用于激活强制转换而未进行修改。此外，考虑当这个习语应用于符号值时会发生什么：
 
-```js 
-Symbol("ok") + "";              // TypeError exception thrown
+```js
+Symbol("ok") + ""; // TypeError exception thrown
 ```
 
 <Callout icon="⚠️" type="warning">
-允许对符号的显式强制转换（String(Symbol("ok"))），但不允许隐式强制转换（Symbol("ok") + ""），这是 TC39 的深思熟虑。人们认为，Symbol作为原始值，常常用于字符串被用到的地方，可能过于容易被误解为字符串。因此，他们希望确保开发者明确表示有意将Symbol强制转换为字符串，从而避免许多预期中的混淆。这是语言设计在显式与隐式强制转换之间明确表达意见并进行区分的极少数情况之一。
+  允许对符号的显式强制转换（String(Symbol("ok"))），但不允许隐式强制转换（Symbol("ok")
+  + ""），这是 TC39
+  的深思熟虑。人们认为，Symbol作为原始值，常常用于字符串被用到的地方，可能过于容易被误解为字符串。因此，他们希望确保开发者明确表示有意将Symbol强制转换为字符串，从而避免许多预期中的混淆。这是语言设计在显式与隐式强制转换之间明确表达意见并进行区分的极少数情况之一。
 </Callout>
 
 为什么会有这个例外？JavaScript 将 + "" 视为隐式强制转换，这就是为什么当与Symbol一起激活时会抛出异常。我认为这是一种相当确凿的证明。
@@ -593,22 +598,21 @@ Symbol("ok") + "";              // TypeError exception thrown
 
 数字强制转换比字符串强制转换要复杂一些，因为我们可能讨论的是 number 或 bigint 作为目标类型。有效数字的表示值集也要小得多（其他所有值都会变为 NaN）。
 
-
 让我们先从 Number(..) 和 BigInt(..) 函数（没有新关键字）开始：
 
-```js 
-Number("42");                   // 42
-Number("-3.141596");            // -3.141596
-Number("-0");                   // -0
+```js
+Number("42"); // 42
+Number("-3.141596"); // -3.141596
+Number("-0"); // -0
 
-BigInt("42");                   // 42n
-BigInt("-0");                   // 0n
+BigInt("42"); // 42n
+BigInt("-0"); // 0n
 ```
 
 数字强制转换如果失败（未被识别），结果将是 NaN（见第 1 章的“无效数字”），而 BigInt 则会抛出异常：
 
-```js 
-Number("123px");                // NaN
+```js
+Number("123px"); // NaN
 
 BigInt("123px");
 // SyntaxError: Cannot convert 123px to a BigInt
@@ -616,8 +620,8 @@ BigInt("123px");
 
 此外，尽管 42n 是有效的 bigint 字面量语法，但字符串 "42n" 无论通过哪个强制转换函数形式都永远不会被识别为 bigint 的字符串表示：
 
-```js 
-Number("42n");                  // NaN
+```js
+Number("42n"); // NaN
 
 BigInt("42n");
 // SyntaxError: Cannot convert 42n to a BigInt
@@ -625,41 +629,41 @@ BigInt("42n");
 
 然而，我们可以强制转换其他数字表示形式的数字字符串（见第 1 章获取更多信息）：
 
-```js 
-Number("0b101010");             // 42
+```js
+Number("0b101010"); // 42
 
-BigInt("0b101010");             // 42n
+BigInt("0b101010"); // 42n
 ```
 
 通常，Number(..) 和 BigInt(..) 接收字符串值，但实际上并不是必须的。例如，true 和 false 会强制转换为它们典型的数字等价物：
 
-```js 
-Number(true);                   // 1
-Number(false);                  // 0
+```js
+Number(true); // 1
+Number(false); // 0
 
-BigInt(true);                   // 1n
-BigInt(false);                  // 0n
+BigInt(true); // 1n
+BigInt(false); // 0n
 ```
 
 你还可以在 number 和 bigint 类型之间进行强制转换：
 
-```js 
-Number(42n);                    // 42
-Number(42n ** 1000n);           // Infinity
+```js
+Number(42n); // 42
+Number(42n ** 1000n); // Infinity
 
-BigInt(42);                     // 42n
+BigInt(42); // 42n
 ```
 
 我们还可以使用一元 + 运算符，通常预期其效果与 Number(..) 函数相同：
 
-```js 
-+"42";                          // 42
-+"0b101010";                    // 42
+```js
++"42"; // 42
++"0b101010"; // 42
 ```
 
 但要小心。如果这些强制转换在某些方面不安全/无效，则会抛出异常：
 
-```js 
+```js
 BigInt(3.141596);
 // RangeError: The number 3.141596 cannot be converted to a BigInt
 
@@ -672,13 +676,15 @@ BigInt(3.141596);
 但是 +42n 抛出异常是一个有趣的案例。相比之下，Number(42n) 工作正常，因此 +42n 失败有点令人惊讶。
 
 <Callout icon="⚠️" type="warning">
-这种惊讶尤其明显，因为在数字前加 + 通常被认为只是表示“正数”，就像在数字前加 - 被认为表示“负数”一样。然而，如第 1 章所述，JavaScript 数字语法（number 和 bigint）并不识别“负值”的语法。所有数字字面量默认解析为“正数”。如果前面加了 + 或 -，则将其视为应用于解析的（正数）数字的单目运算符。
+  这种惊讶尤其明显，因为在数字前加 + 通常被认为只是表示“正数”，就像在数字前加 -
+  被认为表示“负数”一样。然而，如第 1 章所述，JavaScript 数字语法（number 和
+  bigint）并不识别“负值”的语法。所有数字字面量默认解析为“正数”。如果前面加了 +
+  或 -，则将其视为应用于解析的（正数）数字的单目运算符。
 </Callout>
 
 好的，+42n 被解析为 +(42n)。但问题是……为什么在这里 + 会抛出异常？
 
 你可能记得之前我们展示了 JavaScript 允许对symbol值进行显式字符串强制转换，但不允许隐式字符串强制转换？这里发生的事情是一样的。<mark>JavaScript 语言设计将一元 + 视为对 bigint 值的隐式 ToNumber() 强制转换（因此不被允许！），而 Number(..) 被解释为显式 ToNumber() 强制转换（因此被允许！）。</mark>
-
 
 换句话说，与普遍的假设/陈述相反，Number(..) 和 + 是不可互换的。我认为 Number(..) 是更安全/更可靠的形式。
 
@@ -689,11 +695,15 @@ BigInt(3.141596);
 类似于` x + ""` 是将 `x` 强制转换为字符串的习语，像 `x - 0` 这样的表达式安全地将 `x` 强制转换为数字。
 
 <Callout icon="⚠️" type="warning">
-x + 0 并不是那么安全，因为 + 运算符被重载为在任一操作数已经是字符串时执行字符串连接。- 运算符并没有这样重载，因此唯一的强制转换将是数字。当然，x * 1、x / 1，甚至 x ** 1 通常在数学上也是等效的，但这些用法要少得多，可能应该避免，因为可能会让读代码的人感到困惑。即使 x % 1 似乎应该是安全的，但它可能引入浮点误差（见第 2 章的“浮点不精确”）。
+  x + 0 并不是那么安全，因为 +
+  运算符被重载为在任一操作数已经是字符串时执行字符串连接。-
+  运算符并没有这样重载，因此唯一的强制转换将是数字。当然，x * 1、x / 1，甚至 x
+  ** 1
+  通常在数学上也是等效的，但这些用法要少得多，可能应该避免，因为可能会让读代码的人感到困惑。即使
+  x % 1 似乎应该是安全的，但它可能引入浮点误差（见第 2 章的“浮点不精确”）。
 </Callout>
 
 不论使用哪个数学运算符，如果强制转换失败，结果将是 NaN，而所有这些运算符都会将 NaN 传播出来作为它们的结果。
-
 
 **位运算**
 
@@ -709,13 +719,13 @@ x + 0 并不是那么安全，因为 + 运算符被重载为在任一操作数�
 
 考虑以下示例：
 
-```js 
+```js
 myObj = {};
 
 myObj[3] = "hello";
 myObj["3"] = "world";
 
-console.log( myObj );
+console.log(myObj);
 ```
 
 你期望这个对象的内容是什么？你期望两个不同的属性，数字 3（持有 "hello"）和字符串 "3"（持有 "world"）吗？还是你认为这两个属性在同一个位置？
@@ -724,17 +734,17 @@ console.log( myObj );
 
 有趣的是，开发者控制台可能会将这个对象表示为：
 
-```js 
-console.log( myObj );
+```js
+console.log(myObj);
 // {3: 'world'}
 ```
 
 那里的 3 是表示属性是数字 3 吗？并不是。尝试向 myObj 添加另一个属性：
 
-```js 
+```js
 myObj.something = 42;
 
-console.log( myObj )
+console.log(myObj);
 // {3: 'world', something: 42}
 ```
 
@@ -756,11 +766,11 @@ console.log( myObj )
 
 考虑尝试使用其他值类型，如 true、null、undefined，甚至非原始值（其他对象）：
 
-```js 
+```js
 myObj[true] = 100;
 myObj[null] = 200;
 myObj[undefined] = 300;
-myObj[ {a:1} ] = 400;
+myObj[{ a: 1 }] = 400;
 
 console.log(myObj);
 // {3: 'world', something: 42, true: 100, null: 200,
@@ -771,24 +781,23 @@ console.log(myObj);
 
 但在我们说服自己所有（甚至数字）都被强制转换为字符串之前，让我们看看一个数组示例：
 
-```js 
+```js
 myArr = [];
 
 myArr[3] = "hello";
 myArr["3"] = "world";
 
-console.log( myArr );
+console.log(myArr);
 // [empty × 3, 'world']
-
 ```
 
 开发者控制台可能会以与普通对象略有不同的方式表示数组。尽管如此，我们仍然看到这个数组在对应于 3 的数字索引位置上只有单个 "world" 值。
 
 这种输出似乎暗示我们之前解释的相反：数组的值似乎仅在数字位置上存储。如果我们向 myArr 添加另一个字符串属性名称：
 
-```js 
+```js
 myArr.something = 42;
-console.log( myArr );
+console.log(myArr);
 // [empty × 3, 'world', something: 42]
 ```
 
@@ -813,6 +822,7 @@ console.log( myArr );
 2. 数组的特殊行为：虽然数组也是对象，但它们倾向于以数字索引的方式行为，字符串 "3" 被视为数字索引 3 的访问。
 
 3. 预期强制转换：任何非字符串或非数字的值作为属性名称都将被强制转换。
+
 </Callout>
 
 **To Primitive**
@@ -821,16 +831,16 @@ JavaScript 中的大多数运算符，包括我们看到的字符串和数字的
 
 让我们设置一个可以用来检查不同操作行为的对象：
 
-```js 
+```js
 spyObject = {
-    toString() {
-        console.log("toString() invoked!");
-        return "10";
-    },
-    valueOf() {
-        console.log("valueOf() invoked!");
-        return 42;
-    },
+  toString() {
+    console.log("toString() invoked!");
+    return "10";
+  },
+  valueOf() {
+    console.log("valueOf() invoked!");
+    return 42;
+  },
 };
 ```
 
@@ -838,7 +848,7 @@ spyObject = {
 
 让我们尝试一些我们已经看到的强制转换操作：
 
-```js 
+```js
 String(spyObject);
 // toString() invoked!
 // "10"
@@ -854,7 +864,7 @@ spyObject + "";
 
 让我们继续：
 
-```js 
+```js
 Number(spyObject);
 // valueOf() invoked!
 // 42
@@ -868,12 +878,12 @@ Number(spyObject);
 
 但如果 valueOf() 返回一个 bigint 呢？
 
-```js 
+```js
 spyObject2 = {
-    valueOf() {
-        console.log("valueOf() invoked!");
-        return 42n;  // bigint!
-    }
+  valueOf() {
+    console.log("valueOf() invoked!");
+    return 42n; // bigint!
+  },
 };
 
 Number(spyObject2);
@@ -889,7 +899,7 @@ Number(spyObject2);
 
 那么 BigInt(..)（没有新关键字）强制转换函数呢？
 
-```js 
+```js
 BigInt(spyObject);
 // valueOf() invoked!
 // 42n    <--- look, a bigint!
@@ -901,10 +911,10 @@ BigInt(spyObject2);
 // *******************************
 
 spyObject3 = {
-    valueOf() {
-        console.log("valueOf() invoked!");
-        return 42.3;
-    }
+  valueOf() {
+    console.log("valueOf() invoked!");
+    return 42.3;
+  },
 };
 
 BigInt(spyObject3);
@@ -920,16 +930,16 @@ BigInt(spyObject3);
 
 如果 ToPrimitive() 未能生成原始值，将抛出异常：
 
-```js 
+```js
 spyObject4 = {
-    toString() {
-        console.log("toString() invoked!");
-        return [];
-    },
-    valueOf() {
-        console.log("valueOf() invoked!");
-        return {};
-    }
+  toString() {
+    console.log("toString() invoked!");
+    return [];
+  },
+  valueOf() {
+    console.log("valueOf() invoked!");
+    return {};
+  },
 };
 
 String(spyObject4);
@@ -949,7 +959,7 @@ Number(spyObject4);
 
 对象的布尔强制转换怎么样？
 
-```js 
+```js
 Boolean(spyObject);
 // true
 
@@ -957,7 +967,7 @@ Boolean(spyObject);
 // false
 
 if (spyObject) {
-    console.log("if!");
+  console.log("if!");
 }
 // if!
 
@@ -965,8 +975,8 @@ result = spyObject ? "ternary!" : "nope";
 // "ternary!"
 
 while (spyObject) {
-    console.log("while!");
-    break;
+  console.log("while!");
+  break;
 }
 // while!
 ```
@@ -979,39 +989,40 @@ while (spyObject) {
 
 考虑以下示例：
 
-```js 
+```js
 hello = new String("hello");
-String(hello);                  // "hello"
-hello + "";                     // "hello"
+String(hello); // "hello"
+hello + ""; // "hello"
 
 fortyOne = new Number(41);
-Number(fortyOne);               // 41
-fortyOne + 1;                   // 42
+Number(fortyOne); // 41
+fortyOne + 1; // 42
 ```
 
 上面的对象包装器 hello 和 fortyOne 配置了 toString() 和 valueOf() 方法，以便行为类似于我们之前示例中的 spyObject 等对象。
 
 要谨慎处理的包装对象原始值的一个特殊情况是与 Boolean() 相关的：
 
-```js 
+```js
 nope = new Boolean(false);
-Boolean(nope);                  // true   <--- oops!
-!!nope;                         // true   <--- oops!
+Boolean(nope); // true   <--- oops!
+!!nope; // true   <--- oops!
 ```
 
 请记住，这是因为 <mark>ToBoolean() 并不通过 ToPrimitive 将对象简化为其原始形式；它仅仅查找该值在其内部表中的值，由于普通（非特殊）对象总是为真，因此返回 true。</mark>
 
-
 <Callout icon="💡" type="info">
-这是一个棘手的陷阱。确实可以论证 new Boolean(false) 应该在内部配置为一个特殊的“假值对象”。不幸的是，这一变化发生在 JavaScript 发展历史的 25 年前，可能会导致程序出现问题。因此，JavaScript 并未对此陷阱进行修改。
+  这是一个棘手的陷阱。确实可以论证 new Boolean(false)
+  应该在内部配置为一个特殊的“假值对象”。不幸的是，这一变化发生在 JavaScript
+  发展历史的 25 年前，可能会导致程序出现问题。因此，JavaScript
+  并未对此陷阱进行修改。
 </Callout>
-
 
 **重写默认的 toString()**
 
 正如我们所见，你可以始终在对象上定义一个 toString() 以使其在适当的 ToPrimitive() 强制转换中被调用。但另一个选择是重写 Symbol.toStringTag：
 
-```js 
+```js
 spyObject5a = {};
 String(spyObject5a);
 // "[object Object]"
@@ -1019,7 +1030,7 @@ spyObject5a.toString();
 // "[object Object]"
 
 spyObject5b = {
-    [Symbol.toStringTag]: "my-spy-object"
+  [Symbol.toStringTag]: "my-spy-object",
 };
 String(spyObject5b);
 // "[object my-spy-object]"
@@ -1027,10 +1038,10 @@ spyObject5b.toString();
 // "[object my-spy-object]"
 
 spyObject5c = {
-    get [Symbol.toStringTag]() {
-        return `myValue:${this.myValue}`;
-    },
-    myValue: 42
+  get [Symbol.toStringTag]() {
+    return `myValue:${this.myValue}`;
+  },
+  myValue: 42,
 };
 String(spyObject5c);
 // "[object myValue:42]"
@@ -1046,20 +1057,20 @@ spyObject5c 中的 get .. 语法定义了一个 getter。这意味着当 JavaScr
 
 你可以通过设置特殊符号属性 Symbol.toPrimitive 来替代任何对象的默认 ToPrimitive() 操作：
 
-```js 
+```js
 spyObject6 = {
-    [Symbol.toPrimitive](hint) {
-        console.log(`toPrimitive(${hint}) invoked!`);
-        return 25;
-    },
-    toString() {
-        console.log("toString() invoked!");
-        return "10";
-    },
-    valueOf() {
-        console.log("valueOf() invoked!");
-        return 42;
-    },
+  [Symbol.toPrimitive](hint) {
+    console.log(`toPrimitive(${hint}) invoked!`);
+    return 25;
+  },
+  toString() {
+    console.log("toString() invoked!");
+    return "10";
+  },
+  valueOf() {
+    console.log("valueOf() invoked!");
+    return 42;
+  },
 };
 
 String(spyObject6);
@@ -1084,7 +1095,8 @@ Number(spyObject6);
 或者你可以像上面那样手动定义一个返回值。无论如何，JavaScript 不会自动调用 toString() 或 valueOf() 方法。
 
 <Callout icon="⚠️" type="warning">
-如前面在“没有找到原始值？”部分讨论的那样，如果定义的 Symbol.toPrimitive 函数实际上没有返回原始值，将抛出关于无法“...将对象转换为原始值”的异常。确保始终从该函数返回一个实际的原始值！
+  如前面在“没有找到原始值？”部分讨论的那样，如果定义的 Symbol.toPrimitive
+  函数实际上没有返回原始值，将抛出关于无法“...将对象转换为原始值”的异常。确保始终从该函数返回一个实际的原始值！
 </Callout>
 
 **相等性**
@@ -1095,56 +1107,63 @@ Number(spyObject6);
 
 例如，SameValue() 操作是最严格的相等比较，绝对没有强制转换。依赖于 SameValue() 的最明显的 JavaScript 操作是：
 
-```js 
-Object.is(42,42);                   // true
-Object.is(-0,-0);                   // true
-Object.is(NaN,NaN);                 // true
+```js
+Object.is(42, 42); // true
+Object.is(-0, -0); // true
+Object.is(NaN, NaN); // true
 
-Object.is(0,-0);                    // false
+Object.is(0, -0); // false
 ```
 
 SameValueZero() 操作——回忆一下，它仅通过将 -0 和 0 视为不可区分而与 SameValue() 不同——在很多地方使用，包括：
 
-```js 
-[ 1, 2, NaN ].includes(NaN);        // true
+```js
+[1, 2, NaN].includes(NaN); // true
 ```
-
 
 我们可以在这里看到 SameValueZero() 的 0 / -0 混淆：
 
-```js 
-[ 1, 2, -0 ].includes(0);           // true  <--- oops!
+```js
+[1, 2, -0].includes(0); // true  <--- oops!
 
-(new Set([ 1, 2, 0 ])).has(-0);     // true  <--- ugh
+new Set([1, 2, 0]).has(-0); // true  <--- ugh
 
-(new Map([[ 0, "ok" ]])).has(-0);   // true  <--- :(
+new Map([[0, "ok"]]).has(-0); // true  <--- :(
 ```
 
 在这些情况下，有一种（某种程度上的）强制转换将 -0 和 0 视为不可区分。不是的，这在技术上并不算“强制转换”，因为类型没有被改变，但我有点模糊了定义，以将这个案例纳入我们对强制转换的更广泛讨论。
 
-将 includes() / has() 方法与激活 SameValueZero() 相对比，使用传统的 indexOf(..) 数组工具则激活 IsStrictlyEqual()。这个算法在某种程度上比 SameValueZero() 更“强制”，因为它防止 NaN 值被视为相等：
+&zwj;<mark>将 includes() / has() 方法与激活 SameValueZero() 相对比，使用传统的 indexOf(..) 数组工具则激活 IsStrictlyEqual()。这个算法在某种程度上比 SameValueZero() 更“强制”，因为它防止 NaN 值被视为相等</mark>：
 
-```js 
-[ 1, 2, NaN ].indexOf(NaN);         // -1  <--- not found
+```js
+[1, 2, NaN].indexOf(NaN); // -1  <--- not found
 ```
 
 如果 includes(..) 和 indexOf(..) 的这些细微差别让你感到困扰，当在数组中搜索——查找某个值的相等匹配时，你可以避免任何“强制”怪癖，并强制最严格的 SameValue() 相等匹配，通过 Object.is(..) 实现。
 
-```js 
-vals = [ 0, 1, 2, -0, NaN ];
+```js
+vals = [0, 1, 2, -0, NaN];
 
-vals.find(v => Object.is(v,-0));            // -0
-vals.find(v => Object.is(v,NaN));           // NaN
+vals.find((v) => Object.is(v, -0)); // -0
+vals.find((v) => Object.is(v, NaN)); // NaN
 
-vals.findIndex(v => Object.is(v,-0));       // 3
-vals.findIndex(v => Object.is(v,NaN));      // 4
+vals.findIndex((v) => Object.is(v, -0)); // 3
+vals.findIndex((v) => Object.is(v, NaN)); // 4
 ```
 
 <Callout icon="📝" type="notes">
+
 个人总结:
-- Object.is 是最严格的相等比较方法，没有强制转换，并且能区分 0 和 -0，以及 NaN(底层是SameValue)。
-- SameValueZero 比较方法将 0 和 -0 视为相等，通常在 includes 和 Set.has 方法中使用。
-- IsStrictlyEqual 比较方法（如 indexOf）不会将 NaN 视为相等。
+
+- Object.is 是最严格的相等比较方法，没有强制转换，并且能区分 0 和
+  -0，以及 NaN(底层是SameValue)。
+
+- SameValueZero 比较方法将 0 和 -0
+  视为相等，通常在 includes 和 Set.has 方法中使用。
+
+- IsStrictlyEqual
+  比较方法（如 indexOf）不会将 NaN 视为相等。
+
 </Callout>
 
 **相等运算符：== 与 ===**
@@ -1158,20 +1177,21 @@ vals.findIndex(v => Object.is(v,NaN));      // 4
 1. 如果两个操作数的类型相同，== 的行为与 === 完全相同——IsLooselyEqual() 立即委托给 IsStrictlyEqual()。
 
 例如，当两个操作数都是对象引用时：
+
 ```js
 myObj = { a: 1 };
 anotherObj = myObj;
 
-myObj == anotherObj;                // true
-myObj === anotherObj;               // true
+myObj == anotherObj; // true
+myObj === anotherObj; // true
 ```
 
 在这里，== 和 === 确定它们各自的操作数都是对象引用类型，因此两个相等检查的行为完全相同；它们比较对象引用是否相等。
 
 2. 但如果操作数类型不同，<mark>== 允许强制转换直到它们匹配，并偏好数字比较；</mark>它会尝试将两个操作数强制转换为数字（如果可能）：
 
-```js 
-42 == "42";                         // true
+```js
+42 == "42"; // true
 ```
 
 在这里，字符串 "42" 被强制转换为数字 42（而不是相反），因此比较变成了 42 == 42，显然返回 true。
@@ -1188,27 +1208,26 @@ myObj === anotherObj;               // true
 
 我们已经看到了一些 JavaScript 操作是 空值 的——<mark>将 null 和 undefined 视为强制相等</mark>，包括 ?. 可选链运算符和 ?? 空值 合并运算符（见第 1 章的“空值”）。
 
-
 但 == 是 JavaScript 显示 空值 强制相等的最明显地方：
 
-```js 
-null == undefined;              // true
+```js
+null == undefined; // true
 ```
 
 &zwj;<mark>null 和 undefined 永远不会被强制等于语言中的任何其他值，除了彼此</mark>。这意味着 == 使得将这两个值视为不可区分变得方便。
 
 你可能会利用这种能力，如下所示：
 
-```js 
+```js
 if (someData == null) {
-    //'someData' 是 “unset” （null 或 undefined），
-   // 因此，请将其设置为某个默认值
+  //'someData' 是 “unset” （null 或 undefined），
+  // 因此，请将其设置为某个默认值
 }
 // OR:
 
 if (someData != null) {
-     //'someData' 是 “unset” （null 或 undefined），
-   // 因此，请将其设置为某个默认值
+  //'someData' 是 “unset” （null 或 undefined），
+  // 因此，请将其设置为某个默认值
 }
 ```
 
@@ -1216,15 +1235,15 @@ if (someData != null) {
 
 比较这两种方法：
 
-```js 
+```js
 if (someData == null) {
-    // ..
+  // ..
 }
 
 // vs:
 
 if (someData === null || someData === undefined) {
-    // ..
+  // ..
 }
 ```
 
@@ -1244,15 +1263,15 @@ if (someData === null || someData === undefined) {
 
 考虑以下代码片段，假设 isLoggedIn 1 分钟前没有持有布尔值（true 或 false）：
 
-```js 
+```js
 if (isLoggedIn) {
-    // ..
+  // ..
 }
 
 // vs:
 
 if (isLoggedIn == true) {
-    // ..
+  // ..
 }
 ```
 
@@ -1274,36 +1293,36 @@ if (isLoggedIn == true) {
 
 但 if 条件的 == 形式会发生什么？它将像这样工作：
 
-```js 
+```js
 // (1)
-"yes" == true
+"yes" == true;
 
 // (2)
-"yes" == 1
+"yes" == 1;
 
 // (3)
-NaN == 1
+NaN == 1;
 
 // (4)
-NaN === 1           // false
+NaN === 1; // false
 ```
 
 换句话说，如果 isLoggedIn 持有像 "yes" 这样的值，if (isLoggedIn) `{ .. }` 块将通过条件检查，但 if (isLoggedIn == true) 检查将不会。呃！
 
 如果 isLoggedIn 持有字符串 "true" 呢？
 
-```js 
+```js
 // (1)
-"true" == true
+"true" == true;
 
 // (2)
-"true" == 1
+"true" == 1;
 
 // (3)
-NaN == 1
+NaN == 1;
 
 // (4)
-NaN === 1           // false
+NaN === 1; // false
 ```
 
 😢
@@ -1320,39 +1339,40 @@ NaN === 1           // false
 
 如果 isLoggedIn 持有数字 1 呢？1 是真值，所以 if (isLoggedIn) 形式通过。而涉及强制转换的另一个 == 形式：
 
-```js 
+```js
 // (1)
-1 == true
+1 == true;
 
 // (2)
-1 == 1
+1 == 1;
 
 // (3)
-1 === 1             // true
+1 === 1; // true
 ```
 
 但如果 isLoggedIn 持有字符串 "1" 呢？同样，"1" 是真值，但那 == 强制转换又如何呢？
 
-```js 
+```js
 // (1)
-"1" == true
+"1" == true;
 
 // (2)
-"1" == 1
+"1" == 1;
 
 // (3)
-1 == 1
+1 == 1;
 
 // (4)
-1 === 1             // true
+1 === 1; // true
 ```
 
 好的，因此 1 和 "1" 是 isLoggedIn 可以持有的两个安全值，可以与 true 安全强制转换进行 == 相等检查。但基本上几乎没有其他值可以安全地赋给 isLoggedIn。
 
 如果检查是 == false，我们也会有类似的陷阱。这样的比较中哪些值是安全的？"" 和 0 有效。但：
-```js 
+
+```js
 if ([] == false) {
-    // this will run!
+  // this will run!
 }
 ```
 
@@ -1376,30 +1396,30 @@ if ([] == false) {
 
 我们已经看到数组的字符串强制转换看起来像这样：
 
-```js 
-String([ 1, 2, 3 ]);                // "1,2,3"
+```js
+String([1, 2, 3]); // "1,2,3"
 ```
 
 我个人觉得这非常烦人，因为它不包括周围的 [ ]。特别是，这导致了这个荒谬的现象：
 
-```js 
-String([]);                         // ""
+```js
+String([]); // ""
 ```
 
 我们甚至无法判断它是否是一个数组，因为我们得到的只是一个空字符串？太好了，JS。这真是愚蠢。抱歉，我必须这么说。而且情况还更糟：
 
-```js 
-String([ null, undefined ]);        // ","
+```js
+String([null, undefined]); // ","
 ```
 
 什么！？我们知道 null 变为字符串 "null"，而 undefined 变为字符串 "undefined"。但是如果这些值在数组中，它们在数组到字符串的强制转换中就神奇地消失了，只留下 "," 来暗示我们数组中确实有东西！这不是很荒谬吗？
 
 那对象呢？几乎同样令人恼火，但方向正好相反：
 
-```js 
-String({});                         // "[object Object]"
+```js
+String({}); // "[object Object]"
 
-String({ a: 1 });                   // "[object Object]"
+String({ a: 1 }); // "[object Object]"
 ```
 
 嗯... 好吧。谢谢你，JS，完全没有帮助我们理解对象的值。
@@ -1408,19 +1428,19 @@ String({ a: 1 });                   // "[object Object]"
 
 我要揭示我认为所有强制转换角落案例中最糟糕的根源。准备好了吗？！
 
-```js 
-Number("");                         // 0
-Number("       ");                  // 0
+```js
+Number(""); // 0
+Number("       "); // 0
 ```
 
 我仍然在摇头，尽管我已经知道这件事近二十年了。我仍然不明白Brendan当初是怎么想的。
 
-&zwj;<mark>空字符串是没有任何内容的；它没有任何可以用来确定数字表示的内容。0 绝对不是缺失/无效数字值的数字等价物。你知道我们有什么数字值适合传达这个吗？NaN。更别提在将字符串强制转换为数字时，字符串中的空白会被剥离，所以非常不空的 "       " 字符串仍然在数字强制转换中被视为与 "" 相同。</mark>
+&zwj;<mark>空字符串是没有任何内容的；它没有任何可以用来确定数字表示的内容。0 绝对不是缺失/无效数字值的数字等价物。你知道我们有什么数字值适合传达这个吗？NaN。更别提在将字符串强制转换为数字时，字符串中的空白会被剥离，所以非常不空的 " " 字符串仍然在数字强制转换中被视为与 "" 相同。</mark>
 
 更糟糕的是，回想一下 [] 强制转换为字符串 ""？由此可推：
 
-```js 
-Number([]);                         // 0
+```js
+Number([]); // 0
 ```
 
 哎呀！如果 "" 不强制转换为 0 —— 记住，这是所有强制转换邪恶的根源！—— 那么 [] 也不会强制转换为 0。
@@ -1429,28 +1449,28 @@ Number([]);                         // 0
 
 虽然更温和，但仍然略显烦人：
 
-```js 
-Number("NaN");                      // NaN  <--- 偶然!
+```js
+Number("NaN"); // NaN  <--- 偶然!
 
-Number("Infinity");                 // Infinity
-Number("infinity");                 // NaN  <--- oops, watch case!
+Number("Infinity"); // Infinity
+Number("infinity"); // NaN  <--- oops, watch case!
 ```
 
 字符串 "NaN" 不会被解析为一个可识别的数字值，因此强制转换失败，意外地产生 NaN 值。"Infinity" 是明确可解析的，但其他任何大小写，包括 "infinity"，都会失败，导致再次产生 NaN。
 
 下一个例子，你可能不会认为这是一个边缘案例：
 
-```js 
-Number(false);                      // 0
-Number(true);                       // 1
+```js
+Number(false); // 0
+Number(true); // 1
 ```
 
 这仅仅是程序员的约定，源自那些最初没有布尔 true 和 false 值的语言，我们将 0 当作 false，1 当作 true。但反向处理真有意义吗？
 
 想想这个：
 
-```js 
-false + true + false + false + true;        // 2
+```js
+false + true + false + false + true; // 2
 ```
 
 真的？我认为没有任何情况下将布尔值视为其数字等价物在程序中是合理的。我能理解反向处理的原因，出于历史原因：Boolean(0) 和 Boolean(1)。
@@ -1461,8 +1481,8 @@ false + true + false + false + true;        // 2
 
 为了证明我的观点，让我们把荒谬推向第11级：
 
-```js 
-[] == ![];                          // true
+```js
+[] == ![]; // true
 ```
 
 怎么可能！？这似乎难以置信，一个值竟然可以强制等于其否定，对吧！？
@@ -1504,7 +1524,9 @@ false + true + false + false + true;        // 2
 此刻你肯定在想：“我为什么不能只用 TypeScript，声明我所有的类型，避免动态类型和强制转换的混淆？”
 
 <Callout icon="💡" type="info">
-我对 TypeScript 以及它在我们生态系统中更大角色的看法还有很多详细的想法；我会把这些观点留到附录中（“关于 TypeScript 的想法”）。
+  我对 TypeScript
+  以及它在我们生态系统中更大角色的看法还有很多详细的想法；我会把这些观点留到附录中（“关于
+  TypeScript 的想法”）。
 </Callout>
 
 让我们直接面对 TypeScript 在类型意识编程中所起的作用，以及它在这一方面的局限。
@@ -1514,7 +1536,7 @@ TypeScript 是静态类型的（意味着类型在作者时间声明，并在编
 相比之下，JS 是动态类型的（意味着类型在运行时被发现和管理）和弱类型的（意味着变量/容器没有类型，因此没有强制的关联，变量因此可以持有任何值类型；弱类型系统允许任何形式的强制转换）。
 
 <Callout icon="💡" type="info">
-我在这里做了很高层次的概括，故意不深入探讨静态/动态和强/弱类型光谱上的很多细微差别。如果你此刻感到“好吧，其实...”的冲动，请稍等，我将阐明我的论点。
+  我在这里做了很高层次的概括，故意不深入探讨静态/动态和强/弱类型光谱上的很多细微差别。如果你此刻感到“好吧，其实...”的冲动，请稍等，我将阐明我的论点。
 </Callout>
 
 **没有 TypeScript 的类型意识**
@@ -1525,43 +1547,47 @@ TypeScript 是静态类型的（意味着类型在作者时间声明，并在编
 
 让我举个例子，说明没有 TypeScript 的静态类型意识。考虑这个变量声明：
 
-```js 
+```js
 let API_BASE_URL = "https://some.tld/api/2";
 ```
 
 这个语句在任何方面都是类型意识吗？当然，API_BASE_URL 后面没有 : string 注释。但我确实认为它仍然是类型意识的！我们很清楚地看到赋值给 API_BASE_URL 的值类型（字符串）。
 
 <Callout icon="⚠️" type="warning">
-不要被 let 声明是可重新赋值（与 const 相对）所分心。JS 的 const 不是其类型系统的第一类特性。我们并没有因为知道 const 变量的重新赋值被 JS 引擎禁止而获得额外的类型意识。如果代码结构良好——嗯哼，结构以类型意识为优先——我们可以很清楚地阅读代码，并清楚地看到 API_BASE_URL 没有被重新赋值，因此仍然是之前分配的值类型。从类型意识的角度来看，这基本上与它不能被重新赋值是一样的。
+  不要被 let 声明是可重新赋值（与 const 相对）所分心。JS 的 const
+  不是其类型系统的第一类特性。我们并没有因为知道 const 变量的重新赋值被 JS
+  引擎禁止而获得额外的类型意识。如果代码结构良好——嗯哼，结构以类型意识为优先——我们可以很清楚地阅读代码，并清楚地看到
+  API_BASE_URL
+  没有被重新赋值，因此仍然是之前分配的值类型。从类型意识的角度来看，这基本上与它不能被重新赋值是一样的。
 </Callout>
-
 
 如果我稍后想做类似的事情：
 
-```js 
+```js
 // 我们是否使用安全的 API URL?
 isSecureAPI = /^https/.test(API_BASE_URL);
 ```
+
 我知道正则表达式 test（..） 方法需要一个字符串，因为我知道 API_BASE_URL 保存了一个字符串，所以我知道该操作是类型安全的。
 
 同样，由于我知道关于字符串值的 ToBoolean() 强制转换的一些简单规则，我知道这样的语句也是类型安全的：
 
-```js 
+```js
 // 我们是否已确定 API URL?
 if (API_BASE_URL) {
-    // ..
+  // ..
 }
 ```
 
 但如果稍后我开始写类似的代码：
 
-```js 
+```js
 APIVersion = Number(API_BASE_URL);
 ```
 
 警报声在我脑中触发。因为我知道关于字符串值如何强制转换为数字的规则，所以我意识到这个操作不是类型安全的。因此，我以不同的方式处理它：
 
-```js 
+```js
 // 从 API URL 中提取版本号
 versionDigit = API_BASE_URL.match(/\/api\/(\d+)$/)[1];
 
@@ -1591,7 +1617,7 @@ let API_BASE_URL = "https://some.tld/api/2";
 
 但没有免费的午餐。我们需要面对一些问题。首先，TypeScript 在这里不会触发错误：
 
-```js 
+```js
 API_BASE_URL = "https://some.tld/api/2";
 
 APIVersion = Number(API_BASE_URL);
@@ -1600,7 +1626,7 @@ APIVersion = Number(API_BASE_URL);
 
 直观上，我希望一个类型意识系统能够理解为什么这是不安全的。但也许这对我们来说太过苛求。或者也许如果我们为 API_BASE_URL 变量定义一个更狭窄/特定的类型，而不仅仅是字符串，这可能会有所帮助？我们可以使用一种 TypeScript 技巧，称为“模板字面量类型”：
 
-```ts 
+```ts
 type VersionedURL = `https://some.tld/api/${number}`;
 
 API_BASE_URL: VersionedURL = "https://some.tld/api/2";
@@ -1612,7 +1638,9 @@ APIVersion = Number(API_BASE_URL);
 不，TypeScript 仍然没有看到任何问题。是的，我知道为什么会这样（Number(..) 本身是有类型的）。
 
 <Callout icon="💡" type="info">
-我想那些非常聪明、精通 TypeScript 的人可能会有创造性的想法，如何让我们扭曲自己以引发错误。也许甚至有十几种不同的方法可以强迫 TypeScript 在那段代码上触发。但这并不是重点。
+  我想那些非常聪明、精通 TypeScript
+  的人可能会有创造性的想法，如何让我们扭曲自己以引发错误。也许甚至有十几种不同的方法可以强迫
+  TypeScript 在那段代码上触发。但这并不是重点。
 </Callout>
 
 我的观点是，我们不能完全依赖 TypeScript 的类型来解决我们所有的问题，让我们可以忽视类型的细微差别，以及在这种情况下的强制转换行为。
@@ -1621,7 +1649,7 @@ APIVersion = Number(API_BASE_URL);
 
 让我们看看 TypeScript 关于这一点的说法：
 
-```ts 
+```ts
 type VersionedURL = `https://some.tld/api/${number}`;
 
 let API_BASE_URL: VersionedURL = "https://some.tld/api/2";
@@ -1634,9 +1662,8 @@ let versionDigit = API_BASE_URL.match(/\/api\/(\d+)$/)[1];
 
 你看，即使我能够根据字符串的内容与正则表达式的写法进行推理，即使我努力让 TypeScript 确切了解那些特定字符串的内容，它也没有足够聪明来将这两者对齐，看到假设匹配实际上是完全类型安全的。
 
-
 <Callout icon="💡" type="info">
-真的是一个类型意识工具的工作，以及最佳使用方式，是扭曲自己以表达每一个可能的类型安全的细微差别吗？我们不需要完美和通用的工具来从它们所能做的事情中获得巨大的好处。
+  真的是一个类型意识工具的工作，以及最佳使用方式，是扭曲自己以表达每一个可能的类型安全的细微差别吗？我们不需要完美和通用的工具来从它们所能做的事情中获得巨大的好处。
 </Callout>
 
 而且，将上一节的代码风格与本节的代码进行比较（无论是否有注释），TypeScript 是否真的让我们的编码更具类型意识？
@@ -1676,9 +1703,8 @@ let versionDigit = API_BASE_URL.match(/\/api\/(\d+)$/)[1];
 不幸的是，TypeScript 永远无法完全摆脱 JS 的类型系统，因为 TypeScript 的类型在编译器中会被擦除，剩下的只是 JS，JS 引擎必须处理。
 
 <Callout icon="💡" type="info">
-想象一下，如果有人递给你一杯过滤水喝。在你准备喝一口之前，他们说：“我们从一个废物倾倒场附近的地下抽取了这水。但别担心，我们用了一个非常好的过滤器，这水是完全安全的！”你有多信任那个过滤器？更重要的是，回到我的总体观点，在你了解水的来源、所有过滤过程以及你手中玻璃水中的一切之前，你喝这水是否会感觉更舒适！？或者说信任那个过滤器就足够了吗？
+  想象一下，如果有人递给你一杯过滤水喝。在你准备喝一口之前，他们说：“我们从一个废物倾倒场附近的地下抽取了这水。但别担心，我们用了一个非常好的过滤器，这水是完全安全的！”你有多信任那个过滤器？更重要的是，回到我的总体观点，在你了解水的来源、所有过滤过程以及你手中玻璃水中的一切之前，你喝这水是否会感觉更舒适！？或者说信任那个过滤器就足够了吗？
 </Callout>
-
 
 **类型意识的平等**
 
@@ -1698,7 +1724,7 @@ let versionDigit = API_BASE_URL.match(/\/api\/(\d+)$/)[1];
 
 如果你像这样比较 x 和 y 的相等性：
 
-```js 
+```js
 if ( /* x 和 y 是否相等 */ ) {
     // ..
 }
@@ -1722,9 +1748,9 @@ if ( /* x 和 y 是否相等 */ ) {
 
 如果你无法确保在 x 和 y 之间进行这种相等性比较的代码是类型意识的，并且你没有其他选择，那么你绝对必须使用 === 严格相等运算符。不这样做将是极其不负责任的。
 
-```js 
+```js
 if (x === y) {
-    // ..
+  // ..
 }
 ```
 
@@ -1747,26 +1773,25 @@ if (x === y) {
 
 让我们分别考虑这两种情况。
 
-
 **(1a) 已知匹配类型**
 
 如果相等性比较中的类型匹配（无论它们是什么），我们已经可以确定 == 和 === 完全相同。没有任何区别。
 
 除了，== 短了一位字符。大多数开发者本能地觉得，最简洁但等价的版本通常是最可取的。当然，这不是普遍的，但至少是一种一般偏好。
 
-```js 
+```js
 // this is best
 if (x == y) {
-    // ..
+  // ..
 }
 ```
 
 在这个特殊的例子中，一个额外的代码对我们使代码更清晰没有任何帮助。事实上，这只会让比较变得更糟!
 
-```js 
+```js
 // 这绝对更糟糕！!
 if (x === y) {
-    // ..
+  // ..
 }
 ```
 
@@ -1778,10 +1803,10 @@ if (x === y) {
 
 再说一遍，<mark>如果你知道相等性比较的类型，并且你知道它们匹配，唯一正确的选择是：==。</mark>
 
-```js 
+```js
 // 坚持此选项
 if (x == y) {
-    // ..
+  // ..
 }
 ```
 
@@ -1793,10 +1818,10 @@ if (x == y) {
 
 如果你选择 ===，你就犯了一个大错误。为什么！？因为对于已知不匹配的类型，使用 === 将永远不会返回 true。它将始终失败。
 
-```js 
+```js
 // 'x' 和 'y' 有不同的类型?
 if (x === y) {
-    // 恭喜，这里的这段代码永远不会运行
+  // 恭喜，这里的这段代码永远不会运行
 }
 ```
 
@@ -1808,14 +1833,14 @@ if (x === y) {
 
 - (1b-2)：如果我们要比较已知不匹配的类型，且我们希望这个检查有任何希望通过，我们必须使用 ==，因为它是唯一能够强制一个或两个操作数，直到类型匹配的相等运算符。
 
-```js 
+```js
 /* 
 'x' 和 'y' 有不同的类型，
 所以让我们让 JS 来强制他们
 用于相等比较 
 */
 if (x == y) {
-    // .. (所以，你是说有机会吗？?)
+  // .. (所以，你是说有机会吗？?)
 }
 ```
 
@@ -1829,9 +1854,9 @@ if (x == y) {
 
 2. 如果你知道类型，你应该始终偏好 ==。
 
-    - 在类型匹配的情况下，== 既较短又更适合这个检查。
+   - 在类型匹配的情况下，== 既较短又更适合这个检查。
 
-    - 在类型不匹配的情况下，== 是唯一一个能够强制操作数，直到类型匹配的运算符，因此这是唯一能够使此检查有希望通过的方式。
+   - 在类型不匹配的情况下，== 是唯一一个能够强制操作数，直到类型匹配的运算符，因此这是唯一能够使此检查有希望通过的方式。
 
 3. 最后，只有在你由于某种令人沮丧的原因无法知道/预测类型，并且没有其他选择时，才退而求其次使用 === 作为最后的选择。并且可能在那里添加代码注释，承认为什么使用 ===，并可能提示未来的开发者稍后更改代码，以修复这一缺陷并移除 === 的依赖。
 
@@ -1845,8 +1870,8 @@ if (x == y) {
 
 你不信我？觉得我太苛刻？试试在 TypeScript 中：
 
-```ts 
-let result = (42 == "42");
+```ts
+let result = 42 == "42";
 // 此条件将始终返回 'false'，因为
 // 类型 'number' 和 'string' 没有重叠。
 ```
@@ -1859,7 +1884,7 @@ let result = (42 == "42");
 
 更让我烦恼的是，TypeScript 在这方面有各种不一致之处。TypeScript 对于以下代码中的隐式强制是完全可以接受的：
 
-```ts 
+```ts
 irony = `The value '42' and ${42} are coercively equal.`;
 ```
 
@@ -1867,10 +1892,10 @@ irony = `The value '42' and ${42} are coercively equal.`;
 
 TypeScript 对这段代码也没有抱怨：
 
-```js 
+```js
 API_BASE_URL = "https://some.tld/api/2";
 if (API_BASE_URL) {
-    // ..
+  // ..
 }
 ```
 

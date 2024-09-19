@@ -22,29 +22,32 @@ Promise 最重要和最广泛使用的场景之一是数据获取。无论是实
 从代码的角度来看，其实就是这样：
 
 ```js
-console.log('first step'); // will log FIRST
-fetch('/some-url') // create promise here
- .then(() => {
- // wait for Promise to be done
- // log stuff after the promise is done
- console.log('second step'); // will log THIRD (if successful)
- })
- .catch(() => {
- console.log('something bad happened'); // will log THIRD (if
-error happens)
- });
-console.log('third step'); // will log SECOND
+console.log("first step"); // 将首先记录
+fetch("/some-url") // 在此创建承诺
+  .then(() => {
+    // 等待 Promise 完成
+    // 承诺完成后记录内容
+    console.log("second step"); // 将记录第三个（如果成功）
+  })
+  .catch(() => {
+    console.log("something bad happened"); // 将记录第三个（如果发生错误）
+  });
+console.log("third step"); // 将记录 SECOND
 ```
 
 基本流程是：创建一个 Promise fetch('/some-url')，在结果可用时在 .then 中执行某些操作，或在 .catch 中处理错误。就是这样。当然，还有一些其他细节需要了解，以便完全掌握 promises。但这个流程的核心足以理解本章的其余部分。
 
 ![](/assets/images/books/advanced-react/promise.png)
 
+---
+
 ### Promises 与竞态条件
 
 Promises 最有趣的部分之一是它们可能导致的竞态条件。为此，我实现了一个非常简单的应用进行实验，然后再深入代码。
 
-互动示例和完整代码 https://advanced-react.com/examples/15/01
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/15/01)
+</Callout>
 
 该应用在左侧有一个标签列，快速在标签之间导航会发送 fetch 请求，请求的数据在右侧渲染。如果我们尝试快速在标签之间导航，体验就会很糟糕：内容闪烁，数据似乎随机出现：有时第一个标签的内容出现，随后迅速被第二个标签替换，有时它们会形成某种轮播。整体行为非常奇怪。
 
@@ -55,10 +58,10 @@ const App = () => {
   const [page, setPage] = useState("1");
   return (
     <>
-      {/*left column buttons*/}
+      {/*左栏按钮*/}
       <button onClick={() => setPage("1")}>Issue 1</button>
       <button onClick={() => setPage("2")}>Issue 2</button>
-      {/*the actual content*/}
+      {/*实际内容*/}
       <Page id={page} />
     </>
   );
@@ -67,30 +70,32 @@ const App = () => {
 
 Page 组件接受当前页面的 id 作为 props，发送 fetch 请求以获取数据，然后渲染它。简化的实现（没有加载状态）看起来像这样：
 
-```jsx
+```tsx
 const Page = ({ id }: { id: string }) => {
- const [data, setData] = useState({});
- // pass id to fetch relevant data
- const url = `/some-url/${id}`;
- useEffect(() => {
- fetch(url)
- .then((r) => r.json())
- .then((r) => {
- // save data from fetch request to state
- setData(r);
- });
- }, [url]);
- // render data
- return (
- <>
+  const [data, setData] = useState({});
+  // 传递 id 来获取相关数据
+  const url = `/some-url/${id}`;
+  useEffect(() => {
+    fetch(url)
+      .then((r) => r.json())
+      .then((r) => {
+        // 将获取请求的数据保存到状态
+        setData(r);
+      });
+  }, [url]);
+  // 渲染数据
+  return (
+    <>
       <h2>{data.title}</h2>
- <p>{data.description}</p>
- </>
- );
+      <p>{data.description}</p>
+    </>
+  );
 };
 ```
 
 通过 id，我们确定从哪里获取数据。然后我们在 useEffect 中发送 fetch 请求，并将结果数据存储在状态中——一切都很标准。那么，竞态条件和奇怪行为的来源是什么呢？
+
+---
 
 ### 竞态条件的原因
 
@@ -116,12 +121,12 @@ const Page = ({ id }: { id: string }) => {
 
 但如果我在第一个 fetch 进行中并且尚未完成时点击导航按钮，id 更改会发生什么呢？会发生一个非常有趣的事情！
 
-App 组件将触发 Page 的重新渲染。
-useEffect 将再次被触发（id 已更改！）。
-fetch 将再次被触发，React 将继续正常运行。
-然后，第一个 fetch 将完成。它仍然保留对同一 Page 组件的 setData 的引用（记住——它刚刚更新，所以组件仍然是一样的）。
-第一个 fetch 后的 setData 将被触发，Page 组件将使用第一个 fetch 的数据更新自己。
-接着，第二个 fetch 完成。它也还在后台挂着，像任何 Promise 一样。它也有对同一 Page 组件的 setData 的引用，将被触发，Page 将再次更新，这次是第二个 fetch 的数据。
+- App 组件将触发 Page 的重新渲染。
+- seEffect 将再次被触发（id 已更改！）。
+- fetch 将再次被触发，React 将继续正常运行。
+- 然后，第一个 fetch 将完成。它仍然保留对同一 Page 组件的 setData 的引用（记住——它刚刚更新，所以组件仍然是一样的）。
+- 第一个 fetch 后的 setData 将被触发，Page 组件将使用第一个 fetch 的数据更新自己。
+- 接着，第二个 fetch 完成。它也还在后台挂着，像任何 Promise 一样。它也有对同一 Page 组件的 setData 的引用，将被触发，Page 将再次更新，这次是第二个 fetch 的数据。
 
 竞态条件发生了！在导航到新页面后，我们看到内容闪烁：来自第一个完成的 fetch 的内容被渲染，然后被来自第二个完成的 fetch 的内容替换。
 
@@ -133,9 +138,15 @@ fetch 将再次被触发，React 将继续正常运行。
 
 这种行为在下面的示例中可以看到。等待第一次加载完成，然后导航到第二页，再快速导航回第一页。
 
-互动示例和完整代码 https://advanced-react.com/examples/15/02
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/15/02)
+</Callout>
+
+互动示例和完整代码
 
 这真是太糟糕了：代码看起来无辜，但应用却是坏的。我们该如何解决它？
+
+---
 
 ### 修复竞态条件：强制重新挂载
 
@@ -159,19 +170,21 @@ const App = () => {
 
 ```jsx
 const About = () => {
- const [about, setAbout] = useState();
- useEffect(() => {
- fetch("/some-url-for-about-page")
- .then((r) => r.json())
- .then((r) => setAbout(r));
- }, []);
- ...
-}
+  const [about, setAbout] = useState();
+  useEffect(() => {
+    fetch("/some-url-for-about-page")
+      .then((r) => r.json())
+      .then((r) => setAbout(r));
+  }, []);
+  ...
+};
 ```
 
 这次在导航时应用中没有竞态条件。无论你导航多少次，速度多快：它的表现正常。
 
-互动示例和完整代码 https://advanced-react.com/examples/15/03
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/15/03)
+</Callout>
 
 为什么？
 
@@ -200,6 +213,8 @@ const About = () => {
 
 然而，对于一般的竞态条件问题，我并不推荐这种解决方案。存在太多的注意事项：性能可能会受到影响，聚焦和状态可能会出现意外的错误，下游渲染树中的 useEffect 可能会意外触发。这更像是把问题扫到地毯下。在某些情况下，如果小心使用，它可以成为你工具箱中的一个工具，但处理竞态条件有更好的方法（见下文）。
 
+---
+
 ### 修复竞态条件：丢弃不正确的结果
 
 解决竞态条件的一个更温和的方法，而不是将整个 Page 组件彻底清除，是确保在 .then 回调中返回的结果与当前“活动”的 id 匹配。
@@ -208,40 +223,40 @@ const About = () => {
 
 ```jsx
 const Page = ({ id }) => {
- // create ref
- const ref = useRef(id);
-     useEffect(() => {
- // update ref value with the latest id
- ref.current = id;
- fetch(`/some-data-url/${id}`)
- .then((r) => r.json())
- .then((r) => {
- // compare the latest id with the result
- // only update state if the result actually belongs to
-that id
- if (ref.current === r.id) {
- setData(r);
- }
- });
- }, [id]);
+  // 创建引用
+  const ref = useRef(id);
+  useEffect(() => {
+    // 使用最新的 id 更新 ref 值
+    ref.current = id;
+    fetch(`/some-data-url/${id}`)
+      .then((r) => r.json())
+      .then((r) => {
+        // 将最新的 id 与结果进行比较
+        // 仅当结果确实属于该 id 时才更新状态
+        if (ref.current === r.id) {
+          setData(r);
+        }
+      });
+  }, [id]);
 };
 ```
 
-互动示例和完整代码https://advanced-react.com/examples/15/04
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/15/04)
+</Callout>
 
 你的结果没有返回任何可靠的标识？没问题，我们可以简单地比较 URL：
 
 ```jsx
 const Page = ({ id }) => {
-  // create ref
+  // 创建引用
   const ref = useRef(id);
   useEffect(() => {
-    // update ref value with the latest url
+    // 使用最新的 url 更新 ref 值
     ref.current = url;
     fetch(`/some-data-url/${id}`).then((result) => {
-      // compare the latest url with the result's url
-      // only update state if the result actually belongs to that
-      url;
+      // 将最新的 url 与结果的 url 进行比较
+      // 仅当结果实际上属于该 url 时才更新状态；
       if (result.url === ref.current) {
         result.json().then((r) => {
           setData(r);
@@ -252,7 +267,11 @@ const Page = ({ id }) => {
 };
 ```
 
-互动示例和完整代码https://advanced-react.com/examples/15/05
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/15/05)
+</Callout>
+
+---
 
 ### 修复竞态条件：丢弃所有先前的结果
 
@@ -261,14 +280,13 @@ const Page = ({ id }) => {
 它的语法看起来是这样的：
 
 ```jsx
-// normal useEffect
+// 正常使用效果
 useEffect(() => {
-  // "cleanup" function - function that is returned in useEffect
+  // “cleanup” 函数 - 在 useEffect 中返回的函数
   return () => {
-    // clean something up here
+    // 清理一下这里
   };
-  // dependency - useEffect will be triggered every time url has
-  changed;
+  // 依赖项 - 每次 url 改变时都会触发 useEffect；
 }, [url]);
 ```
 
@@ -282,11 +300,11 @@ useEffect(() => {
 
 ```jsx
 useEffect(() => {
-  // local variable for useEffect's run
+  // useEffect 运行的局部变量
   let isActive = true;
-  // do fetch here
+  // 在这里获取
   return () => {
-    // local variable from above
+    // 来自上面的局​​部变量
     isActive = false;
   };
 }, [url]);
@@ -298,22 +316,24 @@ fetch Promise 虽然是异步的，但仍然只存在于该闭包内，并且仅
 
 ```jsx
 useEffect(() => {
-  // set this closure to "active"
+  // 将此闭包设置为“active”
   let isActive = true;
   fetch(`/some-data-url/${id}`)
     .then((r) => r.json())
     .then((r) => {
-      // if the closure is active - update state
+      // 如果闭包处于活动状态 - 更新状态
       if (isActive) {
         setData(r);
       }
     });
   return () => {
-    // set this closure to not active before next re-render
+    // 在下次重新渲染之前将此闭包设置为不活动状态
     isActive = false;
   };
 }, [id]);
 ```
+
+---
 
 ### 修复竞态条件：取消所有先前的请求
 
@@ -325,16 +345,16 @@ useEffect(() => {
 
 ```jsx
 useEffect(() => {
-  // create controller here
+  // 在此创建控制器
   const controller = new AbortController();
-  // pass controller as signal to fetch
+  // 将控制器作为信号传递给获取
   fetch(url, { signal: controller.signal })
     .then((r) => r.json())
     .then((r) => {
       setData(r);
     });
   return () => {
-    // abort the request here
+    // 在此中止请求
     controller.abort();
   };
 }, [url]);
@@ -351,16 +371,20 @@ fetch(url, { signal: controller.signal })
     setData(r);
   })
   .catch((error) => {
-    // error because of AbortController
+    // 由于 AbortController 而导致的错误
     if (error.name === "AbortError") {
-      // do nothing
+      // 不做任何事
     } else {
-      // do something, it's a real error!
+      // 做点什么，这是一个真正的错误！
     }
   });
 ```
 
-互动示例和完整代码 https://advanced-react.com/examples/15/07
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/15/07)
+</Callout>
+
+---
 
 ### Async/await 会改变什么吗？
 
@@ -382,9 +406,13 @@ setData(result);
 
 用 async/await 实现的完全相同的应用与“传统” promises 将具有完全相同的竞态条件。
 
-互动示例和完整代码 https://advanced-react.com/examples/15/08
+<Callout icon="🔍">
+  [互动示例和完整代码](https://advanced-react.com/examples/15/08)
+</Callout>
 
 以上的所有解决方案和原因仍然适用，只是语法略有不同。
+
+---
 
 ### 关键要点
 
@@ -397,7 +425,7 @@ setData(result);
     fetch(url)
       .then((r) => r.json())
       .then((r) => {
-        // this is vulnerable to the race conditions
+        // 这很容易受到竞争条件的影响
         setData(r);
       });
   }, [url]);
