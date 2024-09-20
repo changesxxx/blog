@@ -1,11 +1,11 @@
 ---
 title: "React 中的闭包"
-description: "在上一章中，我们学习了有关 Refs 的所有知识：它们是什么、我们为何需要它们、何时使用它们以及何时不使用它们。然而，当涉及到在重新渲染之间保持某些内容时，尤其是在 Refs 中，还有一个额外的话题我们需要讨论：函数。"
+description: "在上一章中，我们学习了有关 Refs 的所有知识：它们是什么、我们为何需要它们、何时使用它们以及何时不使用它们。然而，当涉及到在重新渲染之间保持某些内容时，尤其是在 Refs 中，还有一个额外的话题我们需要讨论：函数。更具体地说，闭包及其存在对我们代码的影响。"
 
 name: "closures-in-react"
 ---
 
-更具体地说，闭包及其存在对我们代码的影响。让我们看看几个非常有趣且相当典型的错误，它们是如何出现的，并在此过程中学习：
+让我们看看几个非常有趣且相当典型的错误，它们是如何出现的，并在此过程中学习：
 
 - 什么是闭包，它们是如何出现的，我们为何需要它们。
 - 什么是过时闭包，为什么会发生。
@@ -156,10 +156,9 @@ const something = () => {};
 
 ```jsx
 const something = () => {
- const value = 'text';
+  const value = "text";
 };
-console.log(value); //不起作用，“value” 是本地的
-"something" function
+console.log(value); //不起作用，“value” 是在 "something" 函数内部变量
 ```
 
 每次我们创建一个函数时都会发生这种情况。一个在另一个函数内部创建的函数将拥有自己的局部作用域，对外部函数不可见。
@@ -169,7 +168,7 @@ const something = () => {
   const inside = () => {
     const value = "text";
   };
-  console.log(value); //不起作用，“value” 是 “inside” 函数的本地函数
+  console.log(value); //不起作用，“value” 是 “inside” 函数内部变量
 };
 ```
 
@@ -224,8 +223,8 @@ const something = (value) => {
 };
 const first = something("first");
 const second = something("second");
-first(); // 记录随机数
-second(); //记录另一个随机数
+first(); // 打印随机数
+second(); //打印另一个随机数
 ```
 
 这就像拍摄动态场景的照片：一旦按下快门，整个场景就会“冻结”在照片中，永远保持不变。下一次按下快门不会改变之前拍摄的照片。
@@ -349,9 +348,9 @@ const something = (value) => {
 现在它将正确记录变量，如果我们比较具有相同值的函数，该比较将返回 true：
 
 ```jsx
-互动示例和完整代码 const first = something('first');
-const anotherFirst = something('first');
-const second = something('second');
+const first = something("first");
+const anotherFirst = something("first");
+const second = something("second");
 first(); // logs "first"
 second(); // logs "second"
 console.log(first === anotherFirst); // 将为 true
@@ -365,7 +364,7 @@ console.log(first === anotherFirst); // 将为 true
 
 ### 在 React 中的过时闭包：useCallback
 
-如果你还记得 Memoization 章节中的 useMemo、useCallback 和 React.memo，这段代码应该显得熟悉。确实，我们正是实现了 useCallback 钩子为我们做的事情。每次使用 useCallback 时，我们都会创建一个闭包，而我们传递给它的函数被缓存：
+如果你还记得 记忆化 章节中的 useMemo、useCallback 和 React.memo，这段代码应该显得熟悉。确实，我们正是实现了 useCallback 钩子为我们做的事情。每次使用 useCallback 时，我们都会创建一个闭包，而我们传递给它的函数被缓存：
 
 ```jsx
 // 该内联函数的缓存与前面的部分完全相同
@@ -403,6 +402,61 @@ const Component = () => {
 
 <Callout icon="🔍">
   [互动示例和完整代码](https://advanced-react.com/examples/10/03)
+</Callout>
+
+<Callout icon="📝" type="notes">
+
+笔记: 这里说白了就是react状态比较(状态前后快照对比)
+
+```jsx
+const onClick = useCallback(() => {
+  console.log(state);
+}, []);
+```
+
+这里react在首次渲染组件时就会记录这个函数,依赖项为空后续重新渲染组件时则不会重新创建这个函数。相当于状态更新进行比较(两张快照比较,依赖项就是需要对比的数据。没有依赖项相当于Object.is(null,null)返回的永远是true)。而react记录这个函数相当与:
+
+```js
+// 记录这个函数,如果依赖项不发生变化将一直采用这个函数
+function onClick() {
+  //假设state值为1
+  // 记录的是当前state数据 而非state引用!!!
+  console.log(1); //后续一直打印1 即使state确实发生了改变
+}
+```
+
+只有依赖项存在,并依赖项改变react才会再次生成快照记录函数:
+
+```js
+// 记录这个函数,如果依赖项不发生变化将一直采用这个函数
+function onClick() {
+  //假设state值发生改变 最新值为:100
+  //记录的是当前state数据 而非state引用!!!
+  console.log(100); //后续一直打印100 除非依赖再次发生改变 react再次创建函数
+}
+```
+
+与普通闭包不同处:
+
+在react中使用缓存记录的函数产生的闭包是直接将数据直接保存在函数中(快照保存的是当前真实数据而非引用),而普通闭包则是对值得引用(当然也可以是具体值,这里只是说明下react闭包保存的是具体值而非引用):
+
+```js
+function foo() {
+  var random = Math.random();
+
+  return function () {
+    console.log(random);
+  };
+}
+
+var getRandom = foo();
+var getRandom1 = foo();
+
+getRandom(); //0.2134942987505981
+
+getRandom1(); //0.5112167717209992
+```
+
 </Callout>
 
 ---
@@ -499,7 +553,7 @@ const Form = () => {
 };
 ```
 
-每次我们点击按钮时，我们记录“未定义”。我们内部的 onClick 值从未更新。你能告诉我为什么吗？当然，答案是过时闭包。当我们创建 onClick 时，闭包首先与默认状态值（即“未定义”）形成。我们将该闭包传递给我们的记忆组件，连同 title 属性。在比较函数内部，我们只比较 title。它从未改变，它只是一个字符串。比较函数始终返回 true，HeavyComponent 从未更新，因此持有对非常第一个 onClick 闭包的引用，冻结的“未定义”值。
+每次我们点击按钮时，我们打印“undefined”。我们内部的 onClick 值从未更新。你能告诉我为什么吗？当然，答案是过时闭包。当我们创建 onClick 时，闭包首先与默认状态值（即“undefined”）形成。我们将该闭包传递给我们的记忆组件，连同 title 属性。在比较函数内部，我们只比较 title。它从未改变，它只是一个字符串。比较函数始终返回 true，HeavyComponent 从未更新，因此持有对非常第一个 onClick 闭包的引用，冻结的“undefined”值。
 
 现在我们知道了问题所在，我们该如何修复它？说起来容易，但在这里并不简单……
 
@@ -543,9 +597,6 @@ const Form = () => {
     </>
   );
 };
-const test = memo(() => {
-  return <div>test</div>;
-});
 ```
 
 现在我们需要添加一个在重新渲染之间稳定的 onClick 函数，但同时又能访问最新的状态，而不需要重新创建自己。

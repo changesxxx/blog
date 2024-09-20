@@ -52,7 +52,7 @@ element.scrollIntoView();
 
 ### 什么是 Ref？
 
-Ref 是一个可变对象，React 在重新渲染之间保持它的存在。记住，组件内声明的所有内容都会不断被重新创建？
+&zwj;<mark>Ref 是一个可变对象，React 在重新渲染之间保持它的存在。</mark>还记得，组件内声明的所有内容都会不断被重新创建吗？
 
 ```jsx
 const Component = () => {
@@ -61,7 +61,7 @@ const Component = () => {
 };
 ```
 
-组件只是函数，所以其中的一切基本上是该函数的局部变量。Refs 允许我们绕过这个限制。
+&zwj;<mark>组件只是函数，所以其中的一切基本上是该函数的局部变量。</mark>Refs 允许我们绕过这个限制。
 要创建一个 Ref，我们可以使用 useRef 钩子，并传递 Ref 的初始值：
 
 ```jsx
@@ -170,7 +170,7 @@ const Form = () => {
 
 ### Ref 更新不会触发重新渲染
 
-Refs 和状态之间最大的、最明显的区别之一是，Refs 的更新不会导致重新渲染。如果你在这两种形式中都放置 console.log，你会看到使用状态的 Form 组件在每次键入时都会重新渲染，而使用 Ref 的 Form 则保持安静。
+&zwj;<mark>Refs 和状态之间最大的、最明显的区别之一是，Refs 的更新不会导致重新渲染。</mark>如果你在这两种形式中都放置 console.log，你会看到使用状态的 Form 组件在每次键入时都会重新渲染，而使用 Ref 的 Form 则保持安静。
 
 ```jsx
 useEffect(() => {
@@ -271,7 +271,7 @@ Ref 更新永远不会触发重新渲染，因此 SearchResults 组件上的搜�
 
 ### Ref 更新是同步和可变的
 
-第二个大区别是，Ref 更新是同步的。我们毕竟只是修改一个对象，这在 JavaScript 中是一个同步操作。然而，状态通常是异步的。它甚至不仅仅是异步的：状态更新在“快照”中运行。React 有一个复杂的系统来管理它，并确保在一个“快照”内的数据和组件是一致的并正确更新。
+第二个大区别是，<mark>Ref 更新是同步的。我们毕竟只是修改一个对象，这在 JavaScript 中是一个同步操作。然而，state通常是异步的。它甚至不仅仅是异步的：状态更新在“快照”中运行。</mark>React 有一个复杂的系统来管理它，并确保在一个“快照”内的数据和组件是一致的并正确更新。
 
 然而，Ref 则没有这些：我们直接修改一个对象，仅此而已。
 
@@ -283,7 +283,7 @@ const Form = () => {
   const onChange = (e) => {
     console.log("before", value);
     setValue(e.target.value);
-    console.log("after", value); // 同上
+    console.log("after", value); // 和上面是一样的数据
   };
 };
 ```
