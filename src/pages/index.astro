@@ -28,6 +28,7 @@ import Layout from '../layouts/Layout.astro'
             >
           </font>
         </p>
+
       </div>
     </section>
   </div>
@@ -36,4 +37,48 @@ import Layout from '../layouts/Layout.astro'
 <!-- 吾生也有涯,而知也无涯,以有涯随无涯,殆已 -->
 <!-- 天下间的知识如浩瀚大海，无穷无尽，但人的时间、精力、心思却有限。如果盲目追求，没有目标和方向，就真的没完没了；但如果所学习的是真知和正见，确定自己的目标，有的放矢地去学习，而不是盲目追求知识，就是值得鼓励和欣赏的。 -->
 
-<style lang="less"></style>
+<style lang="less">
+  .section.connector_hero {
+    background-color: var(--base-color-brand--yellow-light);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .spray-bg-container {
+    z-index: 0;
+    opacity: 0.6;
+    pointer-events: none;
+    mix-blend-mode: multiply;
+    background-image: url('/assets/images/page/home/cartoon_logo_cover.png');
+    background-position: 50%;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-attachment: scroll;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0%;
+    overflow: hidden;
+  }
+
+  .connectors-hero-graphic-container {
+    pointer-events: none;
+    justify-content: center;
+    align-items: flex-end;
+    height: 220px;
+    overflow: hidden;
+  }
+
+  .w-layout-hflex {
+    flex-direction: row;
+    align-items: flex-start;
+    display: flex;
+  }
+
+  .connectors-hero-graphic {
+    width: 110%;
+    max-width: none;
+    position: absolute;
+    bottom: 0;
+  }
+</style>
