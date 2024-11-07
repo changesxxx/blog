@@ -1,0 +1,21 @@
+ <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision"
+        viewBox="0 0 1920 1080">
+        <g fill="#fff">
+          <circle cx="758" cy="1024" r="120" />
+          <circle cx="615.5" cy="1054.5" r="104.5" />
+          <circle cx="925.5" cy="1060.5" r="104.5" />
+          <circle cx="1668.5" cy="1028.5" r="104.5" />
+          <circle cx="1162.5" cy="1076.5" r="88.5" />
+          <circle cx="1407.5" cy="1090.5" r="88.5" />
+          <circle cx="1768.5" cy="960.5" r="77.5" />
+          <circle cx="1876.5" cy="868.5" r="88.5" />
+          <circle cx="1296.5" cy="1074.5" r="104.5" />
+          <circle cx="1047.5" cy="1064.5" r="63.5" />
+          <circle cx="1528.5" cy="1083.5" r="63.5" />
+          <circle cx="461" cy="1106" r="99" />
+          <circle cx="319" cy="1113" r="99" />
+          <circle cx="196" cy="1072" r="99" />
+          <circle cx="61" cy="1014" r="116" />
+          <path d="M1921 1189V861l-338 207s-1438-13-1438 0S-1 942-1 942v246" />
+        </g>
+      </svg>

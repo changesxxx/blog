@@ -3,157 +3,120 @@ import Layout from '../layouts/Layout.astro'
 ---
 
 <Layout title="Welcome to DGTS">
-  <div class="home">
-    <div class="page-main">
-      <section class="is--home">
-        <div class="section connector_hero space-y-6 py-12 sm:py-20 lg:py-20">
-          <div class="spray-bg-container"></div>
-
-          <div
-            class="container flex max-w-5xl flex-col items-center gap-5 text-center"
-          >
-            <h1
-              class="text-balance font-heading text-4xl sm:text-2xl md:text-4xl lg:text-[42px]"
-              style="width: 80%;"
-            >
-              <font style="vertical-align: inherit;">
-                <font style="vertical-align: inherit;"
-                  >吾生也有涯,而知也无涯,以有涯随无涯,殆已</font
-                >
-              </font>
-            </h1>
-
-            <p
-              class="max-w-2xl text-balance leading-normal text-muted-foreground sm:text-xs sm:leading-8"
-            >
-              <font style="vertical-align: inherit;">
-                <font style="vertical-align: inherit;"
-                  >天下间的知识如浩瀚大海，无穷无尽，但人的时间、精力、心思却有限。如果盲目追求，没有目标和方向，就真的没完没了；但如果所学习的是真知和正见，确定自己的目标，有的放矢地去学习，而不是盲目追求知识，就是值得鼓励和欣赏的。</font
-                >
-              </font>
-            </p>
-
-            <div class="w-layout-hflex connectors-hero-graphic-container">
-              <img
-                src="/assets/images/page/home/cartoon_logo.png"
-                loading="eager"
-                sizes="100vw"
-                alt=""
-                class="connectors-hero-graphic"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div style="height: 220px;" class="intro__waves">
-        <picture class="base-image"
-          ><img
-            src="/assets/images/page/home/cloud.png"
-            alt="Joel Maynard"
-            style="opacity: 1;"
-          /></picture
+  <div class="page-main">
+    <section class="space-y-6 py-24 sm:py-20 lg:py-20 h-[54rem] content">
+      <!-- 标题 -->
+      <div
+        class="container flex max-w-5xl flex-col items-center gap-5 text-center"
+      >
+        <h1
+          class="text-balance font-heading text-4xl sm:text-2xl md:text-4xl lg:text-[42px]"
+          style="width: 80%;"
         >
+          <font style="vertical-align: inherit;">
+            <font style="vertical-align: inherit;">吾生也有涯,而知也无涯</font>
+          </font>
+        </h1>
+
+        <h1
+          class="text-balance font-heading text-4xl sm:text-2xl md:text-4xl lg:text-[42px]"
+          style="width: 80%;"
+        >
+          <font style="vertical-align: inherit;">
+            <font style="vertical-align: inherit;">以有涯随无涯,殆已</font>
+          </font>
+        </h1>
+
+        <p
+          class="max-w-2xl text-balance leading-normal text-muted-foreground sm:text-xs sm:leading-8"
+        >
+          <font style="vertical-align: inherit;">
+            <font style="vertical-align: inherit;"
+              >天下间的知识如浩瀚大海，无穷无尽，但人的时间、精力、心思却有限。如果盲目追求，没有目标和方向，就真的没完没了；但如果所学习的是真知和正见，确定自己的目标，有的放矢地去学习，而不是盲目追求知识，就是值得鼓励和欣赏的。</font
+            >
+          </font>
+        </p>
       </div>
+
+      <div class="clouds3"></div>
+      <div class="clouds2"></div>
+      <div class="clouds1"></div>
+
+   <!--      <div class="cartoon-logo">
+          <img src="/assets/images/page/home/cartoon_logo.png" alt="" />
+        </div> -->
+    </section>
+
+    <div
+      style="height: 400px;background-color: #fff; display: flex;
+        justify-content: center;
+        align-items: center;"
+    >
+      <div>hahahahhahha</div>
     </div>
   </div>
-</Layout>
 
-<!-- 吾生也有涯,而知也无涯,以有涯随无涯,殆已 -->
-<!-- 天下间的知识如浩瀚大海，无穷无尽，但人的时间、精力、心思却有限。如果盲目追求，没有目标和方向，就真的没完没了；但如果所学习的是真知和正见，确定自己的目标，有的放矢地去学习，而不是盲目追求知识，就是值得鼓励和欣赏的。 -->
-
-<style lang="less">
-  .section.connector_hero {
-    // background-color: rgba(61, 80, 245, 0.5);
-    position: relative;
-    overflow: hidden;
-  }
-
-  /*   .home {
-    background-image: linear-gradient(
-        rgba(158, 0, 0, 0.06) 2px,
-        transparent 2px
-      ),
-      linear-gradient(90deg, rgba(158, 0, 0, 0.06) 2px, transparent 2px),
-      linear-gradient(rgba(158, 0, 0, 0.06) 1px, transparent 1px),
-      linear-gradient(
-        90deg,
-        rgba(158, 0, 0, 0.06) 1px,
-        rgba(252, 249, 245, 0) 1px
-      );
-    background-size:
-      105px 105px,
-      105px 105px,
-      21px 21px,
-      21px 21px;
-  } */
-
-  .intro__waves {
-    background-color: transparent;
-    width: 100vw;
-    /*     position: absolute;
-    top: 0; */
-    transform: translateY(-50%);
-
-    .base-image {
-      display: block;
+  <style lang="less">
+    .content {
+      position: relative;
       overflow: hidden;
+      transform-style: preserve-3d;
+
+      background-image: url('/assets/images/page/home/light.svg');
+
+      .clouds1,
+      .clouds2,
+      .clouds3 {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: 0;
+
+        background-size: 100% auto;
+        background-position: bottom;
+        background-repeat: no-repeat;
+      }
+
+      .clouds3 {
+        z-index: 1;
+        background-image: url('/assets/images/page/home/clouds3.svg');
+      }
+
+      .clouds2 {
+        z-index: 2;
+        background-image: url('/assets/images/page/home/clouds2.svg');
+      }
+
+      .clouds1 {
+        z-index: 3;
+        background-image: url('/assets/images/page/home/clouds1.svg');
+        bottom: -1px;
+      }
+
+      .cartoon-logo {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: absolute;
+        width: 100%;
+
+        bottom: 0;
+
+        background-size: 100%;
+        background-repeat: no-repeat;
+
+        height: 220px;
+
+        overflow: hidden;
+
+        z-index: 10;
+
+        img {
+          width: 50%;
+          max-width: none;
+        }
+      }
     }
-
-    img {
-      max-width: inherit;
-    }
-  }
-
-  .is--home {
-    height: 100%;
-    background-image: url('/assets/images/page/home/light.svg');
-
-    background-size:
-      105px 105px,
-      105px 105px,
-      21px 21px,
-      21px 21px;
-    background-position: 100% 0;
-    background-repeat: no-repeat;
-    background-size: contain;
-  }
-
-  .spray-bg-container {
-    z-index: 0;
-    opacity: 0.6;
-    pointer-events: none;
-    mix-blend-mode: multiply;
-    // background-image: url('/assets/images/page/home/cartoon_logo_cover.png');
-    background-position: 50%;
-    background-repeat: no-repeat;
-    background-size: cover;
-    background-attachment: scroll;
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    inset: 0%;
-    overflow: hidden;
-  }
-
-  .connectors-hero-graphic-container {
-    pointer-events: none;
-    justify-content: center;
-    align-items: flex-end;
-    height: 220px;
-    overflow: hidden;
-  }
-
-  .w-layout-hflex {
-    flex-direction: row;
-    align-items: flex-start;
-    display: flex;
-  }
-
-  .connectors-hero-graphic {
-    width: 110%;
-    max-width: none;
-    position: absolute;
-    bottom: 0;
-  }
-</style>
+  </style>
+</Layout>

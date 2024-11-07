@@ -1,0 +1,20 @@
+  <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision"
+        viewBox="0 0 1920 1080">
+        <g fill="#28a1fd">
+          <circle cx="225.5" cy="939.5" r="138.5" />
+          <circle cx="49" cy="919" r="94" />
+          <circle cx="360" cy="1029" r="94" />
+          <circle cx="676" cy="1043" r="94" />
+          <circle cx="969.5" cy="972.5" r="109.5" />
+          <circle cx="823.5" cy="1004.5" r="109.5" />
+          <circle cx="511.5" cy="1057.5" r="109.5" />
+          <circle cx="1251" cy="883" r="97" />
+          <ellipse cx="1522" cy="893.5" rx="113" ry="112.5" />
+          <circle cx="1720" cy="901" r="97" />
+          <circle cx="1871" cy="973" r="97" />
+          <ellipse cx="1645.5" cy="830" rx="79.5" ry="77" />
+          <circle cx="1129" cy="914" r="118" />
+          <circle cx="1369" cy="927" r="97" />
+          <path d="M1921 945v317L2 1282l-2-246V921l600 115 623-157z" />
+        </g>
+      </svg>

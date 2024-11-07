@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<style>
+  body {
+    margin: 0;
+  }
+
+  .box {
+
+    height: 400px;
+    position: relative;
+    position: relative;
+    overflow: hidden;
+    transform-style: preserve-3d;
+
+    background-image: url('./img/light.svg')
+  }
+
+  .clouds1,
+  .clouds2,
+  .clouds3 {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: 0;
+
+    background-size: 100% auto;
+    background-position: bottom;
+    background-repeat: no-repeat;
+  }
+
+  .clouds3 {
+    z-index: 1;
+    background-image: url('./svg/clouds3.svg');
+  }
+
+  .clouds2 {
+    z-index: 2;
+    background-image: url('./svg/clouds2.svg');
+  }
+
+  .clouds1 {
+    z-index: 3;
+    background-image: url('./svg/clouds1.svg');
+    bottom: -1px;
+
+  }
+
+  .connectors-hero-graphic-container {
+    position: absolute;
+
+    bottom: 0;
+    width: 100%;
+    z-index: 10;
+
+
+    background-size: 100%;
+    background-repeat: no-repeat;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 220px;
+    overflow: hidden;
+
+
+  }
+
+  .cover {
+    width: 50%;
+
+    /* background-image: url('./img/cartoon_logo_cover.png'); */
+  }
+
+  .connectors-hero-graphic-container img {
+    width: 100%;
+    max-width: none;
+  }
+
+  .box2 {
+    margin-top: 30px;
+  }
+</style>
+
+<body>
+  <div class="box">
+    <div class="clouds3" style="bottom: -43.4286px;">
+
+    </div>
+    <div class="clouds2" style="bottom: -21.7143px;">
+
+    </div>
+    <div class="clouds1">
+
+
+
+    </div>
+
+
+    <div class="connectors-hero-graphic-container">
+      <div class="cover">
+        <img src="./img/cartoon_logo.png" alt="">
+
+      </div>
+    </div>
+  </div>
+
+
+</body>
+
+</html>
