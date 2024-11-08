@@ -1,9 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro'
+
+import AnimatedTabs from '@/components/AnimatedTabs'
 ---
 
 <Layout title="Welcome to DGTS">
-  <div class="page-main">
+  <div class="page-main bg-white">
     <section class="space-y-6 py-24 sm:py-20 lg:py-20 h-[54rem] content">
       <!-- 标题 -->
       <div
@@ -41,82 +43,74 @@ import Layout from '../layouts/Layout.astro'
       <div class="clouds3"></div>
       <div class="clouds2"></div>
       <div class="clouds1"></div>
-
-   <!--      <div class="cartoon-logo">
-          <img src="/assets/images/page/home/cartoon_logo.png" alt="" />
-        </div> -->
     </section>
 
-    <div
-      style="height: 400px;background-color: #fff; display: flex;
-        justify-content: center;
-        align-items: center;"
-    >
-      <div>hahahahhahha</div>
+    <div class="pt-24 py-16 lg:py-24 lg:pt-32 max-w-screen-xl mx-auto">
+      <AnimatedTabs client:load />
     </div>
-  </div>
 
-  <style lang="less">
-    .content {
-      position: relative;
-      overflow: hidden;
-      transform-style: preserve-3d;
-
-      background-image: url('/assets/images/page/home/light.svg');
-
-      .clouds1,
-      .clouds2,
-      .clouds3 {
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        top: 0;
-
-        background-size: 100% auto;
-        background-position: bottom;
-        background-repeat: no-repeat;
-      }
-
-      .clouds3 {
-        z-index: 1;
-        background-image: url('/assets/images/page/home/clouds3.svg');
-      }
-
-      .clouds2 {
-        z-index: 2;
-        background-image: url('/assets/images/page/home/clouds2.svg');
-      }
-
-      .clouds1 {
-        z-index: 3;
-        background-image: url('/assets/images/page/home/clouds1.svg');
-        bottom: -1px;
-      }
-
-      .cartoon-logo {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        position: absolute;
-        width: 100%;
-
-        bottom: 0;
-
-        background-size: 100%;
-        background-repeat: no-repeat;
-
-        height: 220px;
-
+    <style lang="less">
+      .content {
+        position: relative;
         overflow: hidden;
+        transform-style: preserve-3d;
 
-        z-index: 10;
+        background-image: url('/assets/images/page/home/light.svg');
 
-        img {
-          width: 50%;
-          max-width: none;
+        .clouds1,
+        .clouds2,
+        .clouds3 {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          top: 0;
+
+          background-size: 100% auto;
+          background-position: bottom;
+          background-repeat: no-repeat;
+        }
+
+        .clouds3 {
+          z-index: 1;
+          background-image: url('/assets/images/page/home/clouds3.svg');
+        }
+
+        .clouds2 {
+          z-index: 2;
+          background-image: url('/assets/images/page/home/clouds2.svg');
+        }
+
+        .clouds1 {
+          z-index: 3;
+          background-image: url('/assets/images/page/home/clouds1.svg');
+          bottom: -1px;
+        }
+
+        .cartoon-logo {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          position: absolute;
+          width: 100%;
+
+          bottom: 0;
+
+          background-size: 100%;
+          background-repeat: no-repeat;
+
+          height: 220px;
+
+          overflow: hidden;
+
+          z-index: 10;
+
+          img {
+            width: 50%;
+            max-width: none;
+          }
         }
       }
-    }
-  </style>
+    </style>
+  </div>
 </Layout>
