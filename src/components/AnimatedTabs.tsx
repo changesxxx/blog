@@ -1,35 +1,38 @@
 import React, { memo, useState } from 'react'
 import { motion } from 'framer-motion'
 
-let tabs = [{ id: 'html' }, { id: 'js' }, { id: 'react' }, { id: 'vue' }]
 
+interface Tab {
+  name: string
+  icon: string
+}
+interface TabsProps {
+  tabs: Tab[]
+  activeTab: string
+  tabClickHandle: (tab: string) => void
+}
 
 // 图片路径的基本前缀
 const basePath = '/assets/images/page/home/'
 
-const AnimatedTabs = memo(() => {
+const AnimatedTabs = memo(({ tabs, activeTab, tabClickHandle }: TabsProps) => {
 
-  const [activeTab, setActiveTab] = useState(tabs[0].id)
 
   return (
     <div
-      className=" h-[32rem] py-6 px-6 mt-8"
-      // style={{ backgroundImage: `url('/assets/img/blue_sky.jpg')` }}
+      className=" py-6  mt-8"
     >
-      <div className="flex space-x-1 h-20 ">
+      <div className="flex space-x-1 h-20  justify-center">
         {tabs.map((tab) => (
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            // hover:text-white/60 overflow-hidden
-            className={`${
-              activeTab === tab.id ? '' : ''
-            } w-20 relative  px-3 py-3    flex justify-center `}
+            key={tab.name}
+            onClick={() => tabClickHandle(tab.name)}
+            className="w-20 relative  px-3 py-3    flex justify-center"
             style={{
               WebkitTapHighlightColor: 'transparent',
             }}
           >
-            {activeTab === tab.id && (
+            {activeTab === tab.name && (
               <>
                 <motion.div
                   className="absolute top-[-67px] left-1/4 w-8 h-14 bg-no-repeat bg-center"
@@ -51,8 +54,8 @@ const AnimatedTabs = memo(() => {
             )}
             <img
               className="w-8 h-8"
-              src={`${basePath}${tab.id}.svg`}
-              alt={tab.id}
+              src={`${basePath}${tab.name}.svg`}
+              alt={tab.name}
             />
           </button>
         ))}

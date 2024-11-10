@@ -1,7 +1,7 @@
 ---
-import Layout from '../layouts/Layout.astro'
+import Layout from "../layouts/Layout.astro";
 
-import AnimatedTabs from '@/components/AnimatedTabs'
+import TechnologyStack from "@/components/TechnologyStack";
 ---
 
 <Layout title="Welcome to DGTS">
@@ -46,8 +46,10 @@ import AnimatedTabs from '@/components/AnimatedTabs'
     </section>
 
     <div class="pt-24 py-16 lg:py-24 lg:pt-32 max-w-screen-xl mx-auto">
-      <AnimatedTabs client:load />
+      <TechnologyStack client:load />
     </div>
+
+    <div>hahahha</div>
 
     <style lang="less">
       .content {
@@ -55,7 +57,7 @@ import AnimatedTabs from '@/components/AnimatedTabs'
         overflow: hidden;
         transform-style: preserve-3d;
 
-        background-image: url('/assets/images/page/home/light.svg');
+        background-image: url("/assets/images/page/home/light.svg");
 
         .clouds1,
         .clouds2,
@@ -73,17 +75,17 @@ import AnimatedTabs from '@/components/AnimatedTabs'
 
         .clouds3 {
           z-index: 1;
-          background-image: url('/assets/images/page/home/clouds3.svg');
+          background-image: url("/assets/images/page/home/clouds3.svg");
         }
 
         .clouds2 {
           z-index: 2;
-          background-image: url('/assets/images/page/home/clouds2.svg');
+          background-image: url("/assets/images/page/home/clouds2.svg");
         }
 
         .clouds1 {
           z-index: 3;
-          background-image: url('/assets/images/page/home/clouds1.svg');
+          background-image: url("/assets/images/page/home/clouds1.svg");
           bottom: -1px;
         }
 
